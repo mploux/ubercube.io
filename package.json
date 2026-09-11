@@ -1,0 +1,17 @@
+{
+  "name": "ubercube",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun scripts/dev.ts",
+    "build": "bun scripts/build.ts",
+    "start": "bun src/server/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test tests",
+    "check": "bun run typecheck && bun test tests && bun run build",
+    "loadtest": "bun scripts/loadtest.ts"
+  },
+  "dependencies": { "three": "^0.183.0" },
+  "devDependencies": { "@types/bun": "^1.3.11", "@types/three": "^0.183.0", "typescript": "^5.9.3" }
+}

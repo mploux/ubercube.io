@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#171a18" />
+    <meta name="description" content="UBERCUBE. Un FPS multijoueur dans un monde entièrement destructible. Construisez votre couverture. Ouvrez votre chemin." />
+    <title>UBERCUBE — Un terrain. Aucune limite.</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="stylesheet" href="/main.css" />
+  </head>
+  <body>
+    <canvas id="viewport" aria-label="Monde voxel UBERCUBE"></canvas>
+    <div class="world-shade" id="world-shade"></div>
+    <header id="site-header">
+      <a class="wordmark" href="/" aria-label="UBERCUBE accueil"><span class="cube-logo" aria-hidden="true"></span>UBERCUBE</a>
+      <div class="server-status"><span id="connection-dot" class="status-dot"></span><span id="server-state">CONNEXION AU TERRAIN</span><span class="header-divider"></span><span id="server-mode">MULTIJOUEUR</span></div>
+      <span class="build-label">BUILD 0.1 <span>/</span> EN DÉVELOPPEMENT</span>
+    </header>
+
+    <main>
+      <section id="entry-screen" class="screen entry-screen">
+        <div class="entry-copy">
+          <div class="eyebrow"><span class="small-cross">+</span> FPS MULTIJOUEUR · MONDE DESTRUCTIBLE</div>
+          <h1>LE TERRAIN<br />EST <span>À VOUS.</span></h1>
+          <p class="hero-description">Construisez votre couverture.<br />Détruisez la leur.</p>
+          <div class="world-coordinates"><span class="crosshair-icon" aria-hidden="true">⌖</span> <span id="world-label">EXPLORATION DU TERRAIN</span><span class="coordinate-line"></span></div>
+        </div>
+        <form id="join-form" class="join-panel">
+          <div class="panel-index">01 <span>/ ENTRER SUR LE TERRAIN</span></div>
+          <h2>Un pseudo.<br /> Et c’est parti.</h2>
+          <p>Pas de compte. Pas d’attente.<br />Votre équipe vous attend sur le terrain.</p>
+          <label for="nickname">VOTRE PSEUDO</label>
+          <div class="input-shell"><input id="nickname" name="nickname" autocomplete="nickname" maxlength="24" minlength="2" placeholder="Votre nom de combat" required /><span aria-hidden="true">↗</span></div>
+          <button id="join-button" class="button button-primary" type="submit"><span>REJOINDRE LE LOBBY</span><span aria-hidden="true">→</span></button>
+          <div class="join-meta"><span class="live-dot"></span><span id="population">Chargement du serveur…</span><span id="entry-mode"></span></div>
+          <p id="join-error" class="error-text" role="alert"></p>
+        </form>
+        <div class="entry-bottom"><span><b>01</b> EXPLORER</span><span><b>02</b> CONSTRUIRE</span><span><b>03</b> COMBATTRE</span><span class="bottom-note">CHAQUE BLOC CHANGE LA PARTIE.</span></div>
+      </section>
+
+      <section id="lobby-screen" class="screen lobby-screen" hidden>
+        <div class="lobby-heading"><div class="eyebrow"><span class="small-cross">+</span> <span id="lobby-eyebrow">ÉQUIPEMENT DE DÉPART</span></div><h1>CHOISISSEZ<br />VOTRE <span>APPROCHE.</span></h1><p id="lobby-description">Le terrain est ouvert. À vous de choisir comment y entrer.</p><div class="lobby-identity"><span class="team-dot" id="team-dot"></span><strong id="player-name"></strong><span id="player-team"></span></div></div>
+        <div class="weapon-caption"><span id="preview-weapon-name">AK-47</span><span>ÉQUIPEMENT STANDARD / <b id="preview-kit-name">ASSAUT</b></span></div>
+        <div class="loadout-dock">
+          <div class="kit-options" role="group" aria-label="Choix de l’équipement">
+            <button class="kit-card selected" type="button" data-kit="assault" aria-pressed="true"><span class="kit-number">01 <span>POLYVALENT</span></span><strong>ASSAUT<span aria-hidden="true">↗</span></strong><span class="kit-description">Prenez l’initiative.</span><span class="kit-inventory">AK-47 <i>·</i> Grenades <i>·</i> Pelle</span><span class="kit-selected">SÉLECTIONNÉ <span>✓</span></span></button>
+            <button class="kit-card" type="button" data-kit="sniper" aria-pressed="false"><span class="kit-number">02 <span>LONGUE DISTANCE</span></span><strong>SNIPER<span aria-hidden="true">↗</span></strong><span class="kit-description">Trouvez le bon angle.</span><span class="kit-inventory">AWP <i>·</i> Grenades <i>·</i> Pelle</span><span class="kit-selected">SÉLECTIONNÉ <span>✓</span></span></button>
+            <button class="kit-card" type="button" data-kit="medic" aria-pressed="false"><span class="kit-number">03 <span>SOUTIEN</span></span><strong>MÉDECIN<span aria-hidden="true">↗</span></strong><span class="kit-description">Gardez les autres debout.</span><span class="kit-inventory">Soins <i>·</i> AK-47 <i>·</i> Grenades <i>·</i> Pelle</span><span class="kit-selected">SÉLECTIONNÉ <span>✓</span></span></button>
+          </div>
+          <div class="deployment-panel"><div class="deployment-mode"><span id="lobby-mode">TEAM DEATHMATCH</span><span id="lobby-population"></span></div><button id="deploy-button" class="button button-primary" type="button" disabled><span>CHARGEMENT DU TERRAIN</span><span aria-hidden="true">→</span></button><span class="controls-note">CLAVIER & SOURIS <span>·</span> ÉCHAP POUR LE MENU</span></div>
+        </div>
+      </section>
+
+      <section id="game-hud" hidden aria-label="Informations de la partie">
+        <div class="match-score"><span id="match-mode">TDM</span><div id="tdm-scores"><span class="red-score" id="red-score">0</span><span class="score-separator">:</span><span class="blue-score" id="blue-score">0</span></div><div id="ffa-score" hidden><span id="personal-kills">0</span><small>ÉLIMINATIONS</small></div><span id="match-time">—</span></div>
+        <div class="hud-corner"><span id="hud-team"></span><span id="hud-network"></span></div>
+        <div class="minimap-wrap"><canvas id="minimap" width="180" height="180" aria-label="Minicarte"></canvas><span>N</span><i></i></div>
+        <div id="kill-feed" class="kill-feed" aria-live="polite"></div>
+        <div id="crosshair" class="crosshair"><i></i><i></i><i></i><i></i></div>
+        <div id="scope" class="scope" hidden><div class="scope-ring"><i></i><i></i></div></div>
+        <div id="hitmarker" class="hitmarker" hidden>×</div>
+        <div class="health-hud"><span class="hud-label">ÉTAT DU JOUEUR</span><div><span class="health-plus">+</span><strong id="health-value">100</strong><small>PV</small></div><div class="health-track"><i id="health-fill"></i></div><span class="hud-help"><kbd>ÉCHAP</kbd> MENU <span>·</span> <kbd>TAB</kbd> SCORES</span></div>
+        <div class="weapon-hud"><span class="hud-label" id="hud-kit">ASSAUT</span><strong id="hud-weapon">AK-47</strong><div id="ammo-line"><span id="ammo-value">30</span><small id="ammo-max">/ 30</small></div><span id="weapon-help" class="hud-help">CLIC DROIT <span>VISER</span> <span>·</span> MOLETTE <span>CHANGER</span></span></div>
+        <div id="damage-overlay" class="damage-overlay"></div>
+      </section>
+
+      <section id="pause-screen" class="modal-screen" hidden aria-labelledby="pause-title">
+        <div class="menu-panel"><div class="panel-index">UBERCUBE <span>/ EN PARTIE</span></div><h2 id="pause-title">Un instant.</h2><p>La partie continue pendant votre pause.</p><button id="resume-button" class="button button-primary" type="button"><span>REPRENDRE LA PARTIE</span><span>→</span></button><label class="setting-label" for="sensitivity">SENSIBILITÉ SOURIS <output id="sensitivity-value">1.0</output></label><input id="sensitivity" type="range" min="0.25" max="2.5" step="0.05" value="1" /><label class="setting-label" for="view-distance">DISTANCE D’AFFICHAGE <output id="distance-value">160 blocs</output></label><input id="view-distance" type="range" min="64" max="256" step="32" value="160" /><p class="settings-hint">Une plus grande distance demande davantage de ressources.</p><div class="controls-grid"><span>DÉPLACEMENT</span><b>ZQSD / WASD</b><span>SAUT / COURSE</span><b>ESPACE / MAJ</b><span>ARME SUIVANTE</span><b>MOLETTE</b><span>PELLE : CREUSER / POSER</span><b>CLIC GAUCHE / DROIT</b></div><button id="leave-button" class="button button-secondary" type="button">QUITTER LE SERVEUR</button></div>
+      </section>
+
+      <section id="score-screen" class="modal-screen" hidden aria-label="Tableau des scores"><div class="score-panel"><div class="panel-index">CLASSEMENT <span id="score-mode-label"></span></div><h2>Sur le terrain.</h2><div class="score-table-wrap"><table><thead><tr><th>JOUEUR</th><th>ÉQUIPE</th><th>ÉLIM.</th><th>MORTS</th></tr></thead><tbody id="score-rows"></tbody></table></div><p class="controls-note">RELÂCHER TAB POUR REVENIR EN JEU</p></div></section>
+
+      <section id="disconnect-screen" class="modal-screen" hidden><div class="menu-panel"><div class="panel-index">SIGNAL INTERROMPU <span>/ CONNEXION</span></div><h2>On vous a perdu.</h2><p id="disconnect-reason">La connexion au serveur a été interrompue.</p><button id="reconnect-button" class="button button-primary" type="button"><span>SE RECONNECTER</span><span>↗</span></button><button id="back-button" class="button button-secondary" type="button">RETOUR À L’ACCUEIL</button></div></section>
+    </main>
+    <div id="toast" class="toast" role="status" hidden></div>
+    <footer id="site-footer"><span>UBERCUBE <span class="footer-dim">/</span> UN MONDE À REFAIRE.</span><span class="footer-dim">VERSION DE DÉVELOPPEMENT · PC</span></footer>
+    <noscript>Activez JavaScript pour jouer à UBERCUBE.</noscript>
+    <script type="module" src="/main.js"></script>
+  </body>
+</html>
