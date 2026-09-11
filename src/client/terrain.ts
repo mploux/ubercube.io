@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { Vec3, VoxelEdit } from '../shared/protocol';
 import { CHUNK_SIZE, VoxelWorld } from '../shared/voxel';
 import type { TerrainMesh, TerrainWorkerRequest } from './terrain.worker';
+import { createWorldMaterial } from './world-material';
 
 interface ChunkEntry { x: number; y: number; z: number; mesh: THREE.Mesh | null; version: number }
 interface WorkerSlot { worker: Worker; busy: string | null; edits: Map<number, VoxelEdit>; failures: number; failed: boolean }
@@ -9,7 +10,7 @@ const MAX_RESIDENT_CHUNKS = 2048;
 
 export class TerrainRenderer {
   readonly stats = { chunks: 0, queued: 0, error: null as string | null };
-  private readonly material = new THREE.MeshLambertMaterial({ vertexColors: true });
+  private readonly material: THREE.ShaderMaterial;
   private readonly entries = new Map<string, ChunkEntry>();
   private readonly versions = new Map<string, number>();
   private readonly wanted = new Map<string, { x: number; y: number; z: number }>();
@@ -22,7 +23,8 @@ export class TerrainRenderer {
   private lastZ = NaN;
   private disposed = false;
 
-  constructor(private readonly scene: THREE.Scene, private world: VoxelWorld, private readonly viewDistance = 160) {
+  constructor(private readonly scene: THREE.Scene, private world: VoxelWorld, private readonly viewDistance = 160, shadowSplits?: THREE.Vector4) {
+    this.material = createWorldMaterial(viewDistance, shadowSplits);
     this.startWorkers();
   }
 
@@ -138,10 +140,12 @@ export class TerrainRenderer {
           const geometry = new THREE.BufferGeometry();
           geometry.setAttribute('position', new THREE.BufferAttribute(result.positions, 3));
           geometry.setAttribute('normal', new THREE.BufferAttribute(result.normals, 3, true));
-          geometry.setAttribute('color', new THREE.BufferAttribute(result.colors, 3, true));
+          geometry.setAttribute('color', new THREE.BufferAttribute(result.colors, 3, result.colors instanceof Uint8Array));
           geometry.setIndex(new THREE.BufferAttribute(result.indices, 1));
           geometry.computeBoundingSphere();
           mesh = new THREE.Mesh(geometry, this.material);
+          mesh.castShadow = true;
+          mesh.receiveShadow = true;
           mesh.position.set(result.x * CHUNK_SIZE, result.y * CHUNK_SIZE, result.z * CHUNK_SIZE);
           this.scene.add(mesh);
         }

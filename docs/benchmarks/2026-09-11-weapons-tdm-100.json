@@ -1,0 +1,42 @@
+{
+  "date": "2026-09-11T13:59:20.955Z",
+  "url": "ws://127.0.0.1:3012/ws",
+  "requested": 100,
+  "connected": 100,
+  "alive": 99,
+  "elapsedSeconds": 31.568009000000004,
+  "inputs": 139761,
+  "snapshots": 62353,
+  "receivedBytes": 1107579419,
+  "worldEditDeliveries": 875500,
+  "shotEventDeliveries": 1302300,
+  "deathEventDeliveries": 60100,
+  "errors": {},
+  "server": {
+    "ok": true,
+    "mode": "tdm",
+    "maxPlayers": 100,
+    "players": 100,
+    "world": {
+      "seed": 12345,
+      "size": 64,
+      "height": 64
+    },
+    "roundId": 1,
+    "roundSeconds": 0,
+    "tick": 3683,
+    "tickWork": {
+      "p50": 0.5051999999996042,
+      "p95": 1.52730000000156,
+      "p99": 1.7637000000031549,
+      "max": 10.44629999999961,
+      "samples": 1024
+    },
+    "pendingInput": 294,
+    "lateTicks": 0,
+    "droppedInputs": 0,
+    "rss": 186990592,
+    "projectiles": 13
+  },
+  "limitation": "Générateur de charge et serveur peuvent partager la même machine. Ce test ne mesure pas le rendu de 100 navigateurs ni les conditions Internet."
+}

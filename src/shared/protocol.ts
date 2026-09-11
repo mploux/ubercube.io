@@ -20,6 +20,7 @@ export interface InputFrame {
   seq: number; roundId: number; moveX: number; moveZ: number;
   yaw: number; pitch: number; jump: boolean; sprint: boolean;
   fire: boolean; alt: boolean; weapon: WeaponId;
+  cancelActions?: boolean;
 }
 export type ClientMessage =
   | { type: 'hello'; version: number; name: string }
@@ -29,9 +30,11 @@ export type ClientMessage =
 export interface ProjectileState { id: number; position: Vec3; velocity: Vec3; weapon: WeaponId; owner: number }
 export type GameEvent = {
   type: 'event'; roundId: number;
-  event: 'shot' | 'impact' | 'explosion' | 'death' | 'heal' | 'build';
+  event: 'shot' | 'impact' | 'explosion' | 'death' | 'heal' | 'build' | 'projectile-end';
   position: Vec3; shooterId?: number; targetId?: number;
   weapon?: WeaponId; headshot?: boolean;
+  blockColor?: number; // Server-captured RGB24 before the impacted block changes.
+  projectileId?: number; velocity?: Vec3; tick?: number; inputSeq?: number;
 };
 export type ServerMessage =
   | { type: 'welcome'; id: number; roundId: number; mode: Mode; maxPlayers: number; world: WorldConfig; tickRate: number }
@@ -47,9 +50,9 @@ export const KITS: Record<Kit, readonly WeaponId[]> = {
   medic: ['medic', 'ak47', 'grenade', 'shovel'],
 };
 export const WEAPONS: Record<WeaponId, { name: string; damage: number; interval: number; speed: number; magazine: number }> = {
-  ak47: { name: 'AK-47', damage: 20, interval: 0.117, speed: 300, magazine: 30 },
-  awp: { name: 'AWP', damage: 70, interval: 1.017, speed: 600, magazine: 5 },
-  shovel: { name: 'Pelle', damage: 50, interval: 0.25, speed: 0, magazine: 0 },
-  grenade: { name: 'Grenade', damage: 100, interval: 0.4, speed: 18, magazine: 10 },
-  medic: { name: 'Soins', damage: -10, interval: 0.25, speed: 0, magazine: 0 },
+  ak47: { name: 'AK-47', damage: 20, interval: 8 / TICK_RATE, speed: 300, magazine: 30 },
+  awp: { name: 'AWP', damage: 70, interval: 62 / TICK_RATE, speed: 600, magazine: 5 },
+  shovel: { name: 'Pelle', damage: 20, interval: 0, speed: 0, magazine: 0 },
+  grenade: { name: 'Grenade', damage: 100, interval: 0, speed: 145.8, magazine: 10 },
+  medic: { name: 'Soins', damage: -10, interval: 0, speed: 0, magazine: 0 },
 };

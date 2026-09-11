@@ -8,17 +8,13 @@ export type TerrainWorkerRequest =
 
 export interface TerrainMesh {
   type: 'mesh'; x: number; y: number; z: number; version: number; epoch: number;
-  positions: Float32Array; normals: Int8Array; colors: Uint8Array; indices: Uint32Array;
+  positions: Float32Array; normals: Int8Array; colors: Float32Array | Uint8Array; indices: Uint32Array;
 }
 
 const scope = globalThis as unknown as {
   onmessage: ((event: MessageEvent<TerrainWorkerRequest>) => void) | null;
   postMessage(message: TerrainMesh, transfer: ArrayBuffer[]): void;
 };
-const linear = Array.from({ length: 256 }, (_, value) => {
-  const c = value / 255;
-  return (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4) * 255;
-});
 let world: VoxelWorld;
 let epoch = 0;
 
@@ -52,7 +48,7 @@ export function meshChunk(world: VoxelWorld, job: Extract<TerrainWorkerRequest, 
   const lighting = new Uint8Array(CHUNK_SIZE ** 2);
   const p = [0, 0, 0], side = [0, 0, 0];
   const cornerU = [-1, 1, 1, -1], cornerV = [-1, -1, 1, 1];
-  const shade = [1, 0.84, 0.7, 0.56];
+  const shade = [1, 0.87, 0.87 ** 2, 0.87 ** 3];
 
   for (let axis = 0; axis < 3; axis++) {
     const u = (axis + 1) % 3, v = (axis + 2) % 3;
@@ -74,7 +70,7 @@ export function meshChunk(world: VoxelWorld, job: Extract<TerrainWorkerRequest, 
               const b = sample(side) ? 1 : 0;
               side[u] = i + cornerU[corner];
               const c = sample(side) ? 1 : 0;
-              ao |= (a && b ? 3 : a + b + c) << (corner * 2);
+              ao |= (a + b + c) << (corner * 2);
             }
             mask[i + j * CHUNK_SIZE] = value;
             lighting[i + j * CHUNK_SIZE] = ao;
@@ -106,9 +102,9 @@ export function meshChunk(world: VoxelWorld, job: Extract<TerrainWorkerRequest, 
               p[v] = j + (cornerV[corner] > 0 ? height : 0);
               positions.push(p[0], p[1], p[2]);
               normals.push(axis === 0 ? sign * 127 : 0, axis === 1 ? sign * 127 : 0, axis === 2 ? sign * 127 : 0);
-              const brightness = shade[(ao >>> (corner * 2)) & 3];
-              colors.push(linear[(value >>> 16) & 255] * brightness,
-                linear[(value >>> 8) & 255] * brightness, linear[value & 255] * brightness);
+              const brightness = shade[(ao >>> (corner * 2)) & 3] / 255;
+              colors.push(((value >>> 16) & 255) * brightness,
+                ((value >>> 8) & 255) * brightness, (value & 255) * brightness);
             }
             if (sign > 0) indices.push(first, first + 1, first + 2, first, first + 2, first + 3);
             else indices.push(first, first + 2, first + 1, first, first + 3, first + 2);
@@ -120,5 +116,5 @@ export function meshChunk(world: VoxelWorld, job: Extract<TerrainWorkerRequest, 
     }
   }
   return { ...job, positions: new Float32Array(positions), normals: new Int8Array(normals),
-    colors: new Uint8Array(colors), indices: new Uint32Array(indices) };
+    colors: new Float32Array(colors), indices: new Uint32Array(indices) };
 }

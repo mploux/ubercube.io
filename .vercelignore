@@ -1,0 +1,10 @@
+.git
+.runtime
+node_modules
+dist
+docs
+tests
+.env*
+Dockerfile
+.dockerignore
+AGENTS.md

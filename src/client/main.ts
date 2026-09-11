@@ -1,22 +1,30 @@
 import * as THREE from 'three';
 import './styles.css';
-import { DT, KITS, PROTOCOL_VERSION, WEAPONS, type ClientMessage, type GameEvent, type InputFrame, type Kit, type Mode, type MotionState, type PlayerState, type ProjectileState, type ServerMessage, type WeaponId, type WorldConfig } from '../shared/protocol';
+import { DT, KITS, PROTOCOL_VERSION, WEAPONS, type ClientMessage, type GameEvent, type InputFrame, type Kit, type Mode, type MotionState, type PlayerState, type ServerMessage, type WeaponId, type WorldConfig } from '../shared/protocol';
 import { aimDirection, EYE_HEIGHT, movePlayer } from '../shared/movement';
+import { grenadeLaunch } from '../shared/grenade';
+import { getWeaponMuzzle } from '../shared/weapon-pose';
 import { raycast, VoxelWorld } from '../shared/voxel';
 import { decodeServerMessage } from '../shared/wire';
 import { TerrainRenderer } from './terrain';
-import { Effects, GameAudio, PlayerVisuals, teamColor, WeaponView } from './presentation';
+import { MinimapRenderer } from './minimap';
+import { Snow } from './snow';
+import { WorldShadows } from './shadows';
+import { SUN_DIRECTION } from './lighting';
+import { InputButton } from './input-button';
+import { Effects, GameAudio, PlayerVisuals } from './presentation';
+import { WeaponView } from './weapon-view';
+import { serverEndpoints } from './server-endpoints';
+
+const endpoints = serverEndpoints(location.href, process.env.PUBLIC_GAME_SERVER_URL);
 
 const element = <T extends HTMLElement = HTMLElement>(id: string): T => document.getElementById(id) as T;
-const kitNames: Record<Kit, string> = { assault: 'ASSAUT', sniper: 'SNIPER', medic: 'MÉDECIN' };
-const modeNames: Record<Mode, string> = { tdm: 'TEAM DEATHMATCH', ffa: 'CHACUN POUR SOI' };
-const teamName = (team: number): string => team === 1 ? 'ÉQUIPE ROUGE' : team === 2 ? 'ÉQUIPE BLEUE' : 'CHACUN POUR SOI';
 const canvas = element<HTMLCanvasElement>('viewport');
 const nickname = element<HTMLInputElement>('nickname');
 const joinButton = element<HTMLButtonElement>('join-button');
-const deployButton = element<HTMLButtonElement>('deploy-button');
 const sensitivityInput = element<HTMLInputElement>('sensitivity');
-const distanceInput = element<HTMLInputElement>('view-distance');
+const zoomSensitivityInput = element<HTMLInputElement>('zoom-sensitivity');
+const audioVolumeInput = element<HTMLInputElement>('audio-volume');
 
 function remember(key: string, value?: string): string {
   try {
@@ -27,39 +35,58 @@ function remember(key: string, value?: string): string {
 
 nickname.value = remember('name');
 let sensitivity = Math.min(2.5, Math.max(0.25, Number(remember('sensitivity')) || 1));
-let viewDistance = Math.min(256, Math.max(64, Number(remember('distance')) || 160));
+let zoomSensitivity = Math.min(2.5, Math.max(0.25, Number(remember('zoom-sensitivity')) || 1));
+let audioVolume = remember('audio-volume') === '' ? 1 : Math.min(1, Math.max(0, Number(remember('audio-volume'))));
+const viewDistance = Math.min(256, Math.max(64, Number(remember('distance')) || 160));
+const graphics = { snow: remember('snow') === 'true', shadows: remember('shadows') !== 'false', ssaa: remember('ssaa') === 'true' };
 sensitivityInput.value = String(sensitivity);
-distanceInput.value = String(viewDistance);
+zoomSensitivityInput.value = String(zoomSensitivity);
+audioVolumeInput.value = String(audioVolume);
 element('sensitivity-value').textContent = sensitivity.toFixed(2);
-element('distance-value').textContent = `${viewDistance} blocs`;
+element('zoom-sensitivity-value').textContent = zoomSensitivity.toFixed(2);
+element('audio-volume-value').textContent = String(Math.round(audioVolume * 100));
 
 const renderer = (() => {
-  try { return new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' }); }
+  try { return new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: 'high-performance' }); }
   catch (error) {
     element('join-error').textContent = 'Le rendu 3D est indisponible. Activez l’accélération graphique de votre navigateur puis rechargez la page.';
     joinButton.disabled = true;
     throw error;
   }
 })();
-renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
-renderer.setSize(innerWidth, innerHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.12;
 renderer.autoClear = false;
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xc3d3cb);
-scene.fog = new THREE.Fog(0xc3d3cb, viewDistance * 0.58, viewDistance * 1.14);
+scene.background = new THREE.Color(0xdde8ff);
+scene.fog = new THREE.Fog(0xdde8ff, viewDistance * 0.4, viewDistance * 0.9);
 scene.add(new THREE.HemisphereLight(0xf4ffe1, 0x475d45, 2.3));
 const sun = new THREE.DirectionalLight(0xffe4be, 2.5);
-sun.position.set(-80, 140, -50);
-scene.add(sun);
+sun.position.copy(SUN_DIRECTION).multiplyScalar(320);
+scene.add(sun, sun.target);
 const camera = new THREE.PerspectiveCamera(76, innerWidth / innerHeight, 0.05, 1100);
 camera.rotation.order = 'YXZ';
+const shadows = new WorldShadows(renderer, scene, camera, viewDistance);
 const avatars = new PlayerVisuals(scene);
-const effects = new Effects(scene);
+const effects = new Effects(scene, viewDistance);
+void effects.ready.catch(error => { console.error(error); toast('Impossible de charger le modèle de grenade. Rechargez la page.'); });
+const snow = new Snow(scene, viewDistance);
+const cameraForward = new THREE.Vector3();
+
+function applyGraphics(): void {
+  const pixelRatio = Math.min(devicePixelRatio || 1, 1.75) * (graphics.ssaa ? 2 : 1);
+  const maxSize = renderer.capabilities.maxTextureSize;
+  renderer.setPixelRatio(Math.min(pixelRatio, maxSize / innerWidth, maxSize / innerHeight));
+  renderer.setSize(innerWidth, innerHeight);
+  shadows.setEnabled(graphics.shadows);
+  snow.setEnabled(graphics.snow);
+  for (const key of ['snow', 'shadows', 'ssaa'] as const) element<HTMLInputElement>(`graphics-${key}`).checked = graphics[key];
+}
+applyGraphics();
 const weaponView = new WeaponView();
 const audio = new GameAudio();
+audio.setVolume(audioVolume);
 const target = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1.014, 1.014, 1.014)), new THREE.LineBasicMaterial({ color: 0xffb779 }));
 target.visible = false;
 scene.add(target);
@@ -75,46 +102,50 @@ let selectedKit: Kit = 'assault';
 let selectedWeapon: WeaponId = 'ak47';
 let world: VoxelWorld | null = null;
 let terrain: TerrainRenderer | null = null;
+let minimapRenderer: MinimapRenderer | null = null;
 let worldReady = false;
 let revision = 0;
 let local: PlayerState | null = null;
 let predicted: MotionState | null = null;
 const correctionOffset = new THREE.Vector3();
 let players: PlayerState[] = [];
-let projectiles: ProjectileState[] = [];
 const snapshots: { time: number; players: PlayerState[] }[] = [];
 let pending: InputFrame[] = [];
 let unsent: InputFrame[] = [];
 let sequence = 0;
 let yaw = 0;
 let pitch = 0;
+let weaponLookYaw = 0;
+let weaponLookPitch = 0;
+let weaponMouseDX = 0;
+let weaponMouseDY = 0;
 let paused = false;
 let spawning = false;
 let connecting = false;
 let rightMouse = false;
-let leftMouse = false;
+const fireButton = new InputButton();
+const altButton = new InputButton();
 let ping: number | null = null;
 let lastPing = 0;
 let lastStatusPoll = 0;
 let statusBusy = false;
 let lastUI = 0;
-let lastMap = 0;
 let lastFrame = performance.now();
 let accumulator = 0;
 let footsteps = 0;
+let muted = false;
+let fpsFrames = 0;
+let fpsSampleTime = performance.now();
+let displayedFps = 0;
+let damageOpacity = 0;
+let headshotUntil = 0;
 let renderErrorShown = false;
 let toastTimer = 0;
 let spawnTimer = 0;
 let connectionTimer = 0;
 const keys = new Set<string>();
 const minimap = element<HTMLCanvasElement>('minimap');
-const mapContext = minimap.getContext('2d')!;
-const minimapTerrain = document.createElement('canvas');
-minimapTerrain.width = 180; minimapTerrain.height = 180;
-const minimapContext = minimapTerrain.getContext('2d')!;
-let mapCenterX = 0;
-let mapCenterZ = 0;
-const mapRadius = 48;
+const lobbyMap = element<HTMLCanvasElement>('lobby-map');
 const feed: { text: HTMLElement; expires: number }[] = [];
 
 function toast(message: string): void {
@@ -125,22 +156,30 @@ function toast(message: string): void {
 }
 
 function clearInput(): void {
-  keys.clear(); leftMouse = false; rightMouse = false;
+  keys.clear(); rightMouse = false;
+  fireButton.clear(); altButton.clear();
+  weaponMouseDX = 0; weaponMouseDY = 0;
+  weaponLookYaw = yaw; weaponLookPitch = pitch;
   element('score-screen').hidden = true;
 }
 
 function showScreen(next: Screen): void {
   screen = next;
+  document.body.dataset.screen = next;
   document.body.classList.toggle('playing', next === 'game');
   element('entry-screen').hidden = next !== 'entry';
   element('lobby-screen').hidden = next !== 'lobby';
+  element('lobby-background').hidden = next !== 'lobby';
+  element('lobby-map').hidden = next !== 'lobby';
   element('game-hud').hidden = next !== 'game';
   element('disconnect-screen').hidden = next !== 'disconnected';
   element('pause-screen').hidden = true;
+  element('options-panel').hidden = true;
+  element('graphics-panel').hidden = true;
   paused = false;
   clearInput();
   if (next !== 'game' && document.pointerLockElement === canvas) document.exitPointerLock();
-  audio.setEnabled(next === 'game' && document.hasFocus());
+  audio.setEnabled(next === 'game' && document.hasFocus() && !muted);
   if (next === 'lobby') weaponView.setWeapon(KITS[selectedKit][0]);
 }
 
@@ -148,8 +187,10 @@ function setPaused(value: boolean): void {
   if (screen !== 'game') return;
   paused = value;
   element('pause-screen').hidden = !value;
+  element('options-panel').hidden = true;
+  element('graphics-panel').hidden = true;
   clearInput();
-  audio.setEnabled(!value && document.hasFocus());
+  audio.setEnabled(!value && document.hasFocus() && !muted);
 }
 
 function lockPointer(): void {
@@ -172,20 +213,22 @@ function send(message: ClientMessage): boolean {
 function resetPrediction(): void {
   predicted = null; pending = []; unsent = []; snapshots.length = 0;
   correctionOffset.set(0, 0, 0);
+  damageOpacity = 0; headshotUntil = 0;
   sequence = 0; accumulator = 0;
   clearInput();
 }
 
 function setWorld(config: WorldConfig): void {
+  snow.reset();
   world = new VoxelWorld(config);
   if (terrain) terrain.reset(world);
-  else terrain = new TerrainRenderer(scene, world, viewDistance);
+  else terrain = new TerrainRenderer(scene, world, viewDistance, shadows.splits);
+  if (minimapRenderer) minimapRenderer.reset(world);
+  else minimapRenderer = new MinimapRenderer(world);
   renderErrorShown = false;
   camera.position.set(config.size * 0.56, Math.min(config.height - 2, 47), config.size * 0.58);
   camera.lookAt(config.size * 0.43, 18, config.size * 0.35);
   terrain.update(camera.position);
-  element('world-label').textContent = `SECTEUR ${config.seed.toString(16).toUpperCase()} / ${config.size} × ${config.size}`;
-  lastMap = 0;
 }
 
 function disconnect(reason: string): void {
@@ -194,12 +237,10 @@ function disconnect(reason: string): void {
   window.clearTimeout(connectionTimer); window.clearTimeout(spawnTimer);
   connecting = false; spawning = false; worldReady = false;
   joinButton.disabled = false;
-  joinButton.querySelector('span')!.textContent = 'REJOINDRE LE LOBBY';
+  joinButton.querySelector('span')!.textContent = 'Join game';
   resetPrediction();
-  avatars.clear(); effects.clear(); players = []; projectiles = []; local = null;
+  avatars.clear(); effects.clear(); players = []; local = null;
   element('disconnect-reason').textContent = reason;
-  element('connection-dot').classList.remove('online');
-  element('server-state').textContent = 'SIGNAL INTERROMPU';
   showScreen('disconnected');
 }
 
@@ -207,8 +248,8 @@ function returnHome(): void {
   const previous = socket; socket = null; previous?.close();
   window.clearTimeout(connectionTimer); window.clearTimeout(spawnTimer);
   connecting = false; spawning = false; worldReady = false; localId = -1; local = null;
-  resetPrediction(); avatars.clear(); effects.clear(); players = []; projectiles = [];
-  joinButton.disabled = false; joinButton.querySelector('span')!.textContent = 'REJOINDRE LE LOBBY';
+  resetPrediction(); avatars.clear(); effects.clear(); players = [];
+  joinButton.disabled = false; joinButton.querySelector('span')!.textContent = 'Join game';
   element('join-error').textContent = '';
   showScreen('entry');
   lastStatusPoll = 0;
@@ -223,11 +264,11 @@ function connect(): void {
   remember('name', name); nickname.value = name;
   element('join-error').textContent = '';
   connecting = true; localId = -1; roundId = -1; worldReady = false; local = null; ping = null;
-  players = []; projectiles = []; resetPrediction(); avatars.clear(); effects.clear();
+  players = []; resetPrediction(); avatars.clear(); effects.clear();
   joinButton.disabled = true;
-  joinButton.querySelector('span')!.textContent = 'CONNEXION EN COURS';
+  joinButton.querySelector('span')!.textContent = 'Connecting...';
   showScreen('entry');
-  const connection = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`);
+  const connection = new WebSocket(endpoints.websocket);
   connection.binaryType = 'arraybuffer';
   socket = connection;
   connection.onopen = () => {
@@ -245,10 +286,9 @@ function connect(): void {
   connectionTimer = window.setTimeout(() => { if (!worldReady && socket === connection) disconnect('Le chargement du serveur a pris trop de temps. Réessayez.'); }, 45000);
 }
 
-function refreshDeploy(): void {
-  const renderingFailed = !!terrain?.stats.error;
-  deployButton.disabled = !worldReady || spawning || renderingFailed;
-  deployButton.querySelector('span')!.textContent = renderingFailed ? 'TERRAIN INDISPONIBLE' : spawning ? 'DÉPLOIEMENT EN COURS' : worldReady ? (local?.deaths ? 'RETOURNER AU COMBAT' : 'ENTRER EN JEU') : 'CHARGEMENT DU TERRAIN';
+function refreshKitButtons(): void {
+  const disabled = !worldReady || spawning || !!terrain?.stats.error;
+  for (const button of document.querySelectorAll<HTMLButtonElement>('[data-kit]')) button.disabled = disabled;
 }
 
 function receive(message: ServerMessage): void {
@@ -256,22 +296,13 @@ function receive(message: ServerMessage): void {
     localId = message.id; roundId = message.roundId; mode = message.mode; maxPlayers = message.maxPlayers;
     worldReady = false; revision = 0; connecting = false;
     setWorld(message.world);
-    element('player-name').textContent = nickname.value;
-    element('connection-dot').classList.add('online');
-    element('server-state').textContent = 'SERVEUR EN LIGNE';
-    element('server-mode').textContent = modeNames[mode];
-    element('lobby-mode').textContent = modeNames[mode];
-    element('match-mode').textContent = mode.toUpperCase();
-    element('score-mode-label').textContent = `/ ${modeNames[mode]}`;
-    element('tdm-scores').hidden = mode !== 'tdm'; element('ffa-score').hidden = mode !== 'ffa';
-    element('lobby-eyebrow').textContent = 'ÉQUIPEMENT DE DÉPART';
-    element('lobby-description').textContent = 'Le terrain est ouvert. À vous de choisir comment y entrer.';
-    showScreen('lobby'); refreshDeploy();
+    element('tdm-scores').hidden = mode !== 'tdm';
+    showScreen('lobby'); refreshKitButtons();
     return;
   }
   if (message.type === 'error') {
     if (spawning && screen === 'lobby' && document.pointerLockElement === canvas) document.exitPointerLock();
-    spawning = false; window.clearTimeout(spawnTimer); refreshDeploy();
+    spawning = false; window.clearTimeout(spawnTimer); refreshKitButtons();
     if (message.fatal) disconnect(message.message);
     else { toast(message.message); if (screen === 'entry') element('join-error').textContent = message.message; }
     return;
@@ -280,11 +311,9 @@ function receive(message: ServerMessage): void {
   if (message.type === 'reset') {
     roundId = message.roundId; revision = 0; worldReady = false; spawning = false;
     window.clearTimeout(spawnTimer);
-    resetPrediction(); local = null; players = []; projectiles = []; avatars.clear(); effects.clear();
+    resetPrediction(); local = null; players = []; avatars.clear(); effects.clear();
     setWorld(message.world);
-    element('lobby-eyebrow').textContent = 'NOUVELLE MANCHE';
-    element('lobby-description').textContent = 'Le terrain est réinitialisé. Un nouveau départ pour tout le monde.';
-    showScreen('lobby'); refreshDeploy();
+    showScreen('lobby'); refreshKitButtons();
     toast('Nouvelle manche. Choisissez votre équipement.');
     return;
   }
@@ -294,24 +323,24 @@ function receive(message: ServerMessage): void {
     if (!message.initial && message.revision <= revision) return;
     if (!message.initial && message.revision !== revision + 1) { disconnect('Une mise à jour du terrain manque. Reconnectez-vous pour synchroniser la carte.'); return; }
     terrain.applyEdits(message.edits);
+    minimapRenderer?.applyEdits(message.edits);
     revision = message.revision;
     if (message.complete) {
       worldReady = true; window.clearTimeout(connectionTimer);
-      refreshDeploy();
+      refreshKitButtons();
     }
     return;
   }
   if (message.type === 'snapshot') {
     players = message.players;
-    projectiles = message.projectiles;
     const now = performance.now();
+    effects.snapshot(message.projectiles, message.tick, now / 1000);
     snapshots.push({ time: now, players: message.players });
     while (snapshots.length > 15) snapshots.shift();
     const authoritative = players.find((player) => player.id === localId);
     if (authoritative) applyLocalState(authoritative);
-    element('red-score').textContent = String(message.scores[0]);
-    element('blue-score').textContent = String(message.scores[1]);
-    element('personal-kills').textContent = String(local?.kills ?? 0);
+    element('red-score').textContent = `Red : ${message.scores[0]}`;
+    element('blue-score').textContent = `Blue : ${message.scores[1]}`;
     element('match-time').textContent = message.remaining === null ? 'EN COURS' : `${Math.floor(Math.max(0, message.remaining) / 60)}:${Math.floor(Math.max(0, message.remaining) % 60).toString().padStart(2, '0')}`;
     return;
   }
@@ -323,6 +352,7 @@ function applyLocalState(state: PlayerState): void {
   const oldHealth = local?.health ?? 100;
   const previousPrediction = predicted;
   local = state;
+  effects.acknowledgeInputs(state);
   pending = pending.filter((frame) => frame.seq > state.lastSeq);
   sequence = Math.max(sequence, state.lastSeq);
   predicted = { position: { ...state.position }, velocity: { ...state.velocity }, grounded: state.grounded, yaw: state.yaw, pitch: state.pitch };
@@ -338,57 +368,48 @@ function applyLocalState(state: PlayerState): void {
     }
   } else correctionOffset.set(0, 0, 0);
   if (state.health < oldHealth && state.alive) {
-    element('damage-overlay').style.opacity = String(Math.min(1, (oldHealth - state.health) / 35));
-    window.setTimeout(() => { element('damage-overlay').style.opacity = '0'; }, 220);
+    damageOpacity = Math.min(0.75, damageOpacity + 0.25);
   }
   if (state.alive && !wasAlive) {
     spawning = false; window.clearTimeout(spawnTimer); clearInput();
     selectedKit = state.kit; selectedWeapon = state.weapon;
     yaw = state.yaw; pitch = state.pitch;
     pending = []; unsent = []; accumulator = 0;
-    showScreen('game'); weaponView.setWeapon(selectedWeapon);
+    showScreen('game'); weaponView.reset(selectedWeapon);
     updateUI();
     if (document.pointerLockElement !== canvas) setPaused(true);
-    else audio.setEnabled(true);
+    else audio.setEnabled(!muted);
   } else if (!state.alive && wasAlive) {
     pending = []; unsent = []; accumulator = 0;
-    element('lobby-eyebrow').textContent = 'RETOUR AU COMBAT';
-    element('lobby-description').textContent = `${state.kills} élimination${state.kills === 1 ? '' : 's'} · ${state.deaths} mort${state.deaths === 1 ? '' : 's'}. Changez d’approche ou repartez avec votre kit.`;
-    showScreen('lobby'); refreshDeploy();
+    showScreen('lobby'); refreshKitButtons();
   }
-  element('player-team').textContent = teamName(state.team);
-  element('team-dot').style.background = teamColor(state.team);
-  element('hud-team').textContent = teamName(state.team);
-  element('hud-team').style.color = teamColor(state.team);
 }
 
 function handleEvent(event: GameEvent): void {
-  effects.event(event);
+  effects.event(event, performance.now() / 1000);
   const listener = predicted ? { ...predicted.position, y: predicted.position.y + EYE_HEIGHT } : camera.position;
   const own = event.shooterId === localId;
   if (event.event === 'shot') {
-    if (own) weaponView.kick();
     const file = event.weapon === 'awp' ? 'AWPShoot' : event.weapon === 'ak47' ? 'AK47Shoot' : event.weapon === 'shovel' ? 'dig' : '';
-    if (file) audio.play(file, own ? undefined : event.position, listener, yaw, event.weapon === 'awp' ? 0.44 : 0.25);
+    // The local weapon already responded to the trigger; confirmation must not play it twice.
+    if (file && !own) audio.play(file, event.position, listener, yaw, 0.5);
   }
   if (event.event === 'explosion') audio.play('waterexplode', event.position, listener, yaw, 0.55);
   if (event.event === 'build') audio.play('place', event.position, listener, yaw, 0.4);
   if (event.event === 'impact' && event.weapon === 'shovel') audio.play('dig', event.position, listener, yaw, 0.3);
   if ((event.event === 'impact' || event.event === 'death') && own && event.targetId !== undefined) {
     audio.play('playerhit', undefined, undefined, 0, 0.4);
-    element('hitmarker').hidden = false;
-    window.setTimeout(() => { element('hitmarker').hidden = true; }, 130);
+    if (event.headshot) headshotUntil = performance.now() + 3000;
   }
-  if (event.event === 'heal' && (event.targetId === localId || own)) toast(event.targetId === localId ? 'Soins reçus' : 'Soins appliqués');
   if (event.event === 'death') {
     const shooter = players.find((player) => player.id === event.shooterId);
     const victim = players.find((player) => player.id === event.targetId);
     const row = document.createElement('div');
-    const source = document.createElement('b'); source.textContent = shooter?.name ?? 'Le terrain'; source.style.color = teamColor(shooter?.team ?? 0);
-    const tool = document.createElement('span'); tool.textContent = event.headshot ? '⌖' : event.weapon ? WEAPONS[event.weapon].name : '→';
-    const destination = document.createElement('b'); destination.textContent = victim?.name ?? 'Joueur'; destination.style.color = teamColor(victim?.team ?? 0);
-    row.append(source, tool, destination); element('kill-feed').append(row);
-    feed.push({ text: row, expires: performance.now() + 6500 });
+    row.textContent = event.targetId === localId
+      ? `${event.headshot ? 'Headshooted by' : 'You died by'} ${shooter?.name ?? 'World'} !`
+      : `${victim?.name ?? 'Player'} has been ${event.headshot ? 'headshooted' : 'killed'} by ${shooter?.name ?? 'World'} !`;
+    element('kill-feed').append(row);
+    feed.push({ text: row, expires: performance.now() + 20000 });
     if (feed.length > 5) feed.shift()?.text.remove();
   }
 }
@@ -397,36 +418,33 @@ async function pollStatus(): Promise<void> {
   if (socket || connecting || statusBusy) return;
   lastStatusPoll = performance.now(); statusBusy = true;
   try {
-    const response = await fetch('/api/status', { cache: 'no-store', signal: AbortSignal.timeout(5000) });
+    const response = await fetch(endpoints.status, { cache: 'no-store', signal: AbortSignal.timeout(5000) });
     if (!response.ok) throw new Error('Unavailable');
     const status = await response.json() as { mode: Mode; maxPlayers: number; players: number; world: WorldConfig; roundId: number };
     if (socket || connecting) return;
     mode = status.mode; maxPlayers = status.maxPlayers;
     if (!world || JSON.stringify(world.config) !== JSON.stringify(status.world)) setWorld(status.world);
-    element('server-mode').textContent = modeNames[mode];
-    element('entry-mode').textContent = mode.toUpperCase();
     element('population').textContent = `${status.players} / ${maxPlayers} joueurs en ligne`;
-    element('server-state').textContent = 'SERVEUR EN LIGNE';
-    element('connection-dot').classList.add('online');
-    element('join-form').querySelector('p')!.innerHTML = mode === 'tdm' ? 'Pas de compte. Pas d’attente.<br />Votre équipe vous attend sur le terrain.' : 'Pas de compte. Pas d’attente.<br />Un terrain. Chacun pour soi.';
   } catch {
     if (socket || connecting) return;
-    element('server-state').textContent = 'SERVEUR INJOIGNABLE';
     element('population').textContent = 'Serveur indisponible pour le moment';
-    element('connection-dot').classList.remove('online');
   } finally { statusBusy = false; }
 }
 
-function chooseKit(kit: Kit): void {
+function spawnKit(kit: Kit): void {
+  if (!worldReady || spawning || terrain?.stats.error) return;
   selectedKit = kit;
   selectedWeapon = KITS[kit][0];
   for (const card of document.querySelectorAll<HTMLButtonElement>('[data-kit]')) {
     const chosen = card.dataset.kit === kit;
     card.classList.toggle('selected', chosen); card.setAttribute('aria-pressed', String(chosen));
   }
-  element('preview-kit-name').textContent = kitNames[kit];
-  element('preview-weapon-name').textContent = WEAPONS[KITS[kit][0]].name.toUpperCase();
   weaponView.setWeapon(selectedWeapon);
+  spawning = true; refreshKitButtons(); audio.activate();
+  lockPointer();
+  if (!send({ type: 'spawn', roundId, kit })) { spawning = false; refreshKitButtons(); return; }
+  window.clearTimeout(spawnTimer);
+  spawnTimer = window.setTimeout(() => { if (spawning) { spawning = false; document.exitPointerLock(); refreshKitButtons(); toast('Le déploiement n’a pas été confirmé. Réessayez.'); } }, 6000);
 }
 
 function simulate(): void {
@@ -438,14 +456,25 @@ function simulate(): void {
     moveX: active ? Number(keys.has('KeyD')) - Number(keys.has('KeyA')) : 0,
     moveZ: active ? Number(keys.has('KeyW')) - Number(keys.has('KeyS')) : 0,
     yaw, pitch, jump: active && keys.has('Space'), sprint: active && (keys.has('ShiftLeft') || keys.has('ShiftRight')),
-    fire: active && leftMouse, alt: active && rightMouse, weapon: selectedWeapon,
+    fire: active && fireButton.sample(), alt: active && altButton.sample(), weapon: selectedWeapon,
+    cancelActions: !active,
   };
   const groundedBefore = predicted.grounded;
+  const throwMuzzle = selectedWeapon === 'grenade' ? getWeaponMuzzle(weaponView.pose) : null;
+  const actions = weaponView.tick({
+    moveX: frame.moveX, moveZ: frame.moveZ, sprint: frame.sprint, fire: frame.fire, alt: frame.alt,
+    lookDeltaYaw: Math.atan2(Math.sin(yaw - weaponLookYaw), Math.cos(yaw - weaponLookYaw)),
+    lookDeltaPitch: pitch - weaponLookPitch,
+    mouseDX: weaponMouseDX, mouseDY: weaponMouseDY, grenades: effects.availableGrenades(local), cancelActions: !active,
+  });
+  weaponLookYaw = yaw; weaponLookPitch = pitch; weaponMouseDX = 0; weaponMouseDY = 0;
+  if (actions.fired) audio.play(selectedWeapon === 'awp' ? 'AWPShoot' : 'AK47Shoot', undefined, undefined, 0, 0.5);
   movePlayer(predicted, frame, world);
+  if (actions.thrown) effects.predictGrenade(localId, frame.seq, grenadeLaunch(world, predicted, throwMuzzle!, actions.force), world, performance.now() / 1000);
   if (groundedBefore && !predicted.grounded && frame.jump) audio.play('jump', undefined, undefined, 0, 0.13);
   if (!groundedBefore && predicted.grounded) audio.play('land', undefined, undefined, 0, 0.13);
   pending.push(frame); unsent.push(frame);
-  if (unsent.length >= 3) {
+  if (unsent.length >= 3 || actions.thrown) {
     const batch = unsent.splice(0, 3);
     send({ type: 'input', frames: batch });
   }
@@ -470,77 +499,71 @@ function interpolatePlayers(now: number): PlayerState[] {
 }
 
 function updateUI(): void {
-  element('lobby-population').textContent = `${players.length} / ${maxPlayers}`;
   if (local) {
     element('health-value').textContent = String(Math.max(0, local.health));
     element('health-fill').style.width = `${Math.max(0, local.health)}%`;
-    element('health-fill').style.background = local.health < 30 ? '#ff7864' : '#f3f0e6';
-    element('hud-kit').textContent = kitNames[selectedKit];
-    element('hud-weapon').textContent = WEAPONS[selectedWeapon].name.toUpperCase();
     element('ammo-value').textContent = selectedWeapon === 'grenade' ? String(local.grenades) : selectedWeapon === 'medic' ? '+' : selectedWeapon === 'shovel' ? '∞' : local.weapon === selectedWeapon ? String(local.ammo) : '—';
-    element('ammo-max').textContent = selectedWeapon === 'grenade' ? '/ 10' : selectedWeapon === 'medic' ? 'SOINS' : selectedWeapon === 'shovel' ? 'BLOCS' : `/ ${WEAPONS[selectedWeapon].magazine}`;
-    element('weapon-help').textContent = selectedWeapon === 'shovel' ? 'GAUCHE  CREUSER  ·  DROITE  POSER' : selectedWeapon === 'grenade' ? 'MAINTENIR  CHARGER  ·  RELÂCHER  LANCER' : selectedWeapon === 'medic' ? 'CLIC GAUCHE  SOIGNER UN JOUEUR' : 'CLIC DROIT  VISER  ·  MOLETTE  CHANGER';
+    element('ammo-max').textContent = selectedWeapon === 'grenade' ? '/10' : `/${WEAPONS[selectedWeapon].magazine}`;
+    element('ammo-line').hidden = selectedWeapon === 'shovel' || selectedWeapon === 'medic';
   }
-  element('hud-network').textContent = `${players.length} JOUEURS  ·  ${ping === null ? '—' : ping} MS`;
+  element('hud-fps').textContent = `${displayedFps} Fps`;
+  const position = predicted?.position ?? local?.position;
+  element('hud-position').textContent = position ? `${Math.trunc(position.x)} - ${Math.trunc(position.y)} - ${Math.trunc(position.z)}` : '';
+  element('audio-status').hidden = !muted;
   if (!element('score-screen').hidden) {
-    const rows = players.slice().sort((a, b) => b.kills - a.kills || a.deaths - b.deaths).map((player) => {
+    const redRows: HTMLElement[] = [], blueRows: HTMLElement[] = [], ffaRows: HTMLElement[] = [];
+    for (const player of players) {
       const row = document.createElement('tr');
-      if (player.id === localId) row.className = 'self';
-      const name = document.createElement('td'); name.textContent = player.name; name.style.color = teamColor(player.team);
-      const team = document.createElement('td'); team.textContent = mode === 'ffa' ? '—' : player.team === 1 ? 'ROUGE' : 'BLEUE';
+      const name = document.createElement('td'); name.textContent = player.name; name.style.color = player.team === 1 ? '#ff0000' : player.team === 2 ? '#0000ff' : '#ffffff';
       const kills = document.createElement('td'); kills.textContent = String(player.kills);
       const deaths = document.createElement('td'); deaths.textContent = String(player.deaths);
-      row.append(name, team, kills, deaths); return row;
-    });
-    element('score-rows').replaceChildren(...rows);
-  }
-  refreshDeploy();
-}
-
-function drawMap(now: number): void {
-  if (!world || !predicted || screen !== 'game') return;
-  if (now - lastMap > 700) {
-    lastMap = now; mapCenterX = predicted.position.x; mapCenterZ = predicted.position.z;
-    for (let y = 0; y < 180; y += 6) for (let x = 0; x < 180; x += 6) {
-      const wx = Math.floor(mapCenterX + (x / 180 - 0.5) * mapRadius * 2);
-      const wz = Math.floor(mapCenterZ + (y / 180 - 0.5) * mapRadius * 2);
-      const top = world.surfaceY(wx, wz);
-      const value = world.get(wx, top - 1, wz);
-      const shade = 0.6 + top / 70;
-      minimapContext.fillStyle = value ? `rgb(${Math.min(255, ((value >>> 16) & 255) * shade)},${Math.min(255, ((value >>> 8) & 255) * shade)},${Math.min(255, (value & 255) * shade)})` : '#263b31';
-      minimapContext.fillRect(x, y, 6, 6);
+      const latency = document.createElement('td'); latency.textContent = player.id === localId && ping !== null ? `${ping} ms` : '—';
+      row.append(name, kills, deaths, latency);
+      if (mode === 'ffa') ffaRows.push(row);
+      else (player.team === 1 ? redRows : blueRows).push(row);
     }
+    element('score-red-rows').replaceChildren(...redRows);
+    element('score-blue-rows').replaceChildren(...blueRows);
+    element('score-rows').replaceChildren(...ffaRows);
+    element('score-screen').dataset.mode = mode;
+    element('score-ffa').hidden = mode !== 'ffa';
+    element('score-tdm').hidden = mode === 'ffa';
   }
-  mapContext.drawImage(minimapTerrain, 0, 0);
-  mapContext.strokeStyle = '#dce7c220'; mapContext.lineWidth = 1;
-  for (let i = 30; i < 180; i += 30) { mapContext.beginPath(); mapContext.moveTo(i, 0); mapContext.lineTo(i, 180); mapContext.moveTo(0, i); mapContext.lineTo(180, i); mapContext.stroke(); }
-  for (const player of players) {
-    if (!player.alive || player.id === localId) continue;
-    const x = 90 + (player.position.x - mapCenterX) * 90 / mapRadius;
-    const y = 90 + (player.position.z - mapCenterZ) * 90 / mapRadius;
-    if (x < 3 || y < 3 || x > 177 || y > 177) continue;
-    mapContext.fillStyle = teamColor(player.team); mapContext.fillRect(x - 2, y - 2, 4, 4);
-  }
-  mapContext.save();
-  mapContext.translate(90 + (predicted.position.x - mapCenterX) * 90 / mapRadius, 90 + (predicted.position.z - mapCenterZ) * 90 / mapRadius);
-  mapContext.rotate(-yaw);
-  mapContext.beginPath(); mapContext.moveTo(0, -7); mapContext.lineTo(5, 5); mapContext.lineTo(0, 3); mapContext.lineTo(-5, 5); mapContext.closePath();
-  mapContext.fillStyle = '#fff5de'; mapContext.fill(); mapContext.strokeStyle = '#1b2a1b'; mapContext.stroke(); mapContext.restore();
+  refreshKitButtons();
 }
 
+function drawMap(): void {
+  if (!world || !minimapRenderer || (screen !== 'game' && screen !== 'lobby')) return;
+  const overview = screen === 'lobby';
+  const position = overview && !local?.deaths
+    ? { x: world.config.size / 2, y: 0, z: world.config.size / 2 }
+    : predicted?.position ?? local?.position;
+  if (!position) return;
+  minimapRenderer.draw(overview ? lobbyMap : minimap, {
+    position, yaw, team: local?.team ?? 0, players, mode, overview,
+  });
+}
 function frame(now: number): void {
   requestAnimationFrame(frame);
   const dt = Math.min(0.1, (now - lastFrame) / 1000); lastFrame = now;
+  fpsFrames++;
+  if (now - fpsSampleTime >= 1000) {
+    displayedFps = Math.round(fpsFrames * 1000 / (now - fpsSampleTime));
+    fpsFrames = 0; fpsSampleTime = now;
+  }
+  damageOpacity = Math.max(0, damageOpacity - dt * 0.3);
+  element('damage-overlay').style.opacity = String(damageOpacity);
+  element('headshot-label').hidden = now >= headshotUntil;
   accumulator += dt;
   while (accumulator >= DT) { simulate(); accumulator -= DT; }
   correctionOffset.multiplyScalar(Math.exp(-25 * dt));
   if (screen === 'game' && predicted) {
     camera.position.set(predicted.position.x, predicted.position.y + EYE_HEIGHT, predicted.position.z).add(correctionOffset);
     camera.rotation.set(pitch, yaw, 0, 'YXZ');
-    const zoom = rightMouse && !paused && (selectedWeapon === 'awp' || selectedWeapon === 'ak47');
-    camera.fov = THREE.MathUtils.damp(camera.fov, zoom ? selectedWeapon === 'awp' ? 24 : 55 : 76, 15, dt);
+    const zoom = weaponView.pose.altHeld && (selectedWeapon === 'awp' || selectedWeapon === 'ak47');
+    camera.fov = weaponView.fov;
     element('scope').hidden = !(zoom && selectedWeapon === 'awp');
-    element('crosshair').hidden = zoom && selectedWeapon === 'awp';
+    element('crosshair').hidden = selectedWeapon === 'ak47' || selectedWeapon === 'awp';
     if (selectedWeapon === 'shovel' && world && !paused) {
       const hit = raycast(world, { ...predicted.position, y: predicted.position.y + EYE_HEIGHT }, aimDirection(yaw, pitch), 5);
       target.visible = !!hit;
@@ -551,7 +574,7 @@ function frame(now: number): void {
       footsteps += dt * speed;
       if (footsteps > 2.2) { footsteps = 0; audio.play(Math.random() > 0.5 ? 'footstep1' : 'footstep2', undefined, undefined, 0, 0.11); }
     } else footsteps = 0;
-  } else if (world) {
+  } else if (world && screen === 'entry') {
     const size = world.config.size;
     const angle = now * 0.000012;
     camera.position.set(size * 0.51 + Math.sin(angle) * 15, Math.min(world.config.height - 3, 48), size * 0.59 + Math.cos(angle) * 11);
@@ -559,16 +582,26 @@ function frame(now: number): void {
     camera.fov = THREE.MathUtils.damp(camera.fov, 69, 5, dt); target.visible = false;
   }
   camera.updateProjectionMatrix();
-  terrain?.update(camera.position);
-  if (terrain?.stats.error && !renderErrorShown) { renderErrorShown = true; toast(terrain.stats.error); refreshDeploy(); if (screen === 'game') { document.exitPointerLock(); setPaused(true); } }
+  if (world && (screen === 'entry' || screen === 'game')) {
+    snow.update(dt, camera.position, world, camera.getWorldDirection(cameraForward));
+    shadows.update();
+  }
+  if (screen !== 'lobby') terrain?.update(camera.position);
+  if (terrain?.stats.error && !renderErrorShown) { renderErrorShown = true; toast(terrain.stats.error); refreshKitButtons(); if (screen === 'game') { document.exitPointerLock(); setPaused(true); } }
   avatars.update(interpolatePlayers(now), localId, now / 1000, camera);
-  effects.update(dt, projectiles, now / 1000);
-  renderer.clear(); renderer.render(scene, camera);
-  if (screen === 'lobby' || screen === 'game' && local?.alive && !(selectedWeapon === 'awp' && rightMouse && !paused)) {
-    weaponView.render(renderer, now / 1000, dt, screen === 'lobby', predicted ? Math.hypot(predicted.velocity.x, predicted.velocity.z) : 0, rightMouse && !paused);
+  effects.update(dt, now / 1000);
+  renderer.setClearAlpha(screen === 'lobby' ? 0 : 1);
+  renderer.clear();
+  if (screen !== 'lobby') renderer.render(scene, camera);
+  if (screen === 'lobby') {
+    for (const preview of document.querySelectorAll<HTMLElement>('[data-preview]')) {
+      weaponView.renderKitPreview(renderer, now / 1000, KITS[preview.dataset.preview as Kit][0], preview.getBoundingClientRect());
+    }
+  } else if (screen === 'game' && local?.alive) {
+    weaponView.render(renderer, camera);
   }
   if (now - lastUI > 160) { lastUI = now; updateUI(); }
-  drawMap(now);
+  drawMap();
   while (feed.length && feed[0].expires < now) feed.shift()?.text.remove();
   if (socket?.readyState === WebSocket.OPEN && now - lastPing > 2000) { lastPing = now; send({ type: 'ping', time: now }); }
   if (!socket && now - lastStatusPoll > 6000) void pollStatus();
@@ -579,24 +612,28 @@ element('reconnect-button').addEventListener('click', connect);
 element('back-button').addEventListener('click', returnHome);
 element('leave-button').addEventListener('click', returnHome);
 element('resume-button').addEventListener('click', lockPointer);
-for (const card of document.querySelectorAll<HTMLButtonElement>('[data-kit]')) card.addEventListener('click', () => chooseKit(card.dataset.kit as Kit));
-deployButton.addEventListener('click', () => {
-  if (!worldReady || spawning || terrain?.stats.error) return;
-  spawning = true; refreshDeploy(); audio.activate();
-  lockPointer();
-  if (!send({ type: 'spawn', roundId, kit: selectedKit })) { spawning = false; refreshDeploy(); return; }
-  window.clearTimeout(spawnTimer);
-  spawnTimer = window.setTimeout(() => { if (spawning) { spawning = false; document.exitPointerLock(); refreshDeploy(); toast('Le déploiement n’a pas été confirmé. Réessayez.'); } }, 6000);
-});
+for (const card of document.querySelectorAll<HTMLButtonElement>('[data-kit]')) card.addEventListener('click', () => spawnKit(card.dataset.kit as Kit));
 sensitivityInput.addEventListener('input', () => {
   sensitivity = Number(sensitivityInput.value); remember('sensitivity', String(sensitivity));
   element('sensitivity-value').textContent = sensitivity.toFixed(2);
 });
-distanceInput.addEventListener('input', () => { element('distance-value').textContent = `${distanceInput.value} blocs`; });
-distanceInput.addEventListener('change', () => {
-  viewDistance = Number(distanceInput.value); remember('distance', String(viewDistance));
-  scene.fog = new THREE.Fog(0xc3d3cb, viewDistance * 0.58, viewDistance * 1.14);
-  if (world) { terrain?.dispose(); terrain = new TerrainRenderer(scene, world, viewDistance); terrain.update(camera.position); renderErrorShown = false; }
+zoomSensitivityInput.addEventListener('input', () => {
+  zoomSensitivity = Number(zoomSensitivityInput.value); remember('zoom-sensitivity', String(zoomSensitivity));
+  element('zoom-sensitivity-value').textContent = zoomSensitivity.toFixed(2);
+});
+audioVolumeInput.addEventListener('input', () => {
+  audioVolume = Number(audioVolumeInput.value); remember('audio-volume', String(audioVolume)); audio.setVolume(audioVolume);
+  element('audio-volume-value').textContent = String(Math.round(audioVolume * 100));
+});
+element('options-button').addEventListener('click', () => { element('options-panel').hidden = false; element('graphics-panel').hidden = true; });
+element('graphics-button').addEventListener('click', () => { element('graphics-panel').hidden = false; element('options-panel').hidden = true; });
+for (const button of document.querySelectorAll('[data-close-settings]')) button.addEventListener('click', () => {
+  element('options-panel').hidden = true; element('graphics-panel').hidden = true;
+});
+for (const key of ['snow', 'shadows', 'ssaa'] as const) element<HTMLInputElement>(`graphics-${key}`).addEventListener('change', event => {
+  graphics[key] = (event.target as HTMLInputElement).checked;
+  remember(key, String(graphics[key]));
+  applyGraphics();
 });
 document.addEventListener('pointerlockchange', () => {
   if (screen === 'game') setPaused(document.pointerLockElement !== canvas);
@@ -608,13 +645,16 @@ document.addEventListener('pointerlockerror', () => {
 });
 document.addEventListener('mousemove', (event) => {
   if (document.pointerLockElement !== canvas || screen !== 'game' || paused) return;
-  const multiplier = rightMouse && selectedWeapon === 'awp' ? 0.3 : rightMouse && selectedWeapon === 'ak47' ? 0.85 : 1;
-  yaw -= event.movementX * sensitivity * 0.002 * multiplier;
+  const zoom = rightMouse && (selectedWeapon === 'awp' || selectedWeapon === 'ak47');
+  const speed = zoom ? zoomSensitivity * (selectedWeapon === 'awp' ? 0.3 : 0.9) * Math.PI / 1440 : sensitivity * Math.PI / 720;
+  weaponMouseDX += event.movementX; weaponMouseDY += event.movementY;
+  yaw -= event.movementX * speed;
   yaw = Math.atan2(Math.sin(yaw), Math.cos(yaw));
-  pitch = Math.max(-1.54, Math.min(1.54, pitch - event.movementY * sensitivity * 0.002 * multiplier));
+  pitch = Math.max(-Math.PI * 89 / 180, Math.min(Math.PI * 89 / 180, pitch - event.movementY * speed));
 });
 document.addEventListener('keydown', (event) => {
   if (screen !== 'game' || event.target instanceof HTMLInputElement) return;
+  if (event.code === 'F1') { event.preventDefault(); muted = !muted; audio.setEnabled(!muted && !paused && document.hasFocus()); updateUI(); return; }
   if (event.code === 'Tab') { event.preventDefault(); if (!paused) element('score-screen').hidden = false; return; }
   if (event.code === 'Escape') { clearInput(); if (document.pointerLockElement !== canvas) setPaused(true); return; }
   if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'Space', 'ShiftLeft', 'ShiftRight'].includes(event.code)) { event.preventDefault(); if (!paused) keys.add(event.code); }
@@ -622,22 +662,28 @@ document.addEventListener('keydown', (event) => {
 document.addEventListener('keyup', (event) => { keys.delete(event.code); if (event.code === 'Tab') { event.preventDefault(); element('score-screen').hidden = true; } });
 document.addEventListener('mousedown', (event) => {
   if (document.pointerLockElement !== canvas || screen !== 'game' || paused) return;
-  if (event.button === 0) leftMouse = true;
-  if (event.button === 2) rightMouse = true;
+  if (event.button === 0) fireButton.set(true);
+  if (event.button === 2) { rightMouse = true; altButton.set(true); }
 });
-document.addEventListener('mouseup', (event) => { if (event.button === 0) leftMouse = false; if (event.button === 2) rightMouse = false; });
+document.addEventListener('mouseup', (event) => {
+  if (event.button === 0) fireButton.set(false);
+  if (event.button === 2) { rightMouse = false; altButton.set(false); }
+});
 document.addEventListener('contextmenu', (event) => { if (screen === 'game') event.preventDefault(); });
 document.addEventListener('wheel', (event) => {
   if (screen !== 'game' || paused || document.pointerLockElement !== canvas) return;
   event.preventDefault();
   const kit = KITS[selectedKit];
-  selectedWeapon = kit[(kit.indexOf(selectedWeapon) + (event.deltaY > 0 ? 1 : -1) + kit.length) % kit.length];
-  leftMouse = false; rightMouse = false; weaponView.setWeapon(selectedWeapon); updateUI();
+  if (!event.deltaY) return;
+  selectedWeapon = kit[(kit.indexOf(selectedWeapon) + (event.deltaY < 0 ? 1 : -1) + kit.length) % kit.length];
+  weaponView.setWeapon(selectedWeapon); updateUI();
 }, { passive: false });
 window.addEventListener('blur', () => { clearInput(); audio.setEnabled(false); if (screen === 'game') { document.exitPointerLock(); setPaused(true); } });
 document.addEventListener('visibilitychange', () => { clearInput(); lastFrame = performance.now(); accumulator = 0; if (document.hidden) audio.setEnabled(false); });
-window.addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); });
+window.addEventListener('resize', () => { applyGraphics(); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); document.documentElement.style.setProperty('--kit-scale', String(Math.min(1, innerWidth / 1200))); });
 canvas.addEventListener('webglcontextlost', (event) => { event.preventDefault(); disconnect('Le contexte graphique a été perdu. Rechargez la page pour retrouver le terrain.'); });
 
 void pollStatus();
+document.body.dataset.screen = 'entry';
+document.documentElement.style.setProperty('--kit-scale', String(Math.min(1, innerWidth / 1200)));
 requestAnimationFrame(frame);

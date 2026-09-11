@@ -2,7 +2,7 @@
 
 FPS multijoueur en TypeScript, Three.js et Bun, dans un monde voxel constructible et destructible. Le serveur possède la simulation ; le navigateur envoie les commandes et affiche le résultat.
 
-Cette première version locale implémente la boucle complète : pseudo → équipement → partie → mort → nouvel équipement. Le Java de `../ubercube` reste une référence en lecture seule. Ses modèles et sons réutilisés sont copiés dans `public/assets` avec leur licence ; voir [THIRD_PARTY.md](THIRD_PARTY.md).
+Cette première version locale implémente la boucle complète : pseudo → équipement → partie → mort → nouvel équipement. Le Java de `../ubercube` reste une référence en lecture seule. Ses modèles, sons, police et textures réutilisés sont copiés dans `public/assets` avec leur licence ; voir [THIRD_PARTY.md](THIRD_PARTY.md).
 
 ## Lancer le jeu
 
@@ -32,6 +32,8 @@ bun run start --mode=ffa --port=3001
 
 Aucun compte, aucune base de données, aucun service externe de jeu. Le pseudo est conservé localement dans le navigateur ; se reconnecter crée une nouvelle session et de nouveaux scores personnels.
 
+Pour la mise en ligne avec client Vercel et serveur Bun permanent : [procédure de déploiement](docs/deployment.md).
+
 ## Commandes
 
 | Action | Commande |
@@ -44,21 +46,27 @@ Aucun compte, aucune base de données, aucun service externe de jeu. Le pseudo e
 | Grenade | Maintenir le clic gauche pour charger, relâcher pour lancer |
 | Médecin | Clic gauche sur un autre joueur à portée |
 | Scores / menu | Tab / Échap |
+| Couper / rétablir le son | F1 |
 
-Le menu règle la sensibilité et la distance d'affichage. La partie continue pendant la pause. Le navigateur doit autoriser la capture du pointeur ; certains navigateurs intégrés refusent cette fonction.
+Le menu reprend les composants Java : sensibilités normale et en visée, volume, neige, ombres et supersampling (SSAA). Les réglages sont appliqués immédiatement et conservés dans le navigateur. La vSync dépend du navigateur et ne peut pas être désactivée par la page. La partie continue pendant la pause. Le navigateur doit autoriser la capture du pointeur ; certains navigateurs intégrés refusent cette fonction.
+
+Les ombres reposent sur quatre cascades Three.js de 4096 × 4096, dans les limites du GPU, avec une précision concentrée près du joueur et des contours sans flou. La projection est stabilisée pendant les déplacements et s'adapte au zoom ainsi qu'au format de la fenêtre. L'éclairage de chaque face dépend de son orientation vers le soleil ; les faces opposées restent à l'ombre ambiante. Ce réglage demande davantage de calcul et de mémoire GPU que les anciennes cartes 2048 × 2048.
+
+L'accueil conserve le panorama voxel animé. Le lobby utilise le fond original, la carte vue de dessus et les trois aperçus d'armes tournants ; cliquer sur Assault, Sniper ou Medic fait apparaître directement le joueur. Le HUD et la minicarte reprennent les dimensions, la police et les textures de référence. Les détails et limites de cette reprise figurent dans [docs/ui-reference.md](docs/ui-reference.md).
 
 ## Règles implémentées
 
 - TDM : admission jusqu'à 100 joueurs par défaut, affectation à l'équipe la moins nombreuse, départ immédiat sans attendre d'autres joueurs.
 - FFA : admission identique, sans équipe, classement par éliminations.
 - Assaut : AK-47, grenades, pelle. Sniper : AWP, grenades, pelle. Médecin : soins, AK-47, grenades, pelle.
-- Projectiles à vitesse finie, dégâts de tête, cadence et dispersion décidées par le serveur. Chargeurs renouvelés instantanément selon le comportement de référence ; aucun rechargement temporisé ajouté.
-- Grenades avec charge, rebonds et dégâts radiaux ; pelle, construction et résistance des blocs. Les dégâts partiels assombrissent les blocs.
+- Projectiles à vitesse finie, dégâts de tête, pose du canon et cadence décidés par le serveur. Balles jaunes du Java animées entre les snapshots, y compris les tirs qui touchent avant le prochain snapshot. Chargeurs renouvelés instantanément après passage sous zéro ; aucun rechargement temporisé ajouté.
+- Maniement des cinq armes repris des updates Java à 60 Hz : positions et pivots OBJ, changement d'arme, inertie souris, balancement marche/course, recul, visée et zoom AWP. Cadences AK-47 de 8 ticks et AWP de 62 ticks ; pelle et soins par clic, grenade chargée puis lancée au relâchement. Le client anticipe l'animation et le son ; le serveur confirme les projectiles et leurs effets.
+- Grenades avec charge, rebonds et dégâts radiaux ; modèle original visible dès le relâchement pour le tireur, avec prédiction visuelle et correction sur les confirmations serveur. Les grenades des autres joueurs conservent un tampon de 100 ms pour lisser les snapshots 20 Hz. Pelle, construction et résistance des blocs ; les dégâts partiels assombrissent les blocs.
 - Tirs alliés et soins possibles sur l'autre équipe, conformément aux chemins actifs du Java. En TDM, une mort rapporte un point à l'équipe opposée à celle de la victime.
 - Réapparition sur le terrain actuel, choix du kit après la mort, sons, effets, minicarte et tableau des scores.
 - Réinitialisation du terrain, des projectiles et des scores entre les manches. Les anciens messages sont rejetés par leur identifiant de manche.
 
-La sensation exacte des déplacements, la cadence et la présentation des armes restent à comparer avec une session du Java. Les observations initiales du Java sont statiques : [référence gameplay](docs/gameplay-client.md).
+Les règles et transformations des armes sont vérifiées contre le code Java ; la sensation des déplacements et le maniement en partie restent à comparer avec une session humaine du Java. Références, adaptations et limites : [référence gameplay](docs/gameplay-client.md).
 
 ## Configuration
 
@@ -75,7 +83,7 @@ Les arguments `--nom=valeur` prennent priorité sur les variables d'environnemen
 | `--height` | `WORLD_HEIGHT` | `64` blocs |
 | `--round-seconds` | `ROUND_SECONDS` | `0` (fin automatique désactivée) |
 
-La taille accepte 64 à 2048 blocs, la hauteur 32 à 256, par multiples de 16. Ces bornes sont des validations de configuration, pas des garanties de performances. La distance affichée se règle de 64 à 256 blocs. Les maillages résidents sont bornés et générés progressivement.
+La taille accepte 64 à 2048 blocs, la hauteur 32 à 256, par multiples de 16. Ces bornes sont des validations de configuration, pas des garanties de performances. La distance affichée par défaut est de 160 blocs ; une préférence de distance enregistrée précédemment est conservée entre 64 et 256 blocs. Les maillages résidents sont bornés et générés progressivement.
 
 Exemple d'une manche de test de cinq minutes :
 
@@ -110,6 +118,8 @@ bun run loadtest --players=100 --seconds=30
 ```
 
 `check` exécute TypeScript strict, les tests et la compilation du navigateur. Le test de charge utilise de vraies connexions WebSocket avec déplacements, tirs, grenades, construction, morts et réapparitions ; son rapport est écrit dans `.runtime/loadtest-latest.json`. Un autre serveur se cible avec `--url=ws://adresse:port/ws`.
+
+Pour vérifier les shaders sur un GPU réel, lancer `bun scripts/visual-check.ts`, puis ouvrir `http://127.0.0.1:3011/`. Cette page locale de test vérifie les pixels du terrain, des particules, de la neige et des balles, le brouillard, les quatre cascades d'ombres, leurs raccords, le déplacement des ombres et leur activation. Elle charge aussi les cinq OBJ/MTL originaux, affiche leurs captures en repos/action/visée et contrôle les aperçus du lobby. Elle doit afficher « RÉSULTAT : SUCCÈS ». Arrêter le serveur de test avec Ctrl+C. Ces contrôles navigateur sont distincts de `bun run check`.
 
 `/health` et `/api/status` exposent les temps de tick p50/p95/p99, les retards de simulation, les commandes en attente, la mémoire résidente et la population. Les percentiles portent sur les 1024 derniers ticks ; maximum et retards sont cumulés depuis le lancement.
 

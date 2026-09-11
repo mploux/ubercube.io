@@ -2,6 +2,30 @@
 
 État du 11 septembre 2026. Inspection statique ciblée du Java dans `C:\Users\Marc\Documents\Dev\ubercube`. Aucun lancement du jeu, aucune compilation, aucune modification Java. Les chemins actifs ci-dessous constituent une référence à vérifier en jeu ; une présence dans le code ne prouve pas une expérience fonctionnelle sans défaut.
 
+## Reprise du maniement implémentée
+
+`src/shared/weapon-pose.ts` reprend les updates à 60 Hz de `Weapon`, `FireWeapon`, `MeleeWeapon`, `WeaponGrenade` et `WeaponMedicBag`. La vue FPS et le serveur utilisent ces mêmes poses et compteurs. Les positions, échelles et pivots restent ceux des OBJ bruts. Les points de sortie des balles sont mesurés au centre des extrémités de canon OBJ ; le même facteur 1/16 s'applique au modèle et à ces coordonnées. Les gestes n'avancent pas pendant le rendu. L'arme inactive conserve sa pose et sa cadence.
+
+| Comportement | Implémentation vérifiée |
+|---|---|
+| AK-47 / AWP | Un tir tous les 8 / 62 ticks sélectionnés, selon l'ordre et les comparaisons strictes de `FireWeapon.update`. Compteur décrémenté, puis renouvelé à 30 / 5 lorsque négatif. |
+| Visée | FOV de base 70°, filtre Java donnant environ 54,44° pour l'AK et 11,66° pour l'AWP. Le modèle AWP reste rendu sous la lunette. |
+| Inertie et recul | Filtre de position 0,4, rotation 0,7, balancement et posture de sprint, dépendance aux mouvements de souris. L'aléatoire de hanche modifie la pose ; aucun cône de tir supplémentaire. |
+| Pelle / soins | Clics distincts, sans cooldown global ajouté ; pelle 20 dégâts et animation sur cinq ticks, soins +10 plafonnés à 100. |
+| Grenade | Charge `(charge + 0,3) × 0,9`, force de relâchement `charge × 0,9`, sans vitesse héritée du joueur. Gravité cumulée et traînée calculées sur dix sous-pas par tick. |
+| Entrées | Sensibilités et sens de molette Java convertis aux événements navigateur ; les clics plus courts qu'un tick sont conservés. Pause/perte de focus annulent les actions et la charge. |
+| Balles | Cubes jaunes de 0,08 × 0,08 × 0,8. L'événement serveur transmet identifiant, origine et vitesse ; le client anime le trajet entre snapshots et termine au point d'impact confirmé. Un tir touchant avant la première image reste visible sur une image, à l'intérieur de son trajet réel. |
+
+Adaptations conservées : le serveur décide des trajectoires et empêche un canon de traverser un mur ; les collisions de grenade utilisent son raycast voxel, pas la boîte Java de demi-taille 0,2. Le stock initial AWP reste à 5, sans reprendre le défaut de constructeur Java qui hérite initialement des 30 cartouches de `FireWeapon`. L'aléatoire cosmétique client n'est pas synchronisé avec celui du serveur ; les impacts visibles et dégâts suivent toujours les événements autoritaires. L'animation et le son locaux sont anticipés, les balles démarrent à la confirmation serveur.
+
+Les tests Bun contrôlent les règles et transformations, et le harness WebGL charge les dix fichiers OBJ/MTL identiques aux originaux pour vérifier les cinq armes et leurs actions. La comparaison interactive avec le Java reste à faire ; voir [la validation exécutée](validation.md).
+
+La calibration des canons corrige un décalage hérité des points de tir Java : ils se trouvaient environ 1,80 bloc derrière l'extrémité du modèle AK et 1,53 derrière celle de l'AWP. Les coordonnées corrigées sont `(0, -5.278345, 98.273787)` et `(0, -3.1084115, 64.970720)` dans les OBJ bruts. Le serveur réduit le trajet œil–canon à la première obstruction de terrain ou de joueur, afin de ne pas créer une balle derrière une cible très proche.
+
+Les grenades lancées utilisent le même OBJ/MTL que la grenade tenue, à l'échelle 1/16, avec ses trois couleurs et son origine préservées. Le rendu emploie une seule géométrie instanciée et le shader des armes, avec brouillard actif dans le monde. Pour les autres joueurs, `GrenadeVisuals` interpole les positions confirmées sur leur tick serveur avec 100 ms de tampon et conserve le dernier point en cas de manque de données.
+
+Le tireur voit sa grenade dès le tick de relâchement, sans attendre ce tampon ni une réponse réseau. `src/shared/grenade.ts` partage l'origine de lancer, la force et les dix sous-pas de vol/collision avec le serveur. La prédiction est uniquement visuelle : aucune mutation de terrain, aucun dégât ni explosion locale. L'événement de tir associe la commande du joueur au projectile serveur ; les snapshots corrigent sa trajectoire en amortissant l'écart d'affichage. Une confirmation ne crée pas de deuxième modèle. L'entrée de relâchement est envoyée immédiatement avec les commandes déjà en attente ; les stocks encore non acquittés sont réservés localement. Un refus, une explosion, une fin de projectile ou un reset retirent le modèle. La mort annule les lancers non confirmés ; les grenades déjà confirmées continuent leur vol. Une seconde sans confirmation ni snapshot borne la durée des prédictions en cas de coupure. Le serveur reste seul responsable du stock, des collisions définitives et de la détonation.
+
 ## Périmètre acquis
 
 Reprendre les mécaniques et l'identité actuelles avec TypeScript, Three.js et Bun. Serveur autoritaire ; pseudo sans compte → lobby et choix du kit → partie → choix du kit à la réapparition. Admission en cours de partie jusqu'à 100 joueurs pour le premier serveur, capacité configurable. Mode de démarrage TDM ou FFA ; en TDM, affectation des nouveaux arrivants à l'équipe la moins nombreuse, sans déplacement forcé des joueurs déjà présents. Construction et destruction conservées ; effondrements reportés ; terrain réinitialisé entre les manches.
@@ -27,7 +51,7 @@ Le client n'impose pas de nombre minimum de joueurs ni de bouton « prêt » col
 
 ## Écarts à traiter explicitement
 
-- **Rechargement :** `FireWeapon` restaure immédiatement le compteur lorsque celui-ci devient négatif ([163–179][reload]). Aucun délai de rechargement ni réserve de munitions n'est présent dans ce chemin. Préserver provisoirement le tir continu ; ne pas inventer une touche R, un délai tactique ou un nouveau système de réserves. Le passage sous zéro est une anomalie de compteur à corriger, pas une règle à reproduire.
+- **Rechargement :** `FireWeapon` restaure immédiatement le compteur lorsque celui-ci devient négatif ([163–179][reload]). Aucun délai de rechargement ni réserve de munitions n'est présent dans ce chemin. La demande de reprendre exactement le maniement a conduit à conserver cet ordre de décrément/renouvellement, sans touche R, délai tactique ni réserve.
 - **Tir ami et soins adverses :** aucun filtre d'équipe dans les chemins actifs de projectile, mêlée, explosion ou soin cités ci-dessus. Le soin Java ne valide pas non plus l'arme, la distance et l'auteur côté serveur. La nouvelle version validera ces conditions ; une restriction aux alliés changerait le gameplay et ne doit pas être introduite silencieusement. Pour FFA, garder provisoirement les mêmes kits et la possibilité de soigner un autre joueur ne bloque pas le socle ; une règle produit différente restera possible.
 - **Score et fin de manche :** le TDM crédite l'équipe opposée à chaque mort de la victime, indépendamment de la cause ; le kill individuel n'est ajouté que si auteur et victime diffèrent ([202–211][tdm-score]). `serverUpdate()` est vide ([96][tdm-update]) : aucun timer/seuil de victoire ou cycle de manches constaté dans ce mode. Ne pas déduire des règles de victoire conventionnelles de l'étiquette TDM.
 - **Apparition :** `World.getHeightAt()` renvoie le bruit de génération ([610][terrain-height]), pas la surface réellement présente. Le nouveau serveur devra trouver un emplacement libre et supporté dans le terrain courant ; cette sécurité est une exigence de la réécriture, pas un comportement prouvé du Java.

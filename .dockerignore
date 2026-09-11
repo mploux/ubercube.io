@@ -1,0 +1,10 @@
+.git
+.runtime
+.vercel
+node_modules
+dist
+public
+docs
+tests
+.env*
+AGENTS.md

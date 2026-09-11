@@ -1,8 +1,14 @@
 import { cp, mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { serverEndpoints } from '../src/client/server-endpoints';
 
 const root = resolve(import.meta.dir, '..');
 const output = resolve(root, 'dist/client');
+const gameServerOrigin = process.env.PUBLIC_GAME_SERVER_URL?.trim() ?? '';
+if (process.env.VERCEL === '1' && !gameServerOrigin) {
+  throw new Error('Set PUBLIC_GAME_SERVER_URL to the HTTPS origin of the Bun game server before deploying to Vercel');
+}
+serverEndpoints(process.env.VERCEL === '1' ? 'https://deployment.invalid' : 'http://localhost', gameServerOrigin);
 await mkdir(output, { recursive: true });
 const result = await Bun.build({
   entrypoints: [resolve(root, 'src/client/main.ts'), resolve(root, 'src/client/terrain.worker.ts')],
@@ -10,6 +16,8 @@ const result = await Bun.build({
   target: 'browser',
   format: 'esm',
   splitting: true,
+  define: { 'process.env.PUBLIC_GAME_SERVER_URL': JSON.stringify(gameServerOrigin) },
+  external: ['/assets/*'],
   minify: !process.argv.includes('--development'),
   sourcemap: 'linked',
   naming: { entry: '[name].[ext]', chunk: 'chunks/[name]-[hash].[ext]', asset: 'assets/[name]-[hash].[ext]' },

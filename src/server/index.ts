@@ -10,8 +10,17 @@ export interface StartOptions extends Partial<GameOptions> {
   hostname?: string;
   autoTick?: boolean;
   clientRoot?: string;
+  allowedOrigins?: string[];
 }
 interface SocketData { connection: Connection | null }
+
+function parseOrigin(value: string): string {
+  const url = new URL(value);
+  if (!/^https?:\/\/[^\s/?#*,@\\]+\/?$/i.test(value) || url.username || url.password || url.pathname !== '/' || url.search || url.hash) {
+    throw new Error('ALLOWED_ORIGINS must contain HTTP(S) origins without credentials, paths, queries or fragments');
+  }
+  return url.origin;
+}
 
 export function readConfig(args: string[] = Bun.argv.slice(2), env: Record<string, string | undefined> = Bun.env): StartOptions {
   const argumentsMap = new Map<string, string>();
@@ -33,6 +42,7 @@ export function readConfig(args: string[] = Bun.argv.slice(2), env: Record<strin
     mode,
     port: integer('port', 'PORT', 3000, 1, 65535),
     hostname: value('hostname', 'HOST', '0.0.0.0'),
+    allowedOrigins: env.ALLOWED_ORIGINS?.trim() ? env.ALLOWED_ORIGINS.split(',').map(origin => parseOrigin(origin.trim())) : [],
     maxPlayers: integer('max-players', 'MAX_PLAYERS', 100, 1, 1000),
     roundSeconds: integer('round-seconds', 'ROUND_SECONDS', 0, 0, 86400),
     world: {
@@ -44,6 +54,7 @@ export function readConfig(args: string[] = Bun.argv.slice(2), env: Record<strin
 }
 
 export function startServer(options: StartOptions = {}) {
+  const allowedOrigins = new Set((options.allowedOrigins ?? []).map(parseOrigin));
   const game = new GameServer(options, data => { server.publish('game', data); });
   const clientRoot = resolve(options.clientRoot ?? fileURLToPath(new URL('../../dist/client', import.meta.url)));
   const tickWork: number[] = [];
@@ -66,18 +77,23 @@ export function startServer(options: StartOptions = {}) {
     async fetch(request, server) {
       const url = new URL(request.url);
       if (request.method !== 'GET' && request.method !== 'HEAD') return new Response('Method not allowed', { status: 405 });
-      if (url.pathname === '/health' || url.pathname === '/api/status') {
+      const isStatus = url.pathname === '/health' || url.pathname === '/api/status';
+      const origin = request.headers.get('origin');
+      if ((isStatus || url.pathname === '/ws') && origin !== null) {
+        try {
+          const parsed = parseOrigin(origin);
+          if (parsed !== origin || (!allowedOrigins.has(parsed) && new URL(parsed).host !== url.host)) throw new Error('Origin denied');
+        } catch { return new Response('Origin denied', { status: 403, headers: { Vary: 'Origin' } }); }
+      }
+      if (isStatus) {
+        const headers = new Headers({ 'Cache-Control': 'no-store', Vary: 'Origin' });
+        if (origin !== null) headers.set('Access-Control-Allow-Origin', origin);
         return Response.json({
           ok: true, mode: game.options.mode, maxPlayers: game.options.maxPlayers, players: game.players.size,
           world: game.options.world, roundId: game.roundId, roundSeconds: game.options.roundSeconds, ...metrics(),
-        }, { headers: { 'Cache-Control': 'no-store' } });
+        }, { headers });
       }
       if (url.pathname === '/ws') {
-        const origin = request.headers.get('origin');
-        if (origin) {
-          try { if (new URL(origin).host !== url.host) return new Response('Origin denied', { status: 403 }); }
-          catch { return new Response('Origin denied', { status: 403 }); }
-        }
         if (request.method === 'GET' && server.upgrade(request, { data: { connection: null } })) return;
         return new Response('WebSocket upgrade required', { status: 426 });
       }

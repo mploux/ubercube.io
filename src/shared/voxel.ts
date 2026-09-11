@@ -38,11 +38,7 @@ function noise(x: number, z: number, seed: number): number {
   return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
 }
 
-const GRASS = [packBlock(44, 102, 43), packBlock(48, 112, 45), packBlock(53, 119, 48), packBlock(46, 107, 42)];
-const STONE = [packBlock(115, 121, 126), packBlock(119, 125, 130), packBlock(122, 128, 133), packBlock(117, 123, 128)];
-const LEAF = [packBlock(30, 78, 32), packBlock(33, 86, 35), packBlock(36, 91, 37), packBlock(29, 81, 32)];
-const WOOD = packBlock(80, 61, 31);
-const BEDROCK = packBlock(72, 76, 82);
+const BEDROCK = packBlock(127, 127, 127);
 
 interface Columns {
   ground: Uint16Array;
@@ -133,12 +129,28 @@ export class VoxelWorld {
     const column = this.getColumns(Math.floor(x / CHUNK_SIZE), Math.floor(z / CHUNK_SIZE));
     const i = (x % CHUNK_SIZE) + (z % CHUNK_SIZE) * CHUNK_SIZE;
     const ground = column.ground[i]!;
-    if (y < ground) return STONE[((x >> 1) + (z >> 1) + (y >> 1)) & 3]!;
-    if (y === ground) return GRASS[hash(x >> 2, z >> 2, this.config.seed) & 3]!;
-    if (y <= column.rock[i]!) return STONE[(x + z) & 3]!;
-    if (y <= column.wood[i]!) return WOOD;
+    const variation = hash(x + y * 31, z, this.config.seed ^ 0x52a83) / 4294967295;
+    if (y < ground) {
+      const gray = (0.48 + variation * 0.04) * 255;
+      return packBlock(gray, gray, gray);
+    }
+    if (y === ground) {
+      const noise = variation * 0.04 - 0.02;
+      const t = ground / 30;
+      return packBlock((0.05 + 0.05 * t + noise) * 255,
+        (0.1 + 0.4 * t + noise) * 255, (0.05 + 0.05 * t + noise) * 255);
+    }
+    if (y <= column.rock[i]!) {
+      const gray = (0.5 + variation * 0.1) * 255;
+      return packBlock(gray, gray, gray);
+    }
+    if (y <= column.wood[i]!) {
+      const noise = variation * 0.05;
+      return packBlock((0.252 + noise) * 255, (0.192 + noise) * 255, (0.084 + noise) * 255);
+    }
     if (column.leafTop[i] && y >= column.leafBottom[i]! && y <= column.leafTop[i]!) {
-      return LEAF[((x >> 1) + (z >> 1) + (y >> 1)) & 3]!;
+      const noise = variation * 0.05;
+      return packBlock((0.1 + noise) * 255, (0.4 + noise) * 255, (0.1 + noise) * 255);
     }
     return 0;
   }
