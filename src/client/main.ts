@@ -15,6 +15,7 @@ import { InputButton } from './input-button';
 import { Effects, GameAudio, PlayerVisuals } from './presentation';
 import { WeaponView } from './weapon-view';
 import { serverEndpoints } from './server-endpoints';
+import { SoloConnection } from './solo-connection';
 
 const endpoints = serverEndpoints(location.href, process.env.PUBLIC_GAME_SERVER_URL);
 
@@ -93,7 +94,8 @@ scene.add(target);
 
 type Screen = 'entry' | 'lobby' | 'game' | 'disconnected';
 let screen: Screen = 'entry';
-let socket: WebSocket | null = null;
+let socket: WebSocket | SoloConnection | null = null;
+let serverAvailable = endpoints !== null;
 let localId = -1;
 let roundId = -1;
 let mode: Mode = 'tdm';
@@ -237,7 +239,7 @@ function disconnect(reason: string): void {
   window.clearTimeout(connectionTimer); window.clearTimeout(spawnTimer);
   connecting = false; spawning = false; worldReady = false;
   joinButton.disabled = false;
-  joinButton.querySelector('span')!.textContent = 'Join game';
+  joinButton.querySelector('span')!.textContent = serverAvailable ? 'Join game' : 'Play solo';
   resetPrediction();
   avatars.clear(); effects.clear(); players = []; local = null;
   element('disconnect-reason').textContent = reason;
@@ -249,14 +251,14 @@ function returnHome(): void {
   window.clearTimeout(connectionTimer); window.clearTimeout(spawnTimer);
   connecting = false; spawning = false; worldReady = false; localId = -1; local = null;
   resetPrediction(); avatars.clear(); effects.clear(); players = [];
-  joinButton.disabled = false; joinButton.querySelector('span')!.textContent = 'Join game';
+  joinButton.disabled = false; joinButton.querySelector('span')!.textContent = serverAvailable ? 'Join game' : 'Play solo';
   element('join-error').textContent = '';
   showScreen('entry');
   lastStatusPoll = 0;
   void pollStatus();
 }
 
-function connect(): void {
+function connect(solo = !serverAvailable): void {
   const name = nickname.value.trim().replace(/\s+/g, ' ').slice(0, 24);
   if (name.length < 2) { element('join-error').textContent = 'Choisissez un pseudo de 2 à 24 caractères.'; nickname.focus(); return; }
   if (connecting) return;
@@ -268,22 +270,48 @@ function connect(): void {
   joinButton.disabled = true;
   joinButton.querySelector('span')!.textContent = 'Connecting...';
   showScreen('entry');
-  const connection = new WebSocket(endpoints.websocket);
-  connection.binaryType = 'arraybuffer';
+  const connection = endpoints && !solo ? new WebSocket(endpoints.websocket) : new SoloConnection();
+  const singleplayer = connection instanceof SoloConnection;
+  let initialized = false;
+  if (connection instanceof WebSocket) connection.binaryType = 'arraybuffer';
   socket = connection;
+  element('hud-version').textContent = singleplayer ? 'Ubercube 0.1 · Solo' : 'Ubercube 0.1';
   connection.onopen = () => {
     if (socket !== connection) return;
     send({ type: 'hello', version: PROTOCOL_VERSION, name });
   };
-  connection.onmessage = (event: MessageEvent<string | ArrayBuffer>) => {
+  connection.onmessage = (event: { data: string | ArrayBuffer }) => {
     if (socket !== connection) return;
-    try { receive(decodeServerMessage(event.data)); }
+    try {
+      const message = decodeServerMessage(event.data);
+      receive(message);
+      if (socket !== connection) return;
+      if (worldReady) initialized = true;
+      if (message.type === 'welcome') {
+        window.clearTimeout(connectionTimer);
+        connectionTimer = window.setTimeout(connectionFailed, 45000);
+      }
+    }
     catch (error) { console.error('Message serveur non traité', error); disconnect('Le serveur a envoyé un état incompatible. Rechargez la page.'); }
   };
-  connection.onclose = () => { if (socket === connection) disconnect('La connexion au serveur a été interrompue. Votre pseudo est conservé.'); };
-  connection.onerror = () => { if (socket === connection) disconnect('Le serveur est inaccessible pour le moment.'); };
+  const connectionFailed = () => {
+    if (socket !== connection) return;
+    if (!singleplayer) {
+      serverAvailable = false;
+      element('population').textContent = 'Serveur indisponible · Mode solo disponible';
+      if (!initialized) {
+        connecting = false;
+        connect(true);
+        toast('Serveur inaccessible. Lancement du mode solo.');
+        return;
+      }
+    }
+    disconnect(singleplayer ? 'La partie solo a été interrompue. Réessayez.' : 'La connexion au serveur a été interrompue. Vous pouvez relancer une partie solo.');
+  };
+  connection.onclose = connectionFailed;
+  connection.onerror = connectionFailed;
   window.clearTimeout(connectionTimer);
-  connectionTimer = window.setTimeout(() => { if (!worldReady && socket === connection) disconnect('Le chargement du serveur a pris trop de temps. Réessayez.'); }, 45000);
+  connectionTimer = window.setTimeout(connectionFailed, singleplayer ? 15000 : 5000);
 }
 
 function refreshKitButtons(): void {
@@ -415,19 +443,24 @@ function handleEvent(event: GameEvent): void {
 }
 
 async function pollStatus(): Promise<void> {
-  if (socket || connecting || statusBusy) return;
+  if (!endpoints || socket || connecting || statusBusy) return;
   lastStatusPoll = performance.now(); statusBusy = true;
   try {
     const response = await fetch(endpoints.status, { cache: 'no-store', signal: AbortSignal.timeout(5000) });
     if (!response.ok) throw new Error('Unavailable');
     const status = await response.json() as { mode: Mode; maxPlayers: number; players: number; world: WorldConfig; roundId: number };
     if (socket || connecting) return;
+    serverAvailable = true;
+    joinButton.querySelector('span')!.textContent = 'Join game';
     mode = status.mode; maxPlayers = status.maxPlayers;
     if (!world || JSON.stringify(world.config) !== JSON.stringify(status.world)) setWorld(status.world);
     element('population').textContent = `${status.players} / ${maxPlayers} joueurs en ligne`;
   } catch {
     if (socket || connecting) return;
-    element('population').textContent = 'Serveur indisponible pour le moment';
+    serverAvailable = false;
+    joinButton.querySelector('span')!.textContent = 'Play solo';
+    element('population').textContent = 'Serveur indisponible · Mode solo disponible';
+    if (!world) setWorld({ seed: 12345, size: 256, height: 64 });
   } finally { statusBusy = false; }
 }
 
@@ -604,11 +637,11 @@ function frame(now: number): void {
   drawMap();
   while (feed.length && feed[0].expires < now) feed.shift()?.text.remove();
   if (socket?.readyState === WebSocket.OPEN && now - lastPing > 2000) { lastPing = now; send({ type: 'ping', time: now }); }
-  if (!socket && now - lastStatusPoll > 6000) void pollStatus();
+  if (endpoints && !socket && now - lastStatusPoll > 6000) void pollStatus();
 }
 
 element('join-form').addEventListener('submit', (event) => { event.preventDefault(); audio.activate(); connect(); });
-element('reconnect-button').addEventListener('click', connect);
+element('reconnect-button').addEventListener('click', () => connect());
 element('back-button').addEventListener('click', returnHome);
 element('leave-button').addEventListener('click', returnHome);
 element('resume-button').addEventListener('click', lockPointer);
@@ -683,7 +716,12 @@ document.addEventListener('visibilitychange', () => { clearInput(); lastFrame = 
 window.addEventListener('resize', () => { applyGraphics(); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); document.documentElement.style.setProperty('--kit-scale', String(Math.min(1, innerWidth / 1200))); });
 canvas.addEventListener('webglcontextlost', (event) => { event.preventDefault(); disconnect('Le contexte graphique a été perdu. Rechargez la page pour retrouver le terrain.'); });
 
-void pollStatus();
+if (endpoints) void pollStatus();
+else {
+  setWorld({ seed: 12345, size: 256, height: 64 });
+  joinButton.querySelector('span')!.textContent = 'Play solo';
+  element('population').textContent = 'Mode solo disponible';
+}
 document.body.dataset.screen = 'entry';
 document.documentElement.style.setProperty('--kit-scale', String(Math.min(1, innerWidth / 1200)));
 requestAnimationFrame(frame);

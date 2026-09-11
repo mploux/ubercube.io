@@ -1,4 +1,5 @@
-export function serverEndpoints(pageUrl: string, configuredOrigin = ''): { status: string; websocket: string } {
+export function serverEndpoints(pageUrl: string, configuredOrigin: string | null = ''): { status: string; websocket: string } | null {
+  if (configuredOrigin === null) return null;
   const page = new URL(pageUrl);
   const server = configuredOrigin ? new URL(configuredOrigin) : new URL(page.origin);
   if (!['http:', 'https:'].includes(server.protocol) || server.username || server.password

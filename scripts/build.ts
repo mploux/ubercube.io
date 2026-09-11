@@ -4,14 +4,12 @@ import { serverEndpoints } from '../src/client/server-endpoints';
 
 const root = resolve(import.meta.dir, '..');
 const output = resolve(root, 'dist/client');
-const gameServerOrigin = process.env.PUBLIC_GAME_SERVER_URL?.trim() ?? '';
-if (process.env.VERCEL === '1' && !gameServerOrigin) {
-  throw new Error('Set PUBLIC_GAME_SERVER_URL to the HTTPS origin of the Bun game server before deploying to Vercel');
-}
+const gameServerOrigin = process.env.PUBLIC_GAME_SERVER_URL?.trim() || (process.env.VERCEL === '1' ? null : '');
+if (gameServerOrigin === null) console.warn('PUBLIC_GAME_SERVER_URL is not configured: publishing with singleplayer available.');
 serverEndpoints(process.env.VERCEL === '1' ? 'https://deployment.invalid' : 'http://localhost', gameServerOrigin);
 await mkdir(output, { recursive: true });
 const result = await Bun.build({
-  entrypoints: [resolve(root, 'src/client/main.ts'), resolve(root, 'src/client/terrain.worker.ts')],
+  entrypoints: [resolve(root, 'src/client/main.ts'), resolve(root, 'src/client/terrain.worker.ts'), resolve(root, 'src/client/solo.worker.ts')],
   outdir: output,
   target: 'browser',
   format: 'esm',

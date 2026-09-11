@@ -1,6 +1,6 @@
 # Déployer UBERCUBE
 
-Le client statique peut être servi par Vercel. La simulation reste dans un processus Bun permanent, sur une seule instance pour la première version. Le serveur conserve le monde en mémoire : son redémarrage termine les sessions et réinitialise le terrain. Les connexions et instances temporaires des Vercel Functions ne conviennent pas au monde partagé actuel.
+Le client statique peut être servi par Vercel et permet de jouer seul sans hébergement supplémentaire. Pour le multijoueur, la simulation reste dans un processus Bun permanent, sur une seule instance pour la première version. Le serveur conserve le monde en mémoire : son redémarrage termine les sessions et réinitialise le terrain. Les connexions et instances temporaires des Vercel Functions ne conviennent pas au monde partagé actuel.
 
 ## Serveur de partie
 
@@ -24,18 +24,20 @@ Le serveur doit répondre sur `https://game.example/health` et `https://game.exa
 
 `vercel.json` configure le projet statique : installation `bun install --frozen-lockfile`, compilation `bun run build`, résultat `dist/client`.
 
-Définir cette variable dans l'environnement Production du projet Vercel avant de déployer :
+Définir cette variable dans l'environnement Production du projet Vercel pour permettre aux joueurs de rejoindre le serveur :
 
 ```dotenv
 PUBLIC_GAME_SERVER_URL=https://game.example
 ```
 
-Cette adresse publique est intégrée au client lors de la compilation ; elle ne contient aucun secret. Une modification nécessite un nouveau build. Le client l'utilise à la fois pour l'état du serveur et la connexion WebSocket. Un build Vercel échoue explicitement si cette adresse manque ou n'utilise pas HTTPS, pour éviter de publier une interface qui cherche un serveur de jeu inexistant sur Vercel.
+Cette adresse publique est intégrée au client lors de la compilation ; elle ne contient aucun secret. Une modification nécessite un nouveau build. Le client l'utilise à la fois pour l'état du serveur et la connexion WebSocket. Si elle manque sur Vercel, le build réussit et le bouton « Play solo » permet de jouer dans le navigateur. Aucune requête HTTP ou WebSocket de jeu n'est alors envoyée. Une adresse fournie invalide ou sans HTTPS fait toujours échouer le build.
+
+Si le serveur configuré est inaccessible, le client propose également le solo ; un échec de connexion initial lance une partie solo automatiquement. Le mode solo exécute la même simulation dans un Web Worker, avec un seul joueur, sans bots ni sauvegarde. Quitter puis relancer crée un nouveau monde. Masquer l'onglet suspend la simulation solo. Une partie solo ne devient pas multijoueur lorsque le serveur revient : retourner à l'accueil pour le rejoindre.
 
 En local, laisser la variable vide conserve `localhost:3000`. `.vercelignore` exclut les fichiers d'environnement et les données locales du transfert. Une publication depuis les fichiers locaux n'exige pas de modification du dépôt Git.
 
 ## Vérification après publication
 
-Ouvrir le domaine de production dans deux navigateurs, rejoindre la même partie et vérifier les mouvements, tirs, grenades et modifications du terrain. Rejoindre après une destruction, puis vérifier une nouvelle manche. Contrôler HTTPS/WSS et l'absence d'erreur CORS. La page de production ne doit pas dépendre du serveur de développement du PC.
+Sans serveur configuré, vérifier pseudo → équipement → partie solo, puis les mouvements, tirs, grenades et modifications du terrain. Quitter et relancer doit réinitialiser le terrain. Avec un serveur multijoueur configuré, ouvrir le domaine de production dans deux navigateurs et rejoindre la même partie ; rejoindre après une destruction, puis vérifier une nouvelle manche. Contrôler HTTPS/WSS et l'absence d'erreur CORS. La page de production ne doit pas dépendre du serveur de développement du PC.
 
-Préparation locale effectuée le 11 septembre 2026. L'authentification Vercel est validée et le projet [ubercube-io](https://vercel.com/marcandr-plouxs-projects/ubercube-io) est créé avec les commandes de compilation ci-dessus. Aucun déploiement n'a encore été publié : l'hébergement du serveur permanent reste à fournir avant de définir `PUBLIC_GAME_SERVER_URL`. Docker n'est pas installé dans l'environnement de validation ; l'image doit être construite et testée sur l'hôte cible.
+Le projet [ubercube-io](https://vercel.com/marcandr-plouxs-projects/ubercube-io) est relié à `mploux/ubercube.io` : un push sur `main` déclenche le déploiement de production. L'hébergement du serveur permanent reste à fournir pour activer le multijoueur. Docker n'est pas installé dans l'environnement de validation ; l'image doit être construite et testée sur l'hôte cible.

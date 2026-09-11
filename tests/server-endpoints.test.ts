@@ -1,6 +1,10 @@
 import { expect, test } from 'bun:test';
 import { serverEndpoints } from '../src/client/server-endpoints';
 
+test('an unconfigured static deployment has no game endpoints', () => {
+  expect(serverEndpoints('https://ubercube.vercel.app/', null)).toBeNull();
+});
+
 test('local and same-origin production clients keep their original server addresses', () => {
   expect(serverEndpoints('http://localhost:3000/?debug=1')).toEqual({ status: 'http://localhost:3000/api/status', websocket: 'ws://localhost:3000/ws' });
   expect(serverEndpoints('https://ubercube.example/')).toEqual({ status: 'https://ubercube.example/api/status', websocket: 'wss://ubercube.example/ws' });

@@ -1,6 +1,6 @@
 # UBERCUBE
 
-FPS multijoueur en TypeScript, Three.js et Bun, dans un monde voxel constructible et destructible. Le serveur possède la simulation ; le navigateur envoie les commandes et affiche le résultat.
+FPS multijoueur en TypeScript, Three.js et Bun, dans un monde voxel constructible et destructible. En multijoueur, le serveur possède la simulation ; le navigateur envoie les commandes et affiche le résultat. Si le serveur est absent ou inaccessible, le mode solo exécute la même simulation dans le navigateur, sans bots ni sauvegarde.
 
 Cette première version locale implémente la boucle complète : pseudo → équipement → partie → mort → nouvel équipement. Le Java de `../ubercube` reste une référence en lecture seule. Ses modèles, sons, police et textures réutilisés sont copiés dans `public/assets` avec leur licence ; voir [THIRD_PARTY.md](THIRD_PARTY.md).
 
@@ -97,8 +97,8 @@ La durée définitive et une éventuelle limite de score restent des décisions 
 
 | Dossier | Responsabilité |
 |---|---|
-| `src/server` | Simulation autoritaire indépendante des sockets, transport Bun, admission, limites réseau, fichiers statiques et métriques |
-| `src/shared` | Mouvement déterministe, données voxel, raycast, définitions du jeu, protocole et codec binaire |
+| `src/server` | Exécution autoritaire multijoueur, transport Bun, fichiers statiques et métriques |
+| `src/shared` | Simulation commune au serveur et au solo, admission, règles, données voxel, mouvement, protocole et codec binaire |
 | `src/client` | Three.js, prédiction et réconciliation, interpolation, entrées, interface, sons et workers de terrain |
 | `scripts` | Compilation, développement et clients de charge |
 | `tests` | Autorité, collisions, terrain, cycle de vie et transport réel |
