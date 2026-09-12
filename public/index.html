@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#000000" />
     <meta name="description" content="UBERCUBE — Multiplayer voxel FPS." />
     <title>Ubercube</title>
@@ -18,7 +18,7 @@
         <h1 class="entry-title">Ubercube</h1>
         <form id="join-form">
           <label class="nickname-label" for="nickname">Pseudo</label>
-          <input id="nickname" name="nickname" class="gui-textbox" autocomplete="nickname" maxlength="24" minlength="2" required />
+          <input id="nickname" name="nickname" class="gui-textbox" autocomplete="nickname" autocapitalize="off" spellcheck="false" enterkeyhint="go" maxlength="24" minlength="2" required />
           <div id="population" class="loading-info">Connecting...</div>
           <button id="join-button" class="gui-button" type="submit"><span>Join game</span></button>
           <p id="join-error" class="error-text" role="alert"></p>
@@ -53,6 +53,25 @@
         <div class="minimap-wrap"><canvas id="minimap" width="320" height="220" aria-label="Minimap"></canvas></div>
         <div id="kill-feed" aria-live="polite"></div>
       </section>
+
+      <div id="touch-controls" aria-label="Touch controls" hidden>
+        <div id="touch-look" aria-hidden="true"></div>
+        <div id="touch-move" aria-label="Move joystick"><div id="touch-stick"></div></div>
+        <div class="touch-menu">
+          <button class="gui-button touch-button" data-touch-action="pause" type="button" aria-label="Pause">Menu</button>
+          <button class="gui-button touch-button" data-touch-action="scores" type="button" aria-label="Hold to show scores">Score</button>
+        </div>
+        <div class="touch-actions">
+          <button id="touch-alt" class="gui-button touch-button" data-touch-action="alt" type="button">Aim</button>
+          <button class="gui-button touch-button" data-touch-action="jump" type="button">Saut</button>
+          <button id="touch-fire" class="gui-button touch-button" data-touch-action="fire" type="button">Fire</button>
+        </div>
+        <div class="touch-weapons">
+          <button class="gui-button touch-button" data-touch-action="previous" type="button" aria-label="Previous weapon">&#8249;</button>
+          <span id="touch-weapon-label">AK-47</span>
+          <button class="gui-button touch-button" data-touch-action="next" type="button" aria-label="Next weapon">&#8250;</button>
+        </div>
+      </div>
 
       <section id="pause-screen" class="screen" hidden aria-label="Game menu">
         <nav class="pause-menu" aria-label="Pause">

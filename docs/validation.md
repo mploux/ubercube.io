@@ -1,6 +1,16 @@
-# Validation du 11 septembre 2026
+# Validation des 11 et 12 septembre 2026
 
 Cette livraison est une première version locale fonctionnelle. La parité des sensations avec le Java, la tenue prolongée sur Internet et les grandes distances d'affichage ne sont pas encore validées.
+
+## Mobile — 12 septembre
+
+`bun run check` passe avec 191 tests et 8908 assertions. Les dix tests tactiles couvrent joystick analogique, deadzone, sprint, captures indépendantes, visée et tir simultanés, pressions brèves, boutons désactivés, libération après changement d'arme et annulation sans relâchement artificiel.
+
+Le navigateur a affiché l'accueil, le lobby et la partie aux formats 390 × 844 et 844 × 390, ainsi que les réglages à 320 × 568 et 568 × 320. Les trois choix d'équipement mesurent chacun 93 × 48 pixels à 320 pixels de large. Le retour des réglages est atteignable par défilement en paysage court. Un appui natif bref sur Tirer a consommé une munition. Le parcours desktop reste accessible avec les commandes tactiles masquées.
+
+Un banc de test local émule le pointeur principal tactile et l'absence de l'API Pointer Lock, puis pilote le vrai client et son Worker solo. Ses 16 contrôles passent : déplacement autoritaire, déplacement/visée/tir simultanés, balles, saut/visée, changement d'arme, grenade annulée sans lancer, commande d'annulation transmise, grenade relâchée exactement une fois, commande de construction, scores, pause/reprise et perte de focus. Les gestes multi-doigts de ce banc utilisent des événements synthétiques et une capture simulée ; le rendu et les échanges avec la simulation sont réels. Aucun diagnostic JavaScript dans ces essais. Aucun code du banc de test n'est inclus dans la publication.
+
+Limite : pas de téléphone iOS/Android physique disponible pour mesurer les performances, le clavier virtuel et le ressenti tactile. Les essais à dimensions mobiles sur la machine de développement ne remplacent pas cette validation matérielle.
 
 ## Maniement des armes et balles
 

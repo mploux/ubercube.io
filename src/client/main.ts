@@ -16,8 +16,12 @@ import { Effects, GameAudio, PlayerVisuals } from './presentation';
 import { WeaponView } from './weapon-view';
 import { serverEndpoints } from './server-endpoints';
 import { SoloConnection } from './solo-connection';
+import { TouchControls } from './touch-controls';
 
 const endpoints = serverEndpoints(location.href, process.env.PUBLIC_GAME_SERVER_URL);
+const touchQuery = matchMedia('(pointer: coarse)');
+let touchMode = touchQuery.matches;
+document.body.classList.toggle('touch-mode', touchMode);
 
 const element = <T extends HTMLElement = HTMLElement>(id: string): T => document.getElementById(id) as T;
 const canvas = element<HTMLCanvasElement>('viewport');
@@ -38,7 +42,7 @@ nickname.value = remember('name');
 let sensitivity = Math.min(2.5, Math.max(0.25, Number(remember('sensitivity')) || 1));
 let zoomSensitivity = Math.min(2.5, Math.max(0.25, Number(remember('zoom-sensitivity')) || 1));
 let audioVolume = remember('audio-volume') === '' ? 1 : Math.min(1, Math.max(0, Number(remember('audio-volume'))));
-const viewDistance = Math.min(256, Math.max(64, Number(remember('distance')) || 160));
+const viewDistance = Math.min(touchMode ? 128 : 256, Math.max(64, Number(remember('distance')) || (touchMode ? 96 : 160)));
 const graphics = { snow: remember('snow') === 'true', shadows: remember('shadows') !== 'false', ssaa: remember('ssaa') === 'true' };
 sensitivityInput.value = String(sensitivity);
 zoomSensitivityInput.value = String(zoomSensitivity);
@@ -68,7 +72,7 @@ sun.position.copy(SUN_DIRECTION).multiplyScalar(320);
 scene.add(sun, sun.target);
 const camera = new THREE.PerspectiveCamera(76, innerWidth / innerHeight, 0.05, 1100);
 camera.rotation.order = 'YXZ';
-const shadows = new WorldShadows(renderer, scene, camera, viewDistance);
+const shadows = new WorldShadows(renderer, scene, camera, viewDistance, touchMode ? 2048 : 4096);
 const avatars = new PlayerVisuals(scene);
 const effects = new Effects(scene, viewDistance);
 void effects.ready.catch(error => { console.error(error); toast('Impossible de charger le modèle de grenade. Rechargez la page.'); });
@@ -76,7 +80,7 @@ const snow = new Snow(scene, viewDistance);
 const cameraForward = new THREE.Vector3();
 
 function applyGraphics(): void {
-  const pixelRatio = Math.min(devicePixelRatio || 1, 1.75) * (graphics.ssaa ? 2 : 1);
+  const pixelRatio = Math.min(devicePixelRatio || 1, touchMode ? 1.5 : 1.75) * (graphics.ssaa ? 2 : 1);
   const maxSize = renderer.capabilities.maxTextureSize;
   renderer.setPixelRatio(Math.min(pixelRatio, maxSize / innerWidth, maxSize / innerHeight));
   renderer.setSize(innerWidth, innerHeight);
@@ -125,6 +129,7 @@ let paused = false;
 let spawning = false;
 let connecting = false;
 let rightMouse = false;
+let cancelActions = false;
 const fireButton = new InputButton();
 const altButton = new InputButton();
 let ping: number | null = null;
@@ -149,6 +154,37 @@ const keys = new Set<string>();
 const minimap = element<HTMLCanvasElement>('minimap');
 const lobbyMap = element<HTMLCanvasElement>('lobby-map');
 const feed: { text: HTMLElement; expires: number }[] = [];
+const touchControls = new TouchControls(element('touch-controls'), {
+  look: (dx, dy) => rotateView(dx, dy, true),
+  fire: down => fireButton.set(down),
+  alt: down => { rightMouse = down; altButton.set(down); },
+  weapon: direction => cycleWeapon(direction),
+  pause: () => setPaused(true),
+  scores: down => { element('score-screen').hidden = !down; updateUI(); },
+  cancel: () => clearInput(),
+});
+
+function updateTouchControls(): void {
+  touchControls.setEnabled(touchMode && screen === 'game' && !paused && !document.hidden);
+}
+
+function rotateView(dx: number, dy: number, touch = false): void {
+  if (screen !== 'game' || paused) return;
+  const zoom = rightMouse && (selectedWeapon === 'awp' || selectedWeapon === 'ak47');
+  const scale = touch ? Math.PI / Math.max(320, Math.min(innerWidth, innerHeight)) : Math.PI / 720;
+  const speed = (zoom ? zoomSensitivity * (selectedWeapon === 'awp' ? 0.15 : 0.45) : sensitivity) * scale;
+  weaponMouseDX += dx; weaponMouseDY += dy;
+  yaw -= dx * speed;
+  yaw = Math.atan2(Math.sin(yaw), Math.cos(yaw));
+  pitch = Math.max(-Math.PI * 89 / 180, Math.min(Math.PI * 89 / 180, pitch - dy * speed));
+}
+
+function cycleWeapon(direction: number): void {
+  if (screen !== 'game' || paused || !direction) return;
+  const kit = KITS[selectedKit];
+  selectedWeapon = kit[(kit.indexOf(selectedWeapon) + (direction < 0 ? kit.length - 1 : 1)) % kit.length];
+  weaponView.setWeapon(selectedWeapon); updateUI();
+}
 
 function toast(message: string): void {
   element('toast').textContent = message;
@@ -158,6 +194,8 @@ function toast(message: string): void {
 }
 
 function clearInput(): void {
+  touchControls.clear();
+  cancelActions = true;
   keys.clear(); rightMouse = false;
   fireButton.clear(); altButton.clear();
   weaponMouseDX = 0; weaponMouseDY = 0;
@@ -180,7 +218,8 @@ function showScreen(next: Screen): void {
   element('graphics-panel').hidden = true;
   paused = false;
   clearInput();
-  if (next !== 'game' && document.pointerLockElement === canvas) document.exitPointerLock();
+  updateTouchControls();
+  if (next !== 'game' && document.pointerLockElement === canvas) document.exitPointerLock?.();
   audio.setEnabled(next === 'game' && document.hasFocus() && !muted);
   if (next === 'lobby') weaponView.setWeapon(KITS[selectedKit][0]);
 }
@@ -192,12 +231,14 @@ function setPaused(value: boolean): void {
   element('options-panel').hidden = true;
   element('graphics-panel').hidden = true;
   clearInput();
+  updateTouchControls();
   audio.setEnabled(!value && document.hasFocus() && !muted);
 }
 
 function lockPointer(): void {
   if (terrain?.stats.error) { toast(terrain.stats.error); return; }
   audio.activate();
+  if (touchMode) { setPaused(false); return; }
   if (document.pointerLockElement === canvas) { setPaused(false); return; }
   try {
     const result = canvas.requestPointerLock();
@@ -262,6 +303,7 @@ function connect(solo = !serverAvailable): void {
   const name = nickname.value.trim().replace(/\s+/g, ' ').slice(0, 24);
   if (name.length < 2) { element('join-error').textContent = 'Choisissez un pseudo de 2 à 24 caractères.'; nickname.focus(); return; }
   if (connecting) return;
+  if (touchMode) nickname.blur();
   const old = socket; socket = null; old?.close();
   remember('name', name); nickname.value = name;
   element('join-error').textContent = '';
@@ -329,7 +371,7 @@ function receive(message: ServerMessage): void {
     return;
   }
   if (message.type === 'error') {
-    if (spawning && screen === 'lobby' && document.pointerLockElement === canvas) document.exitPointerLock();
+    if (spawning && screen === 'lobby' && document.pointerLockElement === canvas) document.exitPointerLock?.();
     spawning = false; window.clearTimeout(spawnTimer); refreshKitButtons();
     if (message.fatal) disconnect(message.message);
     else { toast(message.message); if (screen === 'entry') element('join-error').textContent = message.message; }
@@ -405,7 +447,7 @@ function applyLocalState(state: PlayerState): void {
     pending = []; unsent = []; accumulator = 0;
     showScreen('game'); weaponView.reset(selectedWeapon);
     updateUI();
-    if (document.pointerLockElement !== canvas) setPaused(true);
+    if (!touchMode && document.pointerLockElement !== canvas) setPaused(true);
     else audio.setEnabled(!muted);
   } else if (!state.alive && wasAlive) {
     pending = []; unsent = []; accumulator = 0;
@@ -477,18 +519,19 @@ function spawnKit(kit: Kit): void {
   lockPointer();
   if (!send({ type: 'spawn', roundId, kit })) { spawning = false; refreshKitButtons(); return; }
   window.clearTimeout(spawnTimer);
-  spawnTimer = window.setTimeout(() => { if (spawning) { spawning = false; document.exitPointerLock(); refreshKitButtons(); toast('Le déploiement n’a pas été confirmé. Réessayez.'); } }, 6000);
+  spawnTimer = window.setTimeout(() => { if (spawning) { spawning = false; document.exitPointerLock?.(); refreshKitButtons(); toast('Le déploiement n’a pas été confirmé. Réessayez.'); } }, 6000);
 }
 
 function simulate(): void {
   if (screen !== 'game' || !local?.alive || !predicted || !world || !worldReady) return;
   if (pending.length > 240) { disconnect('La simulation du serveur ne répond plus. Reconnectez-vous.'); return; }
-  const active = !paused && document.pointerLockElement === canvas && document.hasFocus();
+  const active = !paused && !document.hidden && !cancelActions && (touchMode || (document.pointerLockElement === canvas && document.hasFocus()));
+  cancelActions = false;
   const frame: InputFrame = {
     seq: ++sequence, roundId,
-    moveX: active ? Number(keys.has('KeyD')) - Number(keys.has('KeyA')) : 0,
-    moveZ: active ? Number(keys.has('KeyW')) - Number(keys.has('KeyS')) : 0,
-    yaw, pitch, jump: active && keys.has('Space'), sprint: active && (keys.has('ShiftLeft') || keys.has('ShiftRight')),
+    moveX: active ? Math.max(-1, Math.min(1, Number(keys.has('KeyD')) - Number(keys.has('KeyA')) + touchControls.moveX)) : 0,
+    moveZ: active ? Math.max(-1, Math.min(1, Number(keys.has('KeyW')) - Number(keys.has('KeyS')) + touchControls.moveZ)) : 0,
+    yaw, pitch, jump: active && (keys.has('Space') || touchControls.jump), sprint: active && (keys.has('ShiftLeft') || keys.has('ShiftRight') || touchControls.sprint),
     fire: active && fireButton.sample(), alt: active && altButton.sample(), weapon: selectedWeapon,
     cancelActions: !active,
   };
@@ -532,6 +575,11 @@ function interpolatePlayers(now: number): PlayerState[] {
 }
 
 function updateUI(): void {
+  element('touch-weapon-label').textContent = WEAPONS[selectedWeapon].name;
+  element('touch-fire').textContent = selectedWeapon === 'grenade' ? 'Lancer' : selectedWeapon === 'shovel' ? 'Creuser' : selectedWeapon === 'medic' ? 'Soigner' : 'Tirer';
+  element('touch-fire').title = selectedWeapon === 'grenade' ? 'Maintenir pour charger, relâcher pour lancer' : '';
+  element('touch-alt').textContent = selectedWeapon === 'shovel' ? 'Bâtir' : 'Viser';
+  element<HTMLButtonElement>('touch-alt').disabled = selectedWeapon === 'grenade' || selectedWeapon === 'medic';
   if (local) {
     element('health-value').textContent = String(Math.max(0, local.health));
     element('health-fill').style.width = `${Math.max(0, local.health)}%`;
@@ -620,7 +668,7 @@ function frame(now: number): void {
     shadows.update();
   }
   if (screen !== 'lobby') terrain?.update(camera.position);
-  if (terrain?.stats.error && !renderErrorShown) { renderErrorShown = true; toast(terrain.stats.error); refreshKitButtons(); if (screen === 'game') { document.exitPointerLock(); setPaused(true); } }
+  if (terrain?.stats.error && !renderErrorShown) { renderErrorShown = true; toast(terrain.stats.error); refreshKitButtons(); if (screen === 'game') { document.exitPointerLock?.(); setPaused(true); } }
   avatars.update(interpolatePlayers(now), localId, now / 1000, camera);
   effects.update(dt, now / 1000);
   renderer.setClearAlpha(screen === 'lobby' ? 0 : 1);
@@ -669,21 +717,18 @@ for (const key of ['snow', 'shadows', 'ssaa'] as const) element<HTMLInputElement
   applyGraphics();
 });
 document.addEventListener('pointerlockchange', () => {
+  if (touchMode) return;
   if (screen === 'game') setPaused(document.pointerLockElement !== canvas);
   else clearInput();
 });
 document.addEventListener('pointerlockerror', () => {
+  if (touchMode) return;
   if (screen === 'game') setPaused(true);
   toast('Ce navigateur a refusé la capture de la souris. Ouvrez le jeu dans Chrome, Firefox ou Edge.');
 });
 document.addEventListener('mousemove', (event) => {
-  if (document.pointerLockElement !== canvas || screen !== 'game' || paused) return;
-  const zoom = rightMouse && (selectedWeapon === 'awp' || selectedWeapon === 'ak47');
-  const speed = zoom ? zoomSensitivity * (selectedWeapon === 'awp' ? 0.3 : 0.9) * Math.PI / 1440 : sensitivity * Math.PI / 720;
-  weaponMouseDX += event.movementX; weaponMouseDY += event.movementY;
-  yaw -= event.movementX * speed;
-  yaw = Math.atan2(Math.sin(yaw), Math.cos(yaw));
-  pitch = Math.max(-Math.PI * 89 / 180, Math.min(Math.PI * 89 / 180, pitch - event.movementY * speed));
+  if (touchMode || document.pointerLockElement !== canvas) return;
+  rotateView(event.movementX, event.movementY);
 });
 document.addEventListener('keydown', (event) => {
   if (screen !== 'game' || event.target instanceof HTMLInputElement) return;
@@ -694,11 +739,12 @@ document.addEventListener('keydown', (event) => {
 });
 document.addEventListener('keyup', (event) => { keys.delete(event.code); if (event.code === 'Tab') { event.preventDefault(); element('score-screen').hidden = true; } });
 document.addEventListener('mousedown', (event) => {
-  if (document.pointerLockElement !== canvas || screen !== 'game' || paused) return;
+  if (touchMode || document.pointerLockElement !== canvas || screen !== 'game' || paused) return;
   if (event.button === 0) fireButton.set(true);
   if (event.button === 2) { rightMouse = true; altButton.set(true); }
 });
 document.addEventListener('mouseup', (event) => {
+  if (touchMode) return;
   if (event.button === 0) fireButton.set(false);
   if (event.button === 2) { rightMouse = false; altButton.set(false); }
 });
@@ -706,14 +752,31 @@ document.addEventListener('contextmenu', (event) => { if (screen === 'game') eve
 document.addEventListener('wheel', (event) => {
   if (screen !== 'game' || paused || document.pointerLockElement !== canvas) return;
   event.preventDefault();
-  const kit = KITS[selectedKit];
-  if (!event.deltaY) return;
-  selectedWeapon = kit[(kit.indexOf(selectedWeapon) + (event.deltaY < 0 ? 1 : -1) + kit.length) % kit.length];
-  weaponView.setWeapon(selectedWeapon); updateUI();
+  cycleWeapon(event.deltaY);
 }, { passive: false });
-window.addEventListener('blur', () => { clearInput(); audio.setEnabled(false); if (screen === 'game') { document.exitPointerLock(); setPaused(true); } });
-document.addEventListener('visibilitychange', () => { clearInput(); lastFrame = performance.now(); accumulator = 0; if (document.hidden) audio.setEnabled(false); });
-window.addEventListener('resize', () => { applyGraphics(); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); document.documentElement.style.setProperty('--kit-scale', String(Math.min(1, innerWidth / 1200))); });
+window.addEventListener('blur', () => { clearInput(); audio.setEnabled(false); if (screen === 'game') { document.exitPointerLock?.(); setPaused(true); } });
+document.addEventListener('visibilitychange', () => {
+  clearInput(); lastFrame = performance.now(); accumulator = 0;
+  if (document.hidden) { audio.setEnabled(false); if (screen === 'game') setPaused(true); }
+  updateTouchControls();
+});
+function resize(): void {
+  clearInput(); applyGraphics(); camera.aspect = innerWidth / Math.max(1, innerHeight); camera.updateProjectionMatrix();
+  document.documentElement.style.setProperty('--kit-scale', String(Math.min(1, innerWidth / 1200)));
+}
+window.addEventListener('resize', resize);
+window.visualViewport?.addEventListener('resize', resize);
+function useTouchControls(enabled: boolean): void {
+  if (touchMode === enabled) return;
+  touchMode = enabled; document.body.classList.toggle('touch-mode', enabled);
+  clearInput(); updateTouchControls(); applyGraphics();
+  if (!enabled && screen === 'game') setPaused(true);
+}
+touchQuery.addEventListener('change', event => useTouchControls(event.matches));
+document.addEventListener('pointerdown', event => {
+  if (event.pointerType === 'touch') useTouchControls(true);
+  else if (event.pointerType === 'mouse' && !touchQuery.matches && !(event.target as HTMLElement).closest('#touch-controls')) useTouchControls(false);
+}, { capture: true });
 canvas.addEventListener('webglcontextlost', (event) => { event.preventDefault(); disconnect('Le contexte graphique a été perdu. Rechargez la page pour retrouver le terrain.'); });
 
 if (endpoints) void pollStatus();

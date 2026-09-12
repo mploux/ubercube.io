@@ -9,10 +9,10 @@ export class WorldShadows {
   private enabled = true;
 
   constructor(private readonly renderer: THREE.WebGLRenderer, scene: THREE.Scene,
-    private readonly camera: THREE.PerspectiveCamera, viewDistance: number) {
+    private readonly camera: THREE.PerspectiveCamera, viewDistance: number, mapSize = 4096) {
     this.csm = new CSM({
       camera, parent: scene, cascades: 4, maxFar: viewDistance * 0.9,
-      mode: 'custom', shadowMapSize: Math.min(4096, renderer.capabilities.maxTextureSize),
+      mode: 'custom', shadowMapSize: Math.min(mapSize, renderer.capabilities.maxTextureSize),
       lightDirection: SUN_DIRECTION.clone().negate(),
       lightNear: 0.1, lightMargin: 384,
       customSplitsCallback: (_count, near, far, breaks) => {

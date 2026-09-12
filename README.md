@@ -6,7 +6,7 @@ Cette première version locale implémente la boucle complète : pseudo → équ
 
 ## Lancer le jeu
 
-Prérequis : Bun 1.3.11 ou compatible, navigateur de bureau avec WebGL2, clavier et souris.
+Prérequis pour développer : Bun 1.3.11 ou compatible. Pour jouer : navigateur avec WebGL2, clavier/souris ou écran tactile.
 
 ```sh
 bun install --frozen-lockfile
@@ -36,21 +36,24 @@ Pour la mise en ligne avec client Vercel et serveur Bun permanent : [procédure 
 
 ## Commandes
 
-| Action | Commande |
-|---|---|
-| Déplacement | ZQSD sur AZERTY / WASD sur QWERTY |
-| Saut / course | Espace / Maj |
-| Tir / visée | Clic gauche / clic droit |
-| Changer d'arme ou d'outil | Molette |
-| Pelle : creuser / construire | Clic gauche / clic droit |
-| Grenade | Maintenir le clic gauche pour charger, relâcher pour lancer |
-| Médecin | Clic gauche sur un autre joueur à portée |
-| Scores / menu | Tab / Échap |
-| Couper / rétablir le son | F1 |
+| Action | Clavier / souris | Mobile |
+|---|---|---|
+| Déplacement | ZQSD sur AZERTY / WASD sur QWERTY | Joystick gauche |
+| Regarder | Souris | Glisser à droite, ou glisser sur Tirer |
+| Saut / course | Espace / Maj | Saut / pousser le joystick au bord |
+| Tir / visée | Clic gauche / clic droit | Tirer / maintenir Viser |
+| Changer d'arme ou d'outil | Molette | Flèches autour du nom de l'arme |
+| Pelle : creuser / construire | Clic gauche / clic droit | Creuser / Bâtir |
+| Grenade | Maintenir le clic gauche puis relâcher | Maintenir Lancer puis relâcher |
+| Médecin | Clic gauche sur un autre joueur à portée | Soigner sur un autre joueur à portée |
+| Scores / menu | Tab / Échap | Maintenir Score / Menu |
+| Couper / rétablir le son | F1 | Menu → options → Audio |
 
-Le menu reprend les composants Java : sensibilités normale et en visée, volume, neige, ombres et supersampling (SSAA). Les réglages sont appliqués immédiatement et conservés dans le navigateur. La vSync dépend du navigateur et ne peut pas être désactivée par la page. La partie continue pendant la pause. Le navigateur doit autoriser la capture du pointeur ; certains navigateurs intégrés refusent cette fonction.
+Le menu reprend les composants Java : sensibilités normale et en visée, volume, neige, ombres et supersampling (SSAA). Les réglages sont appliqués immédiatement et conservés dans le navigateur. La vSync dépend du navigateur et ne peut pas être désactivée par la page. La partie continue pendant la pause. Le clavier/souris nécessite la capture du pointeur ; certains navigateurs intégrés refusent cette fonction. Les commandes tactiles fonctionnent sans cette API, en portrait et en paysage. Une interruption du geste, une rotation ou un passage en arrière-plan annule les actions en cours sans lancer une grenade involontairement.
 
 Les ombres reposent sur quatre cascades Three.js de 4096 × 4096, dans les limites du GPU, avec une précision concentrée près du joueur et des contours sans flou. La projection est stabilisée pendant les déplacements et s'adapte au zoom ainsi qu'au format de la fenêtre. L'éclairage de chaque face dépend de son orientation vers le soleil ; les faces opposées restent à l'ombre ambiante. Ce réglage demande davantage de calcul et de mémoire GPU que les anciennes cartes 2048 × 2048.
+
+Sur mobile, le rendu utilise des cascades de 2048 × 2048, une distance de 96 blocs par défaut (128 maximum) et un ratio de pixels plafonné à 1,5 avant SSAA. Le HUD est compact, les boutons et réglages s'adaptent aux petits écrans et aux encoches, en conservant la police et les composants originaux. Les performances sur téléphone physique restent à mesurer.
 
 L'accueil conserve le panorama voxel animé. Le lobby utilise le fond original, la carte vue de dessus et les trois aperçus d'armes tournants ; cliquer sur Assault, Sniper ou Medic fait apparaître directement le joueur. Le HUD et la minicarte reprennent les dimensions, la police et les textures de référence. Les détails et limites de cette reprise figurent dans [docs/ui-reference.md](docs/ui-reference.md).
 
