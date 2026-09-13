@@ -4,8 +4,56 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#000000" />
-    <meta name="description" content="UBERCUBE — Multiplayer voxel FPS." />
-    <title>Ubercube</title>
+    <meta name="description" content="Play UBERCUBE, a free multiplayer voxel FPS in your browser. Build, destroy and battle with friends on desktop or mobile. No download or account needed." />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <title>UBERCUBE — Free Multiplayer Voxel FPS</title>
+    <link rel="canonical" href="https://www.ubercube.io/" />
+    <link rel="icon" href="/assets/social/ubercube-classic.png" type="image/png" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="UBERCUBE" />
+    <meta property="og:url" content="https://www.ubercube.io/" />
+    <meta property="og:title" content="UBERCUBE — Free Multiplayer Voxel FPS" />
+    <meta property="og:description" content="Build, destroy and battle in a multiplayer voxel world. Play free in your browser on desktop or mobile, with no download or account." />
+    <meta property="og:image" content="https://www.ubercube.io/assets/social/ubercube-classic.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1280" />
+    <meta property="og:image:height" content="718" />
+    <meta property="og:image:alt" content="Classic UBERCUBE gameplay: an assault rifle overlooking a snowy voxel forest." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="UBERCUBE — Free Multiplayer Voxel FPS" />
+    <meta name="twitter:description" content="Build, destroy and battle in a multiplayer voxel world. Play free in your browser on desktop or mobile, with no download or account." />
+    <meta name="twitter:image" content="https://www.ubercube.io/assets/social/ubercube-classic.png" />
+    <meta name="twitter:image:alt" content="Classic UBERCUBE gameplay: an assault rifle overlooking a snowy voxel forest." />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "@id": "https://www.ubercube.io/#website",
+            "url": "https://www.ubercube.io/",
+            "name": "UBERCUBE",
+            "alternateName": "Ubercube",
+            "inLanguage": "en"
+          },
+          {
+            "@type": "VideoGame",
+            "@id": "https://www.ubercube.io/#game",
+            "name": "UBERCUBE",
+            "url": "https://www.ubercube.io/",
+            "description": "A free multiplayer first-person shooter in a destructible voxel world. Build, destroy and battle in your browser, with desktop and mobile controls and a singleplayer fallback.",
+            "image": "https://www.ubercube.io/assets/social/ubercube-classic.png",
+            "genre": ["First-person shooter", "Voxel"],
+            "applicationCategory": "GameApplication",
+            "gamePlatform": "Web browser",
+            "playMode": ["https://schema.org/MultiPlayer", "https://schema.org/SinglePlayer"],
+            "isAccessibleForFree": true,
+            "inLanguage": "en",
+            "isPartOf": { "@id": "https://www.ubercube.io/#website" }
+          }
+        ]
+      }
+    </script>
     <link rel="preload" href="/assets/ui/fonts/RifficFree-Bold.ttf" as="font" type="font/ttf" crossorigin />
     <link rel="stylesheet" href="/main.css" />
   </head>
@@ -15,14 +63,35 @@
     <canvas id="viewport" aria-label="UBERCUBE world"></canvas>
     <main>
       <section id="entry-screen" class="screen">
-        <h1 class="entry-title">Ubercube</h1>
-        <form id="join-form">
-          <label class="nickname-label" for="nickname">Pseudo</label>
-          <input id="nickname" name="nickname" class="gui-textbox" autocomplete="nickname" autocapitalize="off" spellcheck="false" enterkeyhint="go" maxlength="24" minlength="2" required />
-          <div id="population" class="loading-info">Connecting...</div>
-          <button id="join-button" class="gui-button" type="submit"><span>Join game</span></button>
-          <p id="join-error" class="error-text" role="alert"></p>
-        </form>
+        <div id="play" class="entry-hero">
+          <h1 class="entry-title">Ubercube</h1>
+          <p class="entry-tagline">Free multiplayer voxel FPS. Build, destroy, play.</p>
+          <form id="join-form">
+            <label class="nickname-label" for="nickname">Pseudo</label>
+            <input id="nickname" name="nickname" class="gui-textbox" autocomplete="nickname" autocapitalize="off" spellcheck="false" enterkeyhint="go" maxlength="24" minlength="2" required />
+            <div id="population" class="loading-info">Connecting...</div>
+            <button id="join-button" class="gui-button" type="submit"><span>Join game</span></button>
+            <p id="join-error" class="error-text" role="alert"></p>
+          </form>
+          <a class="entry-about-link" href="#about">About the game ↓</a>
+          <noscript><p class="entry-noscript">Enable JavaScript to play UBERCUBE. You can read about the game below.</p></noscript>
+        </div>
+        <article id="about" class="entry-about" aria-labelledby="about-title">
+          <h2 id="about-title">A destructible world. A different fight every time.</h2>
+          <p>UBERCUBE is a free multiplayer first-person shooter set in a voxel world. Dig through terrain, build cover and blast new paths with grenades. The battlefield changes as you play.</p>
+          <figure>
+            <img src="/assets/social/ubercube-classic.png" width="1280" height="718" loading="lazy" decoding="async" alt="Classic UBERCUBE gameplay: an assault rifle overlooking a snowy voxel forest." />
+            <figcaption>A look back at the original UBERCUBE.</figcaption>
+          </figure>
+          <h3>Pick your loadout and join the action</h3>
+          <p>Enter a nickname, choose Assault, Sniper or Medic in the lobby, and jump into the match. Use rifles, grenades, a shovel and medical supplies to fight, build and help other players. Matches support Team Deathmatch or Free-for-All, with room for up to 100 players on the current server.</p>
+          <h3>Play in your browser</h3>
+          <p>No download, account or payment is required. Play on desktop with a keyboard and mouse, or on mobile with touch controls. If the multiplayer server is unavailable, Play solo lets you explore, shoot and reshape your own world without other players or bots. Each new solo session starts fresh.</p>
+          <h3>How to play</h3>
+          <p>Move with WASD or ZQSD, look with the mouse, jump with Space and sprint with Shift. Left-click to fire, right-click to aim, and use the mouse wheel to switch equipment. Hold and release fire to throw a grenade. With the shovel, left-click to dig and right-click to build.</p>
+          <p>On mobile, move with the left joystick. Hold and drag the fire button to shoot while looking, or double-tap the right look area and hold the second tap. Tap Aim to toggle your sights. Hold and release to throw a grenade. Jump and change weapons with the on-screen buttons.</p>
+          <a class="gui-button entry-play-link" href="#play">Play UBERCUBE</a>
+        </article>
       </section>
 
       <section id="lobby-screen" class="screen" hidden>
@@ -127,7 +196,6 @@
     </main>
     <div id="toast" role="status" hidden></div>
 
-    <noscript>JavaScript is required to play UBERCUBE.</noscript>
     <script type="module" src="/main.js"></script>
   </body>
 </html>
