@@ -2,7 +2,15 @@
 
 FPS multijoueur en TypeScript, Three.js et Bun, dans un monde voxel constructible et destructible. En multijoueur, le serveur possède la simulation ; le navigateur envoie les commandes et affiche le résultat. Si le serveur est absent ou inaccessible, le mode solo exécute la même simulation dans le navigateur, sans bots ni sauvegarde.
 
-Cette première version locale implémente la boucle complète : pseudo → équipement → partie → mort → nouvel équipement. Le Java de `../ubercube` reste une référence en lecture seule. Ses modèles, sons, police et textures réutilisés sont copiés dans `public/assets` avec leur licence ; voir [THIRD_PARTY.md](THIRD_PARTY.md).
+La version publiée implémente la boucle complète : pseudo → équipement → partie → mort → nouvel équipement. Le Java de `../ubercube` reste une référence en lecture seule. Ses modèles, sons, police et textures réutilisés sont copiés dans `public/assets` avec leur licence ; voir [THIRD_PARTY.md](THIRD_PARTY.md).
+
+## Reprendre le projet
+
+Nouveau développeur ou agent : lire [AGENTS.md](AGENTS.md), puis le [guide de démarrage](docs/agent-start.md). Il donne les points d'entrée du code, les décisions produit, les vérifications et les accès de publication sans dépendre d'un historique de discussion.
+
+Le site est [www.ubercube.io](https://www.ubercube.io/), le serveur de partie [game.ubercube.io](https://game.ubercube.io/health). Client Vercel, serveur Bun permanent sur Hetzner, protocole 2. Le dernier état publié **enregistré** est dans [ops/production.json](ops/production.json) avec ses empreintes client/serveur ; il doit être revérifié avant une publication.
+
+Chaque nouvelle publication Vercel doit provenir d'un **commit poussé sur GitHub**, normalement par le déploiement automatique de `main`. Terminer et tester le travail, créer des commits ciblés, puis pousser lorsqu'une publication est demandée. Vérifier ensuite le SHA réellement publié. Les anciennes publications depuis des fichiers locaux sont conservées comme faits historiques dans [docs/deployment.md](docs/deployment.md) ; elles ne constituent plus une procédure de publication.
 
 ## Lancer le jeu
 
@@ -10,6 +18,7 @@ Prérequis pour développer : Bun 1.3.11 ou compatible. Pour jouer : navigateur 
 
 ```sh
 bun install --frozen-lockfile
+bun run doctor
 bun run dev
 ```
 
@@ -30,9 +39,18 @@ bun run start --mode=tdm
 bun run start --mode=ffa --port=3001
 ```
 
-Aucun compte, aucune base de données, aucun service externe de jeu. Le pseudo est conservé localement dans le navigateur ; se reconnecter crée une nouvelle session et de nouveaux scores personnels.
+Aucun compte, aucune base de données, aucun service externe nécessaire pour développer ou jouer en local. Le pseudo est conservé localement dans le navigateur ; se reconnecter crée une nouvelle session et de nouveaux scores personnels. Le dépôt Java n'est pas requis pour compiler ou exécuter les tests ; il sert aux nouvelles comparaisons de référence.
 
-Pour la mise en ligne avec client Vercel et serveur Bun permanent : [procédure de déploiement](docs/deployment.md).
+Pour la mise en ligne avec client Vercel et serveur Bun permanent : [publication et rollback](docs/releasing.md). Préparer une release fige un commit dans un arbre de travail propre ; cette étape locale ne publie rien.
+
+```sh
+bun run release:prepare --id=YYYYMMDD-HHMMSS
+bun run release:vercel status
+```
+
+Le premier argument est un identifiant unique à remplacer par la date/heure choisie. Le développement autorise les inspections Git et les commits locaux nécessaires à la tâche ; une demande de publication autorise le push de la branche choisie et sa publication. Ne jamais réécrire un historique publié ni pousser en force sans demande explicite. Les accès GitHub, Vercel et SSH restent privés, hors du dépôt ; [AGENTS.md](AGENTS.md) précise les règles.
+
+Les métadonnées de référencement, les aperçus de partage avec le visuel historique et le contenu de présentation sont décrits dans [docs/seo.md](docs/seo.md).
 
 ## Commandes
 
@@ -41,7 +59,7 @@ Pour la mise en ligne avec client Vercel et serveur Bun permanent : [procédure 
 | Déplacement | ZQSD sur AZERTY / WASD sur QWERTY | Joystick gauche |
 | Regarder | Souris | Glisser à droite, ou glisser sur Tirer |
 | Saut / course | Espace / Maj | Saut / pousser le joystick au bord |
-| Tir / visée | Clic gauche / clic droit | Tirer / maintenir Viser |
+| Tir / visée | Clic gauche / clic droit | Maintenir et glisser sur Tirer, ou double appui maintenu à droite / appuyer sur Viser pour basculer |
 | Changer d'arme ou d'outil | Molette | Flèches autour du nom de l'arme |
 | Pelle : creuser / construire | Clic gauche / clic droit | Creuser / Bâtir |
 | Grenade | Maintenir le clic gauche puis relâcher | Maintenir Lancer puis relâcher |
@@ -50,6 +68,8 @@ Pour la mise en ligne avec client Vercel et serveur Bun permanent : [procédure 
 | Couper / rétablir le son | F1 | Menu → options → Audio |
 
 Le menu reprend les composants Java : sensibilités normale et en visée, volume, neige, ombres et supersampling (SSAA). Les réglages sont appliqués immédiatement et conservés dans le navigateur. La vSync dépend du navigateur et ne peut pas être désactivée par la page. La partie continue pendant la pause. Le clavier/souris nécessite la capture du pointeur ; certains navigateurs intégrés refusent cette fonction. Les commandes tactiles fonctionnent sans cette API, en portrait et en paysage. Une interruption du geste, une rotation ou un passage en arrière-plan annule les actions en cours sans lancer une grenade involontairement.
+
+Le gain audio global est divisé par 50. Le curseur démarre à 100 % pour une nouvelle préférence ; les réglages enregistrés sont conservés. Cette réduction s'applique à toute la plage du curseur.
 
 Les ombres reposent sur quatre cascades Three.js de 4096 × 4096, dans les limites du GPU, avec une précision concentrée près du joueur et des contours sans flou. La projection est stabilisée pendant les déplacements et s'adapte au zoom ainsi qu'au format de la fenêtre. L'éclairage de chaque face dépend de son orientation vers le soleil ; les faces opposées restent à l'ombre ambiante. Ce réglage demande davantage de calcul et de mémoire GPU que les anciennes cartes 2048 × 2048.
 
@@ -64,10 +84,12 @@ L'accueil conserve le panorama voxel animé. Le lobby utilise le fond original, 
 - Assaut : AK-47, grenades, pelle. Sniper : AWP, grenades, pelle. Médecin : soins, AK-47, grenades, pelle.
 - Projectiles à vitesse finie, dégâts de tête, pose du canon et cadence décidés par le serveur. Balles jaunes du Java animées entre les snapshots, y compris les tirs qui touchent avant le prochain snapshot. Chargeurs renouvelés instantanément après passage sous zéro ; aucun rechargement temporisé ajouté.
 - Maniement des cinq armes repris des updates Java à 60 Hz : positions et pivots OBJ, changement d'arme, inertie souris, balancement marche/course, recul, visée et zoom AWP. Cadences AK-47 de 8 ticks et AWP de 62 ticks ; pelle et soins par clic, grenade chargée puis lancée au relâchement. Le client anticipe l'animation et le son ; le serveur confirme les projectiles et leurs effets.
+- Personnages distants repris du renderer Java actif : dix volumes articulés, palette verte et peau, tête, marche/course et poses de visée, armes originales attachées aux mains et pseudos Riffic aux couleurs des équipes. Références et adaptations : [personnages Java](docs/player-reference.md).
 - Grenades avec charge, rebonds et dégâts radiaux ; modèle original visible dès le relâchement pour le tireur, avec prédiction visuelle et correction sur les confirmations serveur. Les grenades des autres joueurs conservent un tampon de 100 ms pour lisser les snapshots 20 Hz. Pelle, construction et résistance des blocs ; les dégâts partiels assombrissent les blocs.
 - Tirs alliés et soins possibles sur l'autre équipe, conformément aux chemins actifs du Java. En TDM, une mort rapporte un point à l'équipe opposée à celle de la victime.
 - Réapparition sur le terrain actuel, choix du kit après la mort, sons, effets, minicarte et tableau des scores.
 - Réinitialisation du terrain, des projectiles et des scores entre les manches. Les anciens messages sont rejetés par leur identifiant de manche.
+- Relief enneigé du générateur Java, chênes et grands chênes avec leurs branches et couronnes d'origine. Ruines historiques et hangars avec portes, fenêtres et intérieurs, entièrement destructibles. Les apparitions recherchent le sol praticable sous la végétation. Références, adaptations et validation : [génération du terrain](docs/terrain-generation.md).
 
 Les règles et transformations des armes sont vérifiées contre le code Java ; la sensation des déplacements et le maniement en partie restent à comparer avec une session humaine du Java. Références, adaptations et limites : [référence gameplay](docs/gameplay-client.md).
 
@@ -104,9 +126,12 @@ La durée définitive et une éventuelle limite de score restent des décisions 
 | `src/shared` | Simulation commune au serveur et au solo, admission, règles, données voxel, mouvement, protocole et codec binaire |
 | `src/client` | Three.js, prédiction et réconciliation, interpolation, entrées, interface, sons et workers de terrain |
 | `scripts` | Compilation, développement et clients de charge |
+| `scripts/release`, `ops` | Préparation/publication, rollback, cibles et empreintes de production sans secrets |
 | `tests` | Autorité, collisions, terrain, cycle de vie et transport réel |
 
 La simulation avance à 60 Hz ; les états sont diffusés à 20 Hz dans un format binaire. Les intentions, événements et mutations de terrain utilisent JSON. L'identité, le temps de simulation, les impacts, la vie et les ressources sont décidés par le serveur. Les tailles, fréquences, files d'entrée et buffers réseau sont bornés.
+
+Les intentions sont envoyées dès l'image qui les produit, sans attendre trois commandes. Après une pointe réseau, le serveur regroupe les intentions identiques déjà maintenues pour résorber le retard ; chaque appui, relâchement et changement d'arme conserve son ordre et son identifiant, avec une seule simulation par tick. Les personnages distants utilisent une interpolation sur les ticks serveur, avec environ 50 ms de tampon sur un réseau stable, augmenté selon la gigue observée. Une interruption réseau conserve la dernière position confirmée.
 
 Le monde de base est déterministe à partir d'une graine. Un cache borné de colonnes compactes et les seules modifications du monde remplacent une allocation d'objets par voxel. Deux workers au maximum produisent les maillages avec fusion de faces compatibles et occlusion ambiante ; les travaux périmés sont ignorés après modification ou reset.
 
@@ -134,7 +159,7 @@ Les résultats et leurs limites figurent dans [docs/validation.md](docs/validati
 - Compensation de latence du combat : les tirs sont actuellement résolus au temps serveur, sans historique des joueurs et du terrain.
 - Validation de charge prolongée sur machines distinctes et matériel cible, réseau dégradé, consommation GPU et grandes distances.
 - Réplication spatiale, terrain lointain et adaptation des budgets selon les mesures.
-- Mise en ligne avec HTTPS/WSS et supervision sur l'hébergement choisi.
+- Supervision et alertes prolongées sur l'hébergement déjà en ligne ; Vercel et HTTPS/WSS sur Hetzner sont opérationnels.
 - Effondrements et scaling horizontal ultérieurs. Une base de données seule ne distribue pas une simulation temps réel ; le choix entre plusieurs parties et une seule partie répartie reste ouvert.
 
 Les notes de cadrage dans `docs/` décrivent également des mécanismes prévus qui ne sont pas encore tous réalisés ; ce README et la validation décrivent l'implémentation livrée.

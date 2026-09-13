@@ -1,0 +1,54 @@
+[
+  {
+    "file": "src/server/game.ts",
+    "sha256": "bb71facb3cf6992477eb40e52655be2a2e46e5e0d6316f75a337e946339a679b"
+  },
+  {
+    "file": "src/server/index.ts",
+    "sha256": "451e90aac37486a3ff3d6172a073c5a0dcdfd25f008acc2003df7b19b124ecc3"
+  },
+  {
+    "file": "src/shared/buildings.ts",
+    "sha256": "1e2abc5f94e3760d45f92b5c629ea35d2624aa02cf57fcc955a0cf6a442d694f"
+  },
+  {
+    "file": "src/shared/game.ts",
+    "sha256": "8888c91544474469bea825bf7b6ea9fceed421b166d20112f4d0a5153f5e013f"
+  },
+  {
+    "file": "src/shared/grenade.ts",
+    "sha256": "d83b26d78742da129b347ec5165bf517bf86abfb40b432f18160e8fb5f4701aa"
+  },
+  {
+    "file": "src/shared/movement.ts",
+    "sha256": "33cd58c0ab91997b4aba1d34ba724bb375bfbe82c3015c1cb1c9ae9ecad3c2ab"
+  },
+  {
+    "file": "src/shared/protocol.ts",
+    "sha256": "ede3680b763e716c5589b025d35d7f3b9b6b809bb831e008809e4e78a26bd5c1"
+  },
+  {
+    "file": "src/shared/ruin-model.ts",
+    "sha256": "071717fa523d4febba59551a26e5afa0a125fedc58b5070e0b7029050d02dd33"
+  },
+  {
+    "file": "src/shared/terrain-generation.ts",
+    "sha256": "c89d0d9a933fb5ce7aa135ac65a1531390a7d530e4c6b9790f89d87f71dad186"
+  },
+  {
+    "file": "src/shared/vegetation.ts",
+    "sha256": "549f5e2e47d1111ece3749b1cbfd552f90299f3aad34d87ae0ed0894edb6e395"
+  },
+  {
+    "file": "src/shared/voxel.ts",
+    "sha256": "41ebb622d9a28d930f64e18eaeb644da5abf802f01d1dce311d6fe853ddd68a0"
+  },
+  {
+    "file": "src/shared/weapon-pose.ts",
+    "sha256": "51528e5c05351acc3ff9bb9475bdb565361d4c10399b9b80f86dc8ddc542c5a9"
+  },
+  {
+    "file": "src/shared/wire.ts",
+    "sha256": "873fae8c1c0d9ccfd1ff4e7248fcd4f9ab0537a3f3f57772d6653ce2f572b8af"
+  }
+]

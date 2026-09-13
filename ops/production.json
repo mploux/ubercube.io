@@ -1,0 +1,18 @@
+{
+  "projectId": "prj_CiVFE0SigqoArlQB5qUGZZviu7WN",
+  "teamId": "team_4JHu0tDU6wraJl1g3B47wbry",
+  "projectName": "ubercube-io",
+  "gitRepository": "mploux/ubercube.io",
+  "productionBranch": "main",
+  "frontendOrigin": "https://www.ubercube.io",
+  "frontendAliases": ["www.ubercube.io", "ubercube.io", "ubercube-io.vercel.app"],
+  "gameOrigin": "https://game.ubercube.io",
+  "sshTarget": "codex@2.29.30.129",
+  "serverRoot": "/opt/ubercube",
+  "serviceName": "ubercube",
+  "bunVersion": "1.3.11",
+  "recordedAt": "2026-09-13T16:34:55Z",
+  "recordedDeploymentId": "dpl_46LahA4vFkaZ7uDxNmpqezN2KzM7",
+  "recordedServerRelease": "20260913-terrain",
+  "recordedProtocolVersion": 2
+}
