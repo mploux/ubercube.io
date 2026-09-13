@@ -130,7 +130,7 @@ export class GameAudio {
       attenuation = 1 / (1 + distance * 0.075);
       pan.pan.value = Math.max(-0.85, Math.min(0.85, (dx * Math.cos(yaw) - dz * Math.sin(yaw)) / Math.max(1, distance)));
     }
-    gain.gain.value = volume * attenuation * this.volume;
+    gain.gain.value = volume * attenuation * this.volume / 50;
     source.connect(gain).connect(pan).connect(this.context.destination);
     this.active++;
     source.onended = () => { this.active--; source.disconnect(); gain.disconnect(); pan.disconnect(); };
