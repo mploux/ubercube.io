@@ -1,6 +1,6 @@
 import { DT, KITS, PROTOCOL_VERSION, TICK_RATE, WEAPONS } from './protocol.ts';
 import type { GameEvent, InputFrame, Kit, Mode, PlayerState, ProjectileState, ServerMessage, Vec3, VoxelEdit, WeaponId, WorldConfig } from './protocol.ts';
-import { aimDirection, EYE_HEIGHT, movePlayer, PLAYER_HEIGHT, PLAYER_RADIUS } from './movement.ts';
+import { aimDirection, EYE_HEIGHT, movePlayer, playerCollides, PLAYER_HEIGHT, PLAYER_RADIUS } from './movement.ts';
 import { damageBlock, packBlock, raycast, VoxelWorld } from './voxel.ts';
 import { encodeServerMessage } from './wire.ts';
 import { createWeaponPose, getWeaponMuzzle, hideWeaponPose, stepWeaponMotion, stepWeaponPose, type WeaponPoseState } from './weapon-pose.ts';
@@ -364,12 +364,13 @@ export class GameServer {
       const x = Math.floor(player.team ? base + (a - .5) * 32 : 4 + a * (size - 8)) + .5;
       const z = Math.floor(player.team ? base + (b - .5) * 32 : 4 + b * (size - 8)) + .5;
       if (x < 1 || z < 1 || x >= size - 1 || z >= size - 1) continue;
-      const y = this.world.surfaceY(Math.floor(x), Math.floor(z)) + .01;
-      if (y + PLAYER_HEIGHT >= this.options.world.height) continue;
+      // Start at the natural ground, so generated canopies and roofs are never spawn platforms.
+      let y = Math.min(this.world.groundY(x, z) + 1, this.options.world.height - Math.ceil(PLAYER_HEIGHT));
+      while (y > 0 && (!this.world.get(Math.floor(x), y - 1, Math.floor(z))
+        || playerCollides(this.world, { x, y: y + .01, z }))) y--;
+      if (!y) continue;
+      y += .01;
       let blocked = false;
-      for (let iy = Math.floor(y); iy <= Math.floor(y + PLAYER_HEIGHT); iy++) {
-        if (this.world.get(Math.floor(x), iy, Math.floor(z))) blocked = true;
-      }
       for (const other of this.players.values()) {
         if (other.alive && Math.abs(other.position.x - x) < 1 && Math.abs(other.position.z - z) < 1
           && Math.abs(other.position.y - y) < PLAYER_HEIGHT) blocked = true;

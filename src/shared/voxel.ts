@@ -1,4 +1,8 @@
 import type { Vec3, VoxelEdit, WorldConfig } from './protocol';
+import { terrainHash, terrainHeight } from './terrain-generation';
+import { vegetationForChunk } from './vegetation';
+import { buildingBlock, buildingsForChunk } from './buildings';
+import type { Building } from './buildings';
 
 export const CHUNK_SIZE = 16;
 const COLUMN_CACHE_LIMIT = 256;
@@ -21,36 +25,19 @@ export function damageBlock(value: number, amount: number): number {
     (value & 255) * shade, health);
 }
 
-function hash(x: number, z: number, seed: number): number {
-  let n = Math.imul(x, 374761393) ^ Math.imul(z, 668265263) ^ seed;
-  n = Math.imul(n ^ (n >>> 13), 1274126177);
-  return (n ^ (n >>> 16)) >>> 0;
-}
-
-function noise(x: number, z: number, seed: number): number {
-  const ix = Math.floor(x), iz = Math.floor(z);
-  let u = x - ix, v = z - iz;
-  u *= u * (3 - 2 * u); v *= v * (3 - 2 * v);
-  const a = hash(ix, iz, seed) / 4294967295;
-  const b = hash(ix + 1, iz, seed) / 4294967295;
-  const c = hash(ix, iz + 1, seed) / 4294967295;
-  const d = hash(ix + 1, iz + 1, seed) / 4294967295;
-  return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
-}
-
 const BEDROCK = packBlock(127, 127, 127);
 
 interface Columns {
-  ground: Uint16Array;
-  wood: Uint16Array;
-  leafBottom: Uint16Array;
-  leafTop: Uint16Array;
-  rock: Uint16Array;
+  ground: Float32Array;
+  vegetation: Map<number, number>;
+  buildings: Building[];
 }
 
 export class VoxelWorld {
   private configuration: WorldConfig;
   private readonly columns = new Map<number, Columns>();
+  private readonly heights = new Map<number, Float32Array>();
+  private readonly buildings = new Map<number, Building[]>();
   private readonly edits = new Map<number, number>();
 
   constructor(config: WorldConfig) {
@@ -73,10 +60,35 @@ export class VoxelWorld {
       && x >= 0 && z >= 0 && y >= 0 && x < this.config.size && z < this.config.size && y < this.config.height;
   }
 
-  private ground(x: number, z: number): number {
-    const h = 7 + noise(x / 62, z / 62, this.config.seed) * 15
-      + noise(x / 23, z / 23, this.config.seed ^ 173) * 5;
-    return Math.max(2, Math.min(this.config.height - 12, Math.floor(h)));
+  groundY(x: number, z: number): number {
+    x = Math.floor(x); z = Math.floor(z);
+    if (!Number.isFinite(x) || !Number.isFinite(z) || x < 0 || z < 0 || x >= this.config.size || z >= this.config.size) return 0;
+    return Math.floor(this.heightAt(x, z)) + 1;
+  }
+
+  private heightAt(x: number, z: number): number {
+    const cx = Math.floor(x / CHUNK_SIZE), cz = Math.floor(z / CHUNK_SIZE);
+    const key = cx + cz * Math.ceil(this.config.size / CHUNK_SIZE);
+    let heights = this.heights.get(key);
+    if (!heights) {
+      heights = new Float32Array(256);
+      for (let z = 0; z < CHUNK_SIZE; z++) for (let x = 0; x < CHUNK_SIZE; x++) {
+        heights[x + z * CHUNK_SIZE] = terrainHeight(this.config, cx * CHUNK_SIZE + x, cz * CHUNK_SIZE + z);
+      }
+      if (this.heights.size >= COLUMN_CACHE_LIMIT) this.heights.delete(this.heights.keys().next().value!);
+      this.heights.set(key, heights);
+    }
+    return heights[x - cx * CHUNK_SIZE + (z - cz * CHUNK_SIZE) * CHUNK_SIZE];
+  }
+
+  private buildingsAt(cx: number, cz: number): Building[] {
+    const key = cx + cz * Math.ceil(this.config.size / CHUNK_SIZE);
+    const cached = this.buildings.get(key);
+    if (cached) return cached;
+    const buildings = buildingsForChunk(this.config, cx, cz, (x, z) => Math.floor(this.heightAt(x, z)));
+    if (this.buildings.size >= COLUMN_CACHE_LIMIT) this.buildings.delete(this.buildings.keys().next().value!);
+    this.buildings.set(key, buildings);
+    return buildings;
   }
 
   private getColumns(cx: number, cz: number): Columns {
@@ -84,40 +96,13 @@ export class VoxelWorld {
     const cached = this.columns.get(key);
     if (cached) return cached;
     const data: Columns = {
-      ground: new Uint16Array(256), wood: new Uint16Array(256),
-      leafBottom: new Uint16Array(256), leafTop: new Uint16Array(256), rock: new Uint16Array(256),
+      ground: new Float32Array(256), vegetation: vegetationForChunk(this.config, cx, cz,
+        (x, z) => this.heightAt(x, z), (x, z) => this.buildingsAt(x, z)),
+      buildings: this.buildingsAt(cx, cz),
     };
     const ox = cx * CHUNK_SIZE, oz = cz * CHUNK_SIZE;
     for (let z = 0; z < CHUNK_SIZE; z++) {
-      for (let x = 0; x < CHUNK_SIZE; x++) data.ground[x + z * CHUNK_SIZE] = this.ground(ox + x, oz + z);
-    }
-    // Each feature has one stable origin; neighboring chunks generate only their intersection.
-    for (let fz = cz - 1; fz <= cz + 1; fz++) {
-      for (let fx = cx - 1; fx <= cx + 1; fx++) {
-        const h = hash(fx, fz, this.config.seed ^ 0x731af);
-        const ax = fx * CHUNK_SIZE + 4 + ((h >>> 8) % 8);
-        const az = fz * CHUNK_SIZE + 4 + ((h >>> 16) % 8);
-        if (ax < 18 || az < 8 || ax >= this.config.size - 18 || az >= this.config.size - 8
-          || Math.hypot(ax - this.config.size / 2, az - this.config.size / 2) < 14) continue;
-        const choice = h % 10;
-        if (choice >= 6) continue;
-        const base = this.ground(ax, az);
-        const radius = choice < 4 ? 3 + ((h >>> 25) & 1) : 2;
-        const top = base + 5 + ((h >>> 22) % 3);
-        for (let z = Math.max(oz, az - radius); z <= Math.min(oz + 15, az + radius); z++) {
-          for (let x = Math.max(ox, ax - radius); x <= Math.min(ox + 15, ax + radius); x++) {
-            const distance = (x - ax) ** 2 + (z - az) ** 2;
-            if (distance > radius * radius) continue;
-            const i = x - ox + (z - oz) * CHUNK_SIZE;
-            if (choice < 4) {
-              const thickness = Math.floor(Math.sqrt(radius * radius - distance) * 0.7);
-              data.leafBottom[i] = top - thickness;
-              data.leafTop[i] = Math.min(this.config.height - 1, top + thickness);
-              if (x === ax && z === az) data.wood[i] = top;
-            } else data.rock[i] = Math.max(data.rock[i]!, base + Math.floor(Math.sqrt(5 - distance)) + 1);
-          }
-        }
-      }
+      for (let x = 0; x < CHUNK_SIZE; x++) data.ground[x + z * CHUNK_SIZE] = this.heightAt(ox + x, oz + z);
     }
     if (this.columns.size >= COLUMN_CACHE_LIMIT) this.columns.delete(this.columns.keys().next().value!);
     this.columns.set(key, data);
@@ -128,29 +113,28 @@ export class VoxelWorld {
     if (y === 0) return BEDROCK;
     const column = this.getColumns(Math.floor(x / CHUNK_SIZE), Math.floor(z / CHUNK_SIZE));
     const i = (x % CHUNK_SIZE) + (z % CHUNK_SIZE) * CHUNK_SIZE;
-    const ground = column.ground[i]!;
-    const variation = hash(x + y * 31, z, this.config.seed ^ 0x52a83) / 4294967295;
+    for (const building of column.buildings) {
+      const value = buildingBlock(building, x, y, z);
+      if (value !== undefined) return value;
+    }
+    const vegetation = column.vegetation.get(i + y * 256);
+    if (vegetation !== undefined) return vegetation;
+    const height = column.ground[i]!, ground = Math.floor(height);
+    const variation = terrainHash(x + y * 31, z, this.config.seed ^ 0x52a83) / 0x100000000;
     if (y < ground) {
       const gray = (0.48 + variation * 0.04) * 255;
       return packBlock(gray, gray, gray);
     }
     if (y === ground) {
+      const snow = Math.min(1, (y - 10) / 6);
+      if (snow > terrainHash(x, z, this.config.seed ^ 0x9e37) / 0x100000000) {
+        return packBlock((0.9 + variation * 0.02) * 255, (0.9 + variation * 0.02) * 255,
+          (0.98 + variation * 0.02) * 255);
+      }
       const noise = variation * 0.04 - 0.02;
-      const t = ground / 30;
+      const t = height / 30;
       return packBlock((0.05 + 0.05 * t + noise) * 255,
         (0.1 + 0.4 * t + noise) * 255, (0.05 + 0.05 * t + noise) * 255);
-    }
-    if (y <= column.rock[i]!) {
-      const gray = (0.5 + variation * 0.1) * 255;
-      return packBlock(gray, gray, gray);
-    }
-    if (y <= column.wood[i]!) {
-      const noise = variation * 0.05;
-      return packBlock((0.252 + noise) * 255, (0.192 + noise) * 255, (0.084 + noise) * 255);
-    }
-    if (column.leafTop[i] && y >= column.leafBottom[i]! && y <= column.leafTop[i]!) {
-      const noise = variation * 0.05;
-      return packBlock((0.1 + noise) * 255, (0.4 + noise) * 255, (0.1 + noise) * 255);
     }
     return 0;
   }
@@ -191,6 +175,8 @@ export class VoxelWorld {
   reset(config: WorldConfig = this.config): void {
     this.configuration = this.validate(config);
     this.columns.clear();
+    this.heights.clear();
+    this.buildings.clear();
     this.edits.clear();
   }
 }

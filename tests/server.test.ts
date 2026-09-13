@@ -5,6 +5,7 @@ import { readConfig, startServer } from '../src/server/index.ts';
 import { PROTOCOL_VERSION } from '../src/shared/protocol.ts';
 import type { InputFrame, Kit, ServerMessage } from '../src/shared/protocol.ts';
 import { packBlock, VoxelWorld } from '../src/shared/voxel.ts';
+import { playerCollides } from '../src/shared/movement.ts';
 import { decodeServerMessage } from '../src/shared/wire.ts';
 
 class TestPeer implements Peer {
@@ -33,6 +34,28 @@ function input(game: GameServer, connection: Connection, values: Partial<InputFr
 }
 
 describe('authoritative simulation', () => {
+  test.each([PROTOCOL_VERSION - 1, PROTOCOL_VERSION + 1])('rejects generation-incompatible protocol %s before sending a world', version => {
+    const game = new GameServer();
+    const peer = new TestPeer();
+    const connection = game.connect(peer)!;
+    game.receive(connection, JSON.stringify({ type: 'hello', version, name: 'Old terrain' }));
+    expect(peer.closed).toBe(true);
+    expect(game.players.size).toBe(0);
+    expect(peer.messages.some(message => message.type === 'welcome' || message.type === 'world')).toBe(false);
+    expect(peer.messages.some(message => message.type === 'error' && message.fatal)).toBe(true);
+  });
+
+  test.each(['tdm', 'ffa'] as const)('spawns 100 players safely on the current ground in %s', mode => {
+    const game = new GameServer({ mode });
+    for (let i = 0; i < 100; i++) {
+      const { player } = join(game, `Terrain-${i}`);
+      expect(player.alive).toBe(true);
+      expect(playerCollides(game.world, player.position)).toBe(false);
+      expect(game.world.get(Math.floor(player.position.x), Math.floor(player.position.y) - 1, Math.floor(player.position.z))).not.toBe(0);
+      expect(player.position.y).toBeLessThanOrEqual(game.world.groundY(player.position.x, player.position.z) + 1.02);
+    }
+  });
+
   test('admits 100 immediately, balances TDM atomically, refuses 101 and releases a disconnected slot', () => {
     const game = new GameServer();
     const clients = Array.from({ length: 100 }, (_, i) => join(game, `Player${i}`, null));
@@ -53,7 +76,8 @@ describe('authoritative simulation', () => {
     const { player } = join(game);
     expect(player.team).toBe(0);
     expect(player.alive).toBe(true);
-    expect(player.position.y).toBeGreaterThanOrEqual(game.world.surfaceY(Math.floor(player.position.x), Math.floor(player.position.z)));
+    expect(playerCollides(game.world, player.position)).toBe(false);
+    expect(player.position.y).toBeGreaterThan(0);
   });
 
   test.each(['assault', 'sniper', 'medic'] as const)('%s spawns with the correct weapon and magazine in the first snapshot', selectedKit => {

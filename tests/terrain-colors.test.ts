@@ -1,33 +1,38 @@
 import { describe, expect, test } from 'bun:test';
 import { meshChunk } from '../src/client/terrain.worker';
 import { packBlock, VoxelWorld } from '../src/shared/voxel';
+import { terrainHeight } from '../src/shared/terrain-generation';
+import { writeTree } from '../src/shared/vegetation';
 
 const job = { type: 'mesh' as const, x: 0, y: 2, z: 0, version: 0, epoch: 0 };
 const channels = (value: number) => [(value >>> 16) & 255, (value >>> 8) & 255, value & 255];
 
 describe('Java terrain palette', () => {
-  test('changes color without moving a voxel or changing the seed layout', () => {
+  test('snow covers high ground using the original cool white palette', () => {
     const world = new VoxelWorld({ seed: 42042, size: 64, height: 64 });
-    const occupancy = new Uint8Array(64 ** 3);
-    let offset = 0;
-    for (let z = 0; z < 64; z++) for (let y = 0; y < 64; y++) for (let x = 0; x < 64; x++) {
-      occupancy[offset++] = world.get(x, y, z) ? 1 : 0;
+    for (const [x, z] of [[12, 35], [40, 40], [60, 53]]) {
+      const y = world.groundY(x, z) - 1;
+      const [r, g, b] = channels(world.get(x, y, z));
+      expect(y).toBeGreaterThanOrEqual(16);
+      expect(r).toBe(g);
+      expect(r).toBeGreaterThanOrEqual(229);
+      expect(r).toBeLessThanOrEqual(234);
+      expect(b).toBeGreaterThanOrEqual(249);
+      expect(b).toBeLessThanOrEqual(254);
+      expect(b - r).toBeGreaterThanOrEqual(20);
     }
-    // Captured from the unchanged terrain before the palette correction.
-    expect(new Bun.CryptoHasher('sha256').update(occupancy).digest('hex'))
-      .toBe('db7bda55d9979422cd6ff3ca4611384728992e0dbf6778aaaecdfe91a9ce82aa');
   });
 
   test('grass follows the Java height gradient and stone is neutral gray', () => {
-    const world = new VoxelWorld({ seed: 42042, size: 64, height: 64 });
-    for (const [x, z] of [[2, 2], [8, 12], [12, 35], [60, 53]]) {
-      const height = world.surfaceY(x, z) - 1;
-      const [r, g, b] = channels(world.get(x, height, z));
+    const world = new VoxelWorld({ seed: 0, size: 64, height: 64 });
+    for (const [x, z] of [[2, 2], [8, 12], [12, 35], [40, 40]]) {
+      const height = terrainHeight(world.config, x, z), y = Math.floor(height);
+      const [r, g, b] = channels(world.get(x, y, z));
       expect(r).toBe(b);
       expect(Math.abs((g - r) - (0.05 + 0.35 * height / 30) * 255)).toBeLessThan(1.01);
       expect(r).toBeGreaterThanOrEqual(Math.floor((0.05 + 0.05 * height / 30 - 0.02) * 255));
       expect(r).toBeLessThanOrEqual(Math.floor((0.05 + 0.05 * height / 30 + 0.02) * 255));
-      const stone = channels(world.get(x, height - 2, z));
+      const stone = channels(world.get(x, y - 2, z));
       expect(stone[0]).toBe(stone[1]);
       expect(stone[1]).toBe(stone[2]);
       expect(stone[0]).toBeGreaterThanOrEqual(122);
@@ -35,17 +40,21 @@ describe('Java terrain palette', () => {
     }
   });
 
-  test('oak canopies use the original saturated green rather than a blue gray palette', () => {
-    const world = new VoxelWorld({ seed: 42042, size: 128, height: 64 });
-    for (const [x, z] of [[73, 38], [74, 38], [73, 39]]) {
-      const height = world.surfaceY(x, z) - 1;
-      expect(height).toBeGreaterThanOrEqual(27);
-      const [r, g, b] = channels(world.get(x, height, z));
-      expect(r).toBe(b);
-      expect(r).toBeGreaterThanOrEqual(25);
-      expect(r).toBeLessThanOrEqual(38);
-      expect(g).toBeGreaterThanOrEqual(102);
-      expect(g).toBeLessThanOrEqual(114);
+  test('oak and big oak retain their distinct Java leaf and bark palettes', () => {
+    for (const big of [false, true]) {
+      const blocks = new Map<number, number>();
+      writeTree({ x: 8, y: 8, z: 8, big, leaves: [], branches: [] },
+        { seed: 42042, size: 16, height: 64 }, 0, 0, blocks);
+      const leaves = Array.from(blocks.values(), channels).filter(([r, g]) => g > r);
+      const wood = Array.from(blocks.values(), channels).filter(([r, g]) => r > g);
+      expect(leaves.length).toBeGreaterThan(big ? 1000 : 200);
+      expect(wood.length).toBe((big ? 9 * 20 : 4 * 10));
+      expect(leaves.every(([r, g, b]) => big
+        ? r >= 0 && r <= 12 && g >= 76 && g <= 89 && b >= 12 && b <= 25
+        : r === b && r >= 25 && r <= 38 && g >= 102 && g <= 114)).toBe(true);
+      expect(wood.every(([r, g, b]) => big
+        ? r >= 53 && r <= 66 && g >= 40 && g <= 53 && b >= 17 && b <= 30
+        : r >= 64 && r <= 77 && g >= 48 && g <= 61 && b >= 21 && b <= 34)).toBe(true);
     }
   });
 });
