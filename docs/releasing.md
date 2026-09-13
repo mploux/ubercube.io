@@ -6,7 +6,7 @@ Une tâche de code autorise l'inspection Git et les commits locaux nécessaires.
 
 ## Cibles et accès
 
-Les cibles publiques sont dans [ops/production.json](../ops/production.json) : client Vercel `ubercube-io`, serveur `game.ubercube.io`, SSH `codex@2.29.30.129`, service `ubercube`, sources `/opt/ubercube`. Configuration serveur `/etc/ubercube.env`, proxy `/etc/caddy/Caddyfile`. Les outils ne modifient ni ces configurations, ni les comptes, ni les clés.
+Les cibles publiques sont dans [ops/production.json](../ops/production.json) : client Vercel `ubercube-io`, serveur `game.ubercube.io`, SSH `codex@2.29.30.129`, service `ubercube`, sources `/opt/ubercube`. Configuration serveur `/etc/ubercube.env`, proxy `/etc/caddy/Caddyfile`. Les outils ne modifient ni ces configurations, ni les comptes, ni les clés. Bun 1.3.11 est la référence locale de comparaison ; Vercel gère son runtime de build et `packageManager` ne garantit pas à lui seul sa version exacte. Relever la version dans les logs lors d'une divergence, sans relâcher le contrôle du code exécuté.
 
 Prérequis : Bun **1.3.11**, dépendances installées, Git avec un accès autorisé au dépôt GitHub `origin`, OpenSSH (`ssh`, `scp`), `tar`. Le serveur possède déjà Bun, bash, GNU tar/coreutils, curl et systemd. `bun run doctor` contrôle uniquement la présence locale ; il n'accorde aucun accès. Vercel doit rester relié au même dépôt GitHub avec `main` comme branche Production ; vérifier cette liaison avant une première publication depuis une nouvelle session.
 
@@ -111,7 +111,7 @@ bun run release:vercel verify "--release=$releasePath"
 bun run smoke --url=https://game.ubercube.io --origin=https://www.ubercube.io "--output=$releasePath/smoke.json"
 ```
 
-`--backend-ready` est une assertion technique de l'opérateur, pas une nouvelle demande d'autorisation utilisateur. `/health` ne publie pas le numéro de protocole : vérifier aussi les sources actives et la connexion. La promotion est asynchrone ; attendre que **tous** les domaines ciblent le nouvel ID avant `verify`. Cette commande contrôle le SHA Git déployé, recompile le snapshot et compare les octets de chaque ressource publique (JS, workers, chunks, CSS, HTML, assets), hors source maps dont l'accès peut être restreint.
+`--backend-ready` est une assertion technique de l'opérateur, pas une nouvelle demande d'autorisation utilisateur. `/health` ne publie pas le numéro de protocole : vérifier aussi les sources actives et la connexion. La promotion est asynchrone ; attendre que **tous** les domaines ciblent le nouvel ID avant `verify`. Cette commande contrôle le SHA Git déployé, recompile le snapshot et compare chaque ressource publique (JS, workers, chunks, CSS, HTML, assets). Seule la valeur `debugId` du commentaire final précédant `sourceMappingURL` dans les fichiers JS peut différer : elle ne fait pas partie du code exécuté. Les empreintes brutes servies et locales restent enregistrées avec l'empreinte de comparaison ; toute autre différence échoue. Les source maps elles-mêmes sont exclues car leur accès peut être restreint.
 
 Si la release coordonnée a utilisé une branche de travail, synchroniser ensuite `main` avec le commit validé, idéalement par fast-forward. Si l'intégration crée un nouveau commit, il faut le valider et préparer son propre snapshot. Le push de `main` peut lancer un autre build Git ; vérifier également son SHA et ses ressources lorsqu'il remplace le build promu.
 

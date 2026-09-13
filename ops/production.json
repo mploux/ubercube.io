@@ -5,14 +5,20 @@
   "gitRepository": "mploux/ubercube.io",
   "productionBranch": "main",
   "frontendOrigin": "https://www.ubercube.io",
-  "frontendAliases": ["www.ubercube.io", "ubercube.io", "ubercube-io.vercel.app"],
+  "frontendAliases": [
+    "www.ubercube.io",
+    "ubercube.io",
+    "ubercube-io.vercel.app"
+  ],
   "gameOrigin": "https://game.ubercube.io",
   "sshTarget": "codex@2.29.30.129",
   "serverRoot": "/opt/ubercube",
   "serviceName": "ubercube",
   "bunVersion": "1.3.11",
-  "recordedAt": "2026-09-13T16:34:55Z",
-  "recordedDeploymentId": "dpl_46LahA4vFkaZ7uDxNmpqezN2KzM7",
+  "recordedAt": "2026-09-13T17:52:20.759Z",
+  "recordedDeploymentId": "dpl_9aqGDxktthNXy15yjDjnRLxMbzpo",
   "recordedServerRelease": "20260913-terrain",
-  "recordedProtocolVersion": 2
+  "recordedProtocolVersion": 2,
+  "recordedClientCommit": "c5d0b3a917c854c41330317ecdc30f9a3d29c2e2",
+  "recordedVercelBunVersion": "1.3.14"
 }

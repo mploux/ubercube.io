@@ -154,6 +154,26 @@ export function deploymentCommit(value: { gitSource?: { type?: string; repoId?: 
   return sha;
 }
 
+export function verifyResource(path: string, expected: Uint8Array, actual: Uint8Array): {
+  path: string; sha256: string; expectedSha256: string; comparisonSha256: string; ignoredMetadata?: string;
+} {
+  const proof = { path, sha256: digest(actual), expectedSha256: digest(expected) };
+  if (proof.sha256 === proof.expectedSha256) return { ...proof, comparisonSha256: proof.sha256 };
+  if (path.endsWith('.js')) {
+    // Bun's source-map debug ID can differ between build environments; preserve executable bytes and the URL.
+    const trailer = /(\n\/\/# debugId=)[0-9a-fA-F]{32}(\n\/\/# sourceMappingURL=[^\r\n]+\.map\n?)$/;
+    const local = Buffer.from(expected).toString('latin1'), served = Buffer.from(actual).toString('latin1');
+    if (trailer.test(local) && trailer.test(served)) {
+      const replacement = `$1${'0'.repeat(32)}$2`;
+      const comparisonSha256 = digest(Buffer.from(local.replace(trailer, replacement), 'latin1'));
+      if (comparisonSha256 === digest(Buffer.from(served.replace(trailer, replacement), 'latin1'))) {
+        return { ...proof, comparisonSha256, ignoredMetadata: 'Bun debugId value in the terminal JavaScript source-map trailer.' };
+      }
+    }
+  }
+  throw new Error(`Public resource differs from the frozen build: ${path}`);
+}
+
 async function deployment(api: Api, config: Production, repoId: string, id: string, ready = false, expected?: string) {
   const value = await api(`/v13/deployments/${deploymentId(id)}`);
   if (value.id !== id || value.projectId !== config.projectId || value.target !== 'production') throw new Error('Deployment does not belong to the configured production project.');
@@ -264,14 +284,12 @@ export async function main(args = process.argv.slice(2), root = resolve(import.m
   const aliases = await productionAliases(api, config, target.id);
   await buildFrozen(root, release, config);
   const output = resolve(release.source, 'dist/client');
-  const resources: { path: string; sha256: string }[] = [];
+  const resources: ReturnType<typeof verifyResource>[] = [];
   for (const file of (await listFiles(output)).filter(file => !file.endsWith('.map'))) {
     const path = file === 'index.html' ? '/' : `/${file}`;
     const response = await fetch(new URL(path, config.frontendOrigin), { redirect: 'error', signal: AbortSignal.timeout(30000), cache: 'no-store' });
     if (!response.ok) throw new Error(`Public resource failed with HTTP ${response.status}: ${path}`);
-    const expected = digest(await readFile(resolve(output, file)));
-    if (digest(new Uint8Array(await response.arrayBuffer())) !== expected) throw new Error(`Public resource differs from the frozen build: ${path}`);
-    resources.push({ path, sha256: expected });
+    resources.push(verifyResource(path, await readFile(resolve(output, file)), new Uint8Array(await response.arrayBuffer())));
   }
   await productionAliases(api, config, target.id);
   await Bun.write(resolve(release.release, 'verification.json'), JSON.stringify({ deploymentId: target.id, commit: target.commit, verifiedAt: new Date().toISOString(), aliases, resources, excluded: 'Source maps: Vercel may restrict public access.' }, null, 2) + '\n');

@@ -1,422 +1,422 @@
 [
   {
-    "size": 2877,
     "file": "bun.lock",
-    "sha": "a994e49a9bb1848176ee5dedcf978ff6b32455d1"
+    "sha": "a994e49a9bb1848176ee5dedcf978ff6b32455d1",
+    "size": 2877
   },
   {
-    "size": 535,
     "file": "package.json",
-    "sha": "e8c8d1cee29fb0021331132d11bb25b280fda4fe"
+    "sha": "e392764311ed07674c8e30220e54595248406224",
+    "size": 757
   },
   {
-    "size": 288116,
-    "file": "public/assets/audio/AK47Shoot.wav",
-    "sha": "edae2c452849eccd90275b37995973ed01c8dd63"
-  },
-  {
-    "size": 368790,
-    "file": "public/assets/audio/AWPShoot.wav",
-    "sha": "bd79beffa099bd0e259b1e37ff0a81330c3a7106"
-  },
-  {
-    "size": 1328,
-    "file": "public/assets/audio/beep.wav",
-    "sha": "ed2a53c633b438e92e5a69031adf72350cde5c20"
-  },
-  {
-    "size": 25420,
-    "file": "public/assets/audio/dig.wav",
-    "sha": "5d15ff7421babe8112d4830a434fb6b68ce2fcf2"
-  },
-  {
-    "size": 67064,
-    "file": "public/assets/audio/footstep1.wav",
-    "sha": "6562dd26ce42e8fd6718b8d1173f08aee174ee01"
-  },
-  {
-    "size": 35454,
-    "file": "public/assets/audio/footstep2.wav",
-    "sha": "4aa03e757411aca80df8c887bf5354cc310edd18"
-  },
-  {
-    "size": 41376,
-    "file": "public/assets/audio/footstep3.wav",
-    "sha": "ebe6a8a8ecf88eacaa49c46b1638a806c69cb50c"
-  },
-  {
-    "size": 40816,
-    "file": "public/assets/audio/footstep4.wav",
-    "sha": "d92afd2f9cdd88b95abdf5c2a13450f994a82592"
-  },
-  {
-    "size": 25420,
-    "file": "public/assets/audio/impact.wav",
-    "sha": "5d15ff7421babe8112d4830a434fb6b68ce2fcf2"
-  },
-  {
-    "size": 43048,
-    "file": "public/assets/audio/jump.wav",
-    "sha": "d69090c03604bde1d508b5e9df11e7369a9140ac"
-  },
-  {
-    "size": 86318,
-    "file": "public/assets/audio/land.wav",
-    "sha": "2a842afa0d32bb597e9fe77c3c198706bf0b552a"
-  },
-  {
-    "size": 38956,
-    "file": "public/assets/audio/place.wav",
-    "sha": "4417df168d88c2225807a9834999e42fbeea4174"
-  },
-  {
-    "size": 51332,
-    "file": "public/assets/audio/playerhit.wav",
-    "sha": "4b9f7cc899ede91857d570ae08bd448c425cec37"
-  },
-  {
-    "size": 129740,
-    "file": "public/assets/audio/waterexplode.wav",
-    "sha": "6512941a6df0203e8267df6209a3c6b970a3c46b"
-  },
-  {
-    "size": 35152,
     "file": "public/assets/LICENSE.txt",
-    "sha": "ec4023b4fca86fdb11d59d69a0d2bc1d00964a10"
+    "sha": "ec4023b4fca86fdb11d59d69a0d2bc1d00964a10",
+    "size": 35152
   },
   {
-    "size": 271,
+    "file": "public/assets/audio/AK47Shoot.wav",
+    "sha": "edae2c452849eccd90275b37995973ed01c8dd63",
+    "size": 288116
+  },
+  {
+    "file": "public/assets/audio/AWPShoot.wav",
+    "sha": "bd79beffa099bd0e259b1e37ff0a81330c3a7106",
+    "size": 368790
+  },
+  {
+    "file": "public/assets/audio/beep.wav",
+    "sha": "ed2a53c633b438e92e5a69031adf72350cde5c20",
+    "size": 1328
+  },
+  {
+    "file": "public/assets/audio/dig.wav",
+    "sha": "5d15ff7421babe8112d4830a434fb6b68ce2fcf2",
+    "size": 25420
+  },
+  {
+    "file": "public/assets/audio/footstep1.wav",
+    "sha": "6562dd26ce42e8fd6718b8d1173f08aee174ee01",
+    "size": 67064
+  },
+  {
+    "file": "public/assets/audio/footstep2.wav",
+    "sha": "4aa03e757411aca80df8c887bf5354cc310edd18",
+    "size": 35454
+  },
+  {
+    "file": "public/assets/audio/footstep3.wav",
+    "sha": "ebe6a8a8ecf88eacaa49c46b1638a806c69cb50c",
+    "size": 41376
+  },
+  {
+    "file": "public/assets/audio/footstep4.wav",
+    "sha": "d92afd2f9cdd88b95abdf5c2a13450f994a82592",
+    "size": 40816
+  },
+  {
+    "file": "public/assets/audio/impact.wav",
+    "sha": "5d15ff7421babe8112d4830a434fb6b68ce2fcf2",
+    "size": 25420
+  },
+  {
+    "file": "public/assets/audio/jump.wav",
+    "sha": "d69090c03604bde1d508b5e9df11e7369a9140ac",
+    "size": 43048
+  },
+  {
+    "file": "public/assets/audio/land.wav",
+    "sha": "2a842afa0d32bb597e9fe77c3c198706bf0b552a",
+    "size": 86318
+  },
+  {
+    "file": "public/assets/audio/place.wav",
+    "sha": "4417df168d88c2225807a9834999e42fbeea4174",
+    "size": 38956
+  },
+  {
+    "file": "public/assets/audio/playerhit.wav",
+    "sha": "4b9f7cc899ede91857d570ae08bd448c425cec37",
+    "size": 51332
+  },
+  {
+    "file": "public/assets/audio/waterexplode.wav",
+    "sha": "6512941a6df0203e8267df6209a3c6b970a3c46b",
+    "size": 129740
+  },
+  {
     "file": "public/assets/minimap/East.png",
-    "sha": "61109cadfda513dc86c792c1bb291a521add6701"
+    "sha": "61109cadfda513dc86c792c1bb291a521add6701",
+    "size": 271
   },
   {
-    "size": 601,
-    "file": "public/assets/minimap/house_icon.png",
-    "sha": "bf7eabc2eb716c012627d83a22b7cfbe4326337e"
-  },
-  {
-    "size": 328,
     "file": "public/assets/minimap/North.png",
-    "sha": "e0c196fc8791efd6829bcdf691f3929de6ad3180"
+    "sha": "e0c196fc8791efd6829bcdf691f3929de6ad3180",
+    "size": 328
   },
   {
-    "size": 267,
-    "file": "public/assets/minimap/player_icon.png",
-    "sha": "58683a9d85f5012de73652b5e8ab112efc04e27a"
-  },
-  {
-    "size": 2518,
-    "file": "public/assets/minimap/player_minimap.png",
-    "sha": "35b15c37325cf2a2ed8384e3fb67e18a4efaa4b8"
-  },
-  {
-    "size": 506,
     "file": "public/assets/minimap/South.png",
-    "sha": "50d0c66f3765103ea93b2ed5578f37f47ea093fe"
+    "sha": "50d0c66f3765103ea93b2ed5578f37f47ea093fe",
+    "size": 506
   },
   {
-    "size": 508,
     "file": "public/assets/minimap/West.png",
-    "sha": "2783a5e0c04aef2854eec82bb317e945cc026c06"
+    "sha": "2783a5e0c04aef2854eec82bb317e945cc026c06",
+    "size": 508
   },
   {
-    "size": 360887,
+    "file": "public/assets/minimap/house_icon.png",
+    "sha": "bf7eabc2eb716c012627d83a22b7cfbe4326337e",
+    "size": 601
+  },
+  {
+    "file": "public/assets/minimap/player_icon.png",
+    "sha": "58683a9d85f5012de73652b5e8ab112efc04e27a",
+    "size": 267
+  },
+  {
+    "file": "public/assets/minimap/player_minimap.png",
+    "sha": "35b15c37325cf2a2ed8384e3fb67e18a4efaa4b8",
+    "size": 2518
+  },
+  {
     "file": "public/assets/social/ubercube-classic.png",
-    "sha": "4017fc867d033ab1874a1f976911d1dfec617c4c"
+    "sha": "4017fc867d033ab1874a1f976911d1dfec617c4c",
+    "size": 360887
   },
   {
-    "size": 1731,
-    "file": "public/assets/ui/awp_crosshair.png",
-    "sha": "fa90cc90c0aad084898ceb7fdc945039f6a2f7d5"
-  },
-  {
-    "size": 98192,
-    "file": "public/assets/ui/fonts/RifficFree-Bold.ttf",
-    "sha": "2a2c27f9ff90013b4c363cd32dab8f61e4a3bfe2"
-  },
-  {
-    "size": 397071,
     "file": "public/assets/ui/LoadingBG.png",
-    "sha": "c54ac64c7e76e0f79f96ff18a3faad7f0035f306"
+    "sha": "c54ac64c7e76e0f79f96ff18a3faad7f0035f306",
+    "size": 397071
   },
   {
-    "size": 275,
+    "file": "public/assets/ui/awp_crosshair.png",
+    "sha": "fa90cc90c0aad084898ceb7fdc945039f6a2f7d5",
+    "size": 1731
+  },
+  {
+    "file": "public/assets/ui/fonts/RifficFree-Bold.ttf",
+    "sha": "2a2c27f9ff90013b4c363cd32dab8f61e4a3bfe2",
+    "size": 98192
+  },
+  {
     "file": "public/assets/ui/std_crosshair.png",
-    "sha": "4b2a43437b50e24e5867209eabd0e0e96d5b111f"
+    "sha": "4b2a43437b50e24e5867209eabd0e0e96d5b111f",
+    "size": 275
   },
   {
-    "size": 99875,
     "file": "public/assets/ui/vignette.png",
-    "sha": "f43d475c6c324db626e2bcaedc7957394f66ef38"
+    "sha": "f43d475c6c324db626e2bcaedc7957394f66ef38",
+    "size": 99875
   },
   {
-    "size": 449,
     "file": "public/assets/weapons/ak47/AK47.mtl",
-    "sha": "a7ba0093015ae8d1687c55a55e6164b4623f272c"
+    "sha": "a7ba0093015ae8d1687c55a55e6164b4623f272c",
+    "size": 449
   },
   {
-    "size": 284482,
     "file": "public/assets/weapons/ak47/AK47.obj",
-    "sha": "9c533bbc00c1e072219d48bc96631c6392043c6a"
+    "sha": "9c533bbc00c1e072219d48bc96631c6392043c6a",
+    "size": 284482
   },
   {
-    "size": 357,
     "file": "public/assets/weapons/arm.mtl",
-    "sha": "f6eda261c234acdf4db5339064832dbd55a234ac"
+    "sha": "f6eda261c234acdf4db5339064832dbd55a234ac",
+    "size": 357
   },
   {
-    "size": 3558,
     "file": "public/assets/weapons/arm.obj",
-    "sha": "578db90916e09a0f53fe4a6004a89a2517f8e1b5"
+    "sha": "578db90916e09a0f53fe4a6004a89a2517f8e1b5",
+    "size": 3558
   },
   {
-    "size": 1742,
     "file": "public/assets/weapons/awp/AWP.mtl",
-    "sha": "b6ba25557540de4fd34d820e755b09e8c260703a"
+    "sha": "b6ba25557540de4fd34d820e755b09e8c260703a",
+    "size": 1742
   },
   {
-    "size": 280762,
     "file": "public/assets/weapons/awp/AWP.obj",
-    "sha": "9efaa01d2bd0049548d1f6d7ea01a576e0825f91"
+    "sha": "9efaa01d2bd0049548d1f6d7ea01a576e0825f91",
+    "size": 280762
   },
   {
-    "size": 512,
     "file": "public/assets/weapons/grenade/GRENADE.mtl",
-    "sha": "2a4852b685d15c8c9a93bd84670ffc07008399c9"
+    "sha": "2a4852b685d15c8c9a93bd84670ffc07008399c9",
+    "size": 512
   },
   {
-    "size": 6133,
     "file": "public/assets/weapons/grenade/GRENADE.obj",
-    "sha": "06d28659553bfd81a04a4d6e7c603b39926ce6da"
+    "sha": "06d28659553bfd81a04a4d6e7c603b39926ce6da",
+    "size": 6133
   },
   {
-    "size": 361,
     "file": "public/assets/weapons/medicbag/MEDICBAG.mtl",
-    "sha": "3f08ddac8f9126287fd045ceb9cb3a2bf43d301b"
+    "sha": "3f08ddac8f9126287fd045ceb9cb3a2bf43d301b",
+    "size": 361
   },
   {
-    "size": 72919,
     "file": "public/assets/weapons/medicbag/MEDICBAG.obj",
-    "sha": "954bded3d1aaa444281933c429ee25fefbf9cd23"
+    "sha": "954bded3d1aaa444281933c429ee25fefbf9cd23",
+    "size": 72919
   },
   {
-    "size": 357,
     "file": "public/assets/weapons/shovel/SHOVEL.mtl",
-    "sha": "21dc59c406dd1dff319f696c5a4e23c5d545c2a7"
+    "sha": "21dc59c406dd1dff319f696c5a4e23c5d545c2a7",
+    "size": 357
   },
   {
-    "size": 5314,
     "file": "public/assets/weapons/shovel/SHOVEL.obj",
-    "sha": "ae550f0326776d59c0728f8389cd538638d6e11c"
+    "sha": "ae550f0326776d59c0728f8389cd538638d6e11c",
+    "size": 5314
   },
   {
-    "size": 235,
     "file": "public/favicon.svg",
-    "sha": "51862a2ef6ab3f344fbb149da3d24feec68a716e"
+    "sha": "51862a2ef6ab3f344fbb149da3d24feec68a716e",
+    "size": 235
   },
   {
-    "size": 14809,
     "file": "public/index.html",
-    "sha": "9811621825ccbed24b1d3a04b810abe65088cf4a"
+    "sha": "9811621825ccbed24b1d3a04b810abe65088cf4a",
+    "size": 14809
   },
   {
-    "size": 69,
     "file": "public/robots.txt",
-    "sha": "c27f3958e754438458e16397649655412dfa5032"
+    "sha": "c27f3958e754438458e16397649655412dfa5032",
+    "size": 69
   },
   {
-    "size": 167,
     "file": "public/sitemap.xml",
-    "sha": "81a2f5426f7f3ee05ffdc7a83cb250afd4dc7585"
+    "sha": "81a2f5426f7f3ee05ffdc7a83cb250afd4dc7585",
+    "size": 167
   },
   {
-    "size": 1440,
     "file": "scripts/build.ts",
-    "sha": "76e3b719fb594cc0dcec74f4d9f2ca7b567e572b"
+    "sha": "76e3b719fb594cc0dcec74f4d9f2ca7b567e572b",
+    "size": 1440
   },
   {
-    "size": 5687,
     "file": "src/client/bullet-visuals.ts",
-    "sha": "866f9a175702b9e5195aaaf566d1aeba37bc9445"
+    "sha": "866f9a175702b9e5195aaaf566d1aeba37bc9445",
+    "size": 5687
   },
   {
-    "size": 11603,
     "file": "src/client/grenade-visuals.ts",
-    "sha": "b57b97e5044e9f255ab4722674802e80b38c319e"
+    "sha": "b57b97e5044e9f255ab4722674802e80b38c319e",
+    "size": 11603
   },
   {
-    "size": 461,
     "file": "src/client/input-button.ts",
-    "sha": "b95fc1ef6472406f088f89d8f65ad91f56c46b30"
+    "sha": "b95fc1ef6472406f088f89d8f65ad91f56c46b30",
+    "size": 461
   },
   {
-    "size": 198,
     "file": "src/client/lighting.ts",
-    "sha": "a5cf43e9e7d5f2380ea28a392d97bf147ddecc00"
+    "sha": "a5cf43e9e7d5f2380ea28a392d97bf147ddecc00",
+    "size": 198
   },
   {
-    "size": 40119,
     "file": "src/client/main.ts",
-    "sha": "38029c6226ca4231b7b18e3b1d3fe618378b4d3f"
+    "sha": "38029c6226ca4231b7b18e3b1d3fe618378b4d3f",
+    "size": 40119
   },
   {
-    "size": 9447,
     "file": "src/client/minimap.ts",
-    "sha": "d795f36d5e193f0af630192382e1a0da05adb433"
+    "sha": "d795f36d5e193f0af630192382e1a0da05adb433",
+    "size": 9447
   },
   {
-    "size": 1844,
     "file": "src/client/particle-material.ts",
-    "sha": "a5946551dc71a441bcd1c9fc59e2210935b56e5b"
+    "sha": "a5946551dc71a441bcd1c9fc59e2210935b56e5b",
+    "size": 1844
   },
   {
-    "size": 12933,
     "file": "src/client/player-visuals.ts",
-    "sha": "1e3055f30ac95abc40f73ccadabde358be802a65"
+    "sha": "1e3055f30ac95abc40f73ccadabde358be802a65",
+    "size": 12933
   },
   {
-    "size": 6867,
     "file": "src/client/presentation.ts",
-    "sha": "f36864d57c927a3d5fa0c85fbf0e0388d8af92a6"
+    "sha": "542df47cf9b882f89a4e29fd3e63880c4ae5ba8a",
+    "size": 6729
   },
   {
-    "size": 3317,
     "file": "src/client/remote-players.ts",
-    "sha": "a82ee64eee68a2ea10022ee5fb990265ad13e9b4"
+    "sha": "a82ee64eee68a2ea10022ee5fb990265ad13e9b4",
+    "size": 3317
   },
   {
-    "size": 859,
     "file": "src/client/server-endpoints.ts",
-    "sha": "87ace47046136d00e4dbd34ce093d404c7fae0b0"
+    "sha": "87ace47046136d00e4dbd34ce093d404c7fae0b0",
+    "size": 859
   },
   {
-    "size": 2653,
     "file": "src/client/shadows.ts",
-    "sha": "696cfaec9f569aa2429681703186bf19a0301abb"
+    "sha": "696cfaec9f569aa2429681703186bf19a0301abb",
+    "size": 2653
   },
   {
-    "size": 5624,
     "file": "src/client/snow.ts",
-    "sha": "94d76c4312c43812e63bee80c1c16356be04ce9e"
+    "sha": "94d76c4312c43812e63bee80c1c16356be04ce9e",
+    "size": 5624
   },
   {
-    "size": 1932,
     "file": "src/client/solo-connection.ts",
-    "sha": "01237c8629d1ea8a2e9fd15ed9b752d44899e2c3"
+    "sha": "01237c8629d1ea8a2e9fd15ed9b752d44899e2c3",
+    "size": 1932
   },
   {
-    "size": 2073,
     "file": "src/client/solo.worker.ts",
-    "sha": "da09ed776879109ea8270d5bbc147ed7cc5e2ea6"
+    "sha": "da09ed776879109ea8270d5bbc147ed7cc5e2ea6",
+    "size": 2073
   },
   {
-    "size": 23947,
     "file": "src/client/styles.css",
-    "sha": "9b57649e2fd4fae2a086b4f4685e3ebc6426b250"
+    "sha": "9b57649e2fd4fae2a086b4f4685e3ebc6426b250",
+    "size": 23947
   },
   {
-    "size": 9154,
     "file": "src/client/terrain.ts",
-    "sha": "ddea983846f13e95780d1ffe2dd86dacb832c592"
+    "sha": "ddea983846f13e95780d1ffe2dd86dacb832c592",
+    "size": 9154
   },
   {
-    "size": 5526,
     "file": "src/client/terrain.worker.ts",
-    "sha": "d8f3d389d1a6a6ec903c4fe1a3039867a4006d78"
+    "sha": "d8f3d389d1a6a6ec903c4fe1a3039867a4006d78",
+    "size": 5526
   },
   {
-    "size": 8750,
     "file": "src/client/touch-controls.ts",
-    "sha": "b9aeee99f1287fc39143bd18e67cf0ad46114285"
+    "sha": "b9aeee99f1287fc39143bd18e67cf0ad46114285",
+    "size": 8750
   },
   {
-    "size": 4190,
     "file": "src/client/weapon-model.ts",
-    "sha": "5800f4e2c927155d48d0da7f2e85777c938c5932"
+    "sha": "5800f4e2c927155d48d0da7f2e85777c938c5932",
+    "size": 4190
   },
   {
-    "size": 9313,
     "file": "src/client/weapon-view.ts",
-    "sha": "63d37a908894e8114a984fd2c21a327663d2f67c"
+    "sha": "63d37a908894e8114a984fd2c21a327663d2f67c",
+    "size": 9313
   },
   {
-    "size": 3372,
     "file": "src/client/world-material.ts",
-    "sha": "c2a9730bcdf75bb83b22c35f5dd5a0f6b046f2bd"
+    "sha": "c2a9730bcdf75bb83b22c35f5dd5a0f6b046f2bd",
+    "size": 3372
   },
   {
-    "size": 120,
     "file": "src/server/game.ts",
-    "sha": "99ccc1b036bf3b1355efc029296b85902719b667"
+    "sha": "99ccc1b036bf3b1355efc029296b85902719b667",
+    "size": 120
   },
   {
-    "size": 8544,
     "file": "src/server/index.ts",
-    "sha": "2b5d2cf995700e23dbcecb22691e2a9481c87391"
+    "sha": "2b5d2cf995700e23dbcecb22691e2a9481c87391",
+    "size": 8544
   },
   {
-    "size": 5037,
     "file": "src/shared/buildings.ts",
-    "sha": "21cbcbe8acd717ff349fe253d3a4727ea4955101"
+    "sha": "21cbcbe8acd717ff349fe253d3a4727ea4955101",
+    "size": 5037
   },
   {
-    "size": 34133,
     "file": "src/shared/game.ts",
-    "sha": "78a536e9faf36d3336797b560c481f3b79770d77"
+    "sha": "c8470624e77e1598195247a4f4b6f36f3d683095",
+    "size": 33494
   },
   {
-    "size": 3508,
     "file": "src/shared/grenade.ts",
-    "sha": "4ac9fd1689a4830cb4aef5846810335b80c4f6e7"
+    "sha": "4ac9fd1689a4830cb4aef5846810335b80c4f6e7",
+    "size": 3508
   },
   {
-    "size": 3774,
     "file": "src/shared/movement.ts",
-    "sha": "3be4794de8d8e8b8273da7f57db65a30f4c727b8"
+    "sha": "3be4794de8d8e8b8273da7f57db65a30f4c727b8",
+    "size": 3774
   },
   {
-    "size": 3158,
     "file": "src/shared/protocol.ts",
-    "sha": "f7a57a76d4690759421c582e4d3f78b4d2fee105"
+    "sha": "f7a57a76d4690759421c582e4d3f78b4d2fee105",
+    "size": 3158
   },
   {
-    "size": 6172,
     "file": "src/shared/ruin-model.ts",
-    "sha": "d3371737eff05a8b50cebc2819d0130e37952d29"
+    "sha": "d22f84856776880bd048e171f89331f35f068360",
+    "size": 6110
   },
   {
-    "size": 2508,
     "file": "src/shared/terrain-generation.ts",
-    "sha": "c2a399116361f4b72046dcb31217f93a6bb9b826"
+    "sha": "c2a399116361f4b72046dcb31217f93a6bb9b826",
+    "size": 2508
   },
   {
-    "size": 4966,
     "file": "src/shared/vegetation.ts",
-    "sha": "3affdd698061fcd1f08d49f075d5b16be05076b9"
+    "sha": "3affdd698061fcd1f08d49f075d5b16be05076b9",
+    "size": 4966
   },
   {
-    "size": 10547,
     "file": "src/shared/voxel.ts",
-    "sha": "3d2f2b251465ac1fbdf9977a5868b2c48c44c4c3"
+    "sha": "3d2f2b251465ac1fbdf9977a5868b2c48c44c4c3",
+    "size": 10547
   },
   {
-    "size": 8058,
     "file": "src/shared/weapon-pose.ts",
-    "sha": "fb2fb6ad1cfafd669dbd3ab51eb7fb719a2c7753"
+    "sha": "fb2fb6ad1cfafd669dbd3ab51eb7fb719a2c7753",
+    "size": 8058
   },
   {
-    "size": 5177,
     "file": "src/shared/wire.ts",
-    "sha": "17a78d26e468e969dae14260343877ab459b1656"
+    "sha": "17a78d26e468e969dae14260343877ab459b1656",
+    "size": 5177
   },
   {
-    "size": 363,
     "file": "tsconfig.json",
-    "sha": "61f553f3da091cd59c87c8b4654f1c25bfebed77"
+    "sha": "61f553f3da091cd59c87c8b4654f1c25bfebed77",
+    "size": 363
   },
   {
-    "size": 202,
     "file": "vercel.json",
-    "sha": "b48ad8b47c7cd1759bc2651bff1ae05d7ee87e57"
+    "sha": "b48ad8b47c7cd1759bc2651bff1ae05d7ee87e57",
+    "size": 202
   }
 ]

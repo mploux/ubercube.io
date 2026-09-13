@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { mkdir, mkdtemp, rm, symlink, unlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve, sep } from 'node:path';
-import { createApi, deploymentCommit, loadRelease, main, parseManifest, parseProduction, productionAliases, readToken } from '../scripts/release/vercel';
+import { createApi, deploymentCommit, loadRelease, main, parseManifest, parseProduction, productionAliases, readToken, verifyResource } from '../scripts/release/vercel';
 import type { ManifestFile } from '../scripts/release/vercel';
 import { cleanCommit, committedFiles, pushedCommit } from '../scripts/release/git';
 import { commitFixture, fixtureGit, initFixture, pushFixture } from './helpers/release-git';
@@ -183,6 +183,35 @@ test('deployment provenance requires a genuine Git source with matching reposito
   expect(() => deploymentCommit(value, '456', sha)).toThrow('linked GitHub');
   expect(() => deploymentCommit(value, '123', other)).toThrow('expected commit');
   expect(() => deploymentCommit({ ...value, meta: { githubCommitSha: other } }, '123', sha)).toThrow('expected commit');
+});
+
+test('public verification records raw hashes while tolerating only the terminal Bun debug ID value', () => {
+  const local = Buffer.from(`console.log('same');\n\n//# debugId=${'1'.repeat(32)}\n//# sourceMappingURL=main.js.map\n`);
+  const served = Buffer.from(local.toString().replace('1'.repeat(32), '2'.repeat(32)));
+  const hash = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex');
+  const proof = verifyResource('/main.js', local, served);
+  expect(proof.sha256).toBe(hash(served));
+  expect(proof.expectedSha256).toBe(hash(local));
+  expect(proof.sha256).not.toBe(proof.expectedSha256);
+  expect(proof.comparisonSha256).toBe(hash(Buffer.from(local.toString().replace('1'.repeat(32), '0'.repeat(32)))));
+  expect(proof.ignoredMetadata).toContain('terminal JavaScript');
+  expect(verifyResource('/main.js', local, local).ignoredMetadata).toBeUndefined();
+  for (const body of [
+    served.toString().replace("console.log('same')", "console.log('changed')"),
+    served.toString().replace('main.js.map', 'different.js.map'),
+    served.toString().replace('2'.repeat(32), '2'.repeat(31)),
+    served.toString().replace(/\/\/# debugId=.*\n/, ''),
+    served.toString() + 'console.log("after trailer");\n',
+    '\uFEFF' + served.toString(),
+  ]) expect(() => verifyResource('/main.js', local, Buffer.from(body))).toThrow('differs from the frozen build');
+  for (const path of ['/styles.css', '/index.html', '/asset.bin']) {
+    expect(() => verifyResource(path, local, served)).toThrow('differs from the frozen build');
+  }
+  const embedded = `const text = "//# debugId=${'1'.repeat(32)}";\n`;
+  expect(() => verifyResource('/main.js', Buffer.from(embedded), Buffer.from(embedded.replace('1'.repeat(32), '2'.repeat(32))))).toThrow('differs from the frozen build');
+  const misplaced = `//# debugId=${'1'.repeat(32)}\nconsole.log('same');\n//# sourceMappingURL=main.js.map\n`;
+  expect(() => verifyResource('/main.js', Buffer.from(misplaced), Buffer.from(misplaced.replace('1'.repeat(32), '2'.repeat(32))))).toThrow('differs from the frozen build');
+  expect(() => verifyResource('/main.js', Buffer.concat([Buffer.from([0x80]), local]), Buffer.concat([Buffer.from([0x81]), served]))).toThrow('differs from the frozen build');
 });
 
 test('Git staging rejects dirty and unpushed releases; automatic Git deployments verify without staging metadata', async () => {
