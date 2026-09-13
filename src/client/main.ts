@@ -12,11 +12,13 @@ import { Snow } from './snow';
 import { WorldShadows } from './shadows';
 import { SUN_DIRECTION } from './lighting';
 import { InputButton } from './input-button';
-import { Effects, GameAudio, PlayerVisuals } from './presentation';
+import { Effects, GameAudio } from './presentation';
+import { PlayerVisuals } from './player-visuals';
 import { WeaponView } from './weapon-view';
 import { serverEndpoints } from './server-endpoints';
 import { SoloConnection } from './solo-connection';
 import { TouchControls } from './touch-controls';
+import { RemotePlayers } from './remote-players';
 
 const endpoints = serverEndpoints(location.href, process.env.PUBLIC_GAME_SERVER_URL);
 const touchQuery = matchMedia('(pointer: coarse)');
@@ -73,7 +75,8 @@ scene.add(sun, sun.target);
 const camera = new THREE.PerspectiveCamera(76, innerWidth / innerHeight, 0.05, 1100);
 camera.rotation.order = 'YXZ';
 const shadows = new WorldShadows(renderer, scene, camera, viewDistance, touchMode ? 2048 : 4096);
-const avatars = new PlayerVisuals(scene);
+const avatars = new PlayerVisuals(scene, viewDistance);
+void avatars.ready.catch(error => { console.error(error); toast('Impossible de charger les armes des autres joueurs.'); });
 const effects = new Effects(scene, viewDistance);
 void effects.ready.catch(error => { console.error(error); toast('Impossible de charger le modèle de grenade. Rechargez la page.'); });
 const snow = new Snow(scene, viewDistance);
@@ -115,7 +118,7 @@ let local: PlayerState | null = null;
 let predicted: MotionState | null = null;
 const correctionOffset = new THREE.Vector3();
 let players: PlayerState[] = [];
-const snapshots: { time: number; players: PlayerState[] }[] = [];
+const remotePlayers = new RemotePlayers();
 let pending: InputFrame[] = [];
 let unsent: InputFrame[] = [];
 let sequence = 0;
@@ -254,7 +257,7 @@ function send(message: ClientMessage): boolean {
 }
 
 function resetPrediction(): void {
-  predicted = null; pending = []; unsent = []; snapshots.length = 0;
+  predicted = null; pending = []; unsent = []; remotePlayers.clear();
   correctionOffset.set(0, 0, 0);
   damageOpacity = 0; headshotUntil = 0;
   sequence = 0; accumulator = 0;
@@ -405,8 +408,7 @@ function receive(message: ServerMessage): void {
     players = message.players;
     const now = performance.now();
     effects.snapshot(message.projectiles, message.tick, now / 1000);
-    snapshots.push({ time: now, players: message.players });
-    while (snapshots.length > 15) snapshots.shift();
+    remotePlayers.snapshot(message.tick, message.players, now);
     const authoritative = players.find((player) => player.id === localId);
     if (authoritative) applyLocalState(authoritative);
     element('red-score').textContent = `Red : ${message.scores[0]}`;
@@ -550,28 +552,6 @@ function simulate(): void {
   if (groundedBefore && !predicted.grounded && frame.jump) audio.play('jump', undefined, undefined, 0, 0.13);
   if (!groundedBefore && predicted.grounded) audio.play('land', undefined, undefined, 0, 0.13);
   pending.push(frame); unsent.push(frame);
-  if (unsent.length >= 3 || actions.thrown) {
-    const batch = unsent.splice(0, 3);
-    send({ type: 'input', frames: batch });
-  }
-}
-
-function interpolatePlayers(now: number): PlayerState[] {
-  if (!snapshots.length) return players;
-  const targetTime = now - 100;
-  let before = snapshots[0]; let after = snapshots[snapshots.length - 1];
-  for (let i = 0; i < snapshots.length; i++) {
-    if (snapshots[i].time <= targetTime) before = snapshots[i];
-    if (snapshots[i].time >= targetTime) { after = snapshots[i]; break; }
-  }
-  const fraction = before === after ? 1 : Math.max(0, Math.min(1, (targetTime - before.time) / (after.time - before.time)));
-  const earlier = new Map(before.players.map((player) => [player.id, player]));
-  return after.players.map((player) => {
-    const previous = earlier.get(player.id);
-    if (!previous || previous.alive !== player.alive || Math.hypot(previous.position.x - player.position.x, previous.position.z - player.position.z) > 15) return player;
-    const turn = Math.atan2(Math.sin(player.yaw - previous.yaw), Math.cos(player.yaw - previous.yaw));
-    return { ...player, position: { x: THREE.MathUtils.lerp(previous.position.x, player.position.x, fraction), y: THREE.MathUtils.lerp(previous.position.y, player.position.y, fraction), z: THREE.MathUtils.lerp(previous.position.z, player.position.z, fraction) }, yaw: previous.yaw + turn * fraction };
-  });
 }
 
 function updateUI(): void {
@@ -637,6 +617,7 @@ function frame(now: number): void {
   element('headshot-label').hidden = now >= headshotUntil;
   accumulator += dt;
   while (accumulator >= DT) { simulate(); accumulator -= DT; }
+  if (unsent.length) send({ type: 'input', frames: unsent.splice(0, 8) });
   correctionOffset.multiplyScalar(Math.exp(-25 * dt));
   if (screen === 'game' && predicted) {
     camera.position.set(predicted.position.x, predicted.position.y + EYE_HEIGHT, predicted.position.z).add(correctionOffset);
@@ -669,7 +650,7 @@ function frame(now: number): void {
   }
   if (screen !== 'lobby') terrain?.update(camera.position);
   if (terrain?.stats.error && !renderErrorShown) { renderErrorShown = true; toast(terrain.stats.error); refreshKitButtons(); if (screen === 'game') { document.exitPointerLock?.(); setPaused(true); } }
-  avatars.update(interpolatePlayers(now), localId, now / 1000, camera);
+  avatars.update(remotePlayers.sample(now), localId, now / 1000, camera);
   effects.update(dt, now / 1000);
   renderer.setClearAlpha(screen === 'lobby' ? 0 : 1);
   renderer.clear();

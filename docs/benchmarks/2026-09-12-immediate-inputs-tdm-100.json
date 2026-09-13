@@ -1,0 +1,289 @@
+{
+  "date": "2026-09-12T09:34:40.589Z",
+  "url": "ws://127.0.0.1:3051/ws",
+  "requested": 100,
+  "connected": 100,
+  "alive": 100,
+  "elapsedSeconds": 31.5767871,
+  "measuredSeconds": 30.0060049,
+  "activeClients": 100,
+  "peakAlive": 100,
+  "activePlayerSeconds": 2934.162516,
+  "framesPerActivePlayerSecond": 59.89034317007136,
+  "inputMessages": 161071,
+  "inputMessagesPerSecond": 5367.95886479376,
+  "inputMessagesPerActivePlayerSecond": 54.89505067346447,
+  "framesPerSecond": 5856.427757898553,
+  "maxFramesPerMessage": 2,
+  "cappedClientMilliseconds": 0,
+  "inputMbitPerSecond": 8.358640773267354,
+  "receivedMbitPerSecond": 269.2421963844977,
+  "maxSampledPendingInput": 213,
+  "droppedInputsDuringRun": 0,
+  "lateTicksDuringRun": 0,
+  "inputs": 175728,
+  "snapshots": 62295,
+  "receivedBytes": 1017177498,
+  "worldEditDeliveries": 860000,
+  "shotEventDeliveries": 1110600,
+  "deathEventDeliveries": 53900,
+  "errors": {},
+  "server": {
+    "ok": true,
+    "mode": "tdm",
+    "maxPlayers": 100,
+    "players": 100,
+    "world": {
+      "seed": 12345,
+      "size": 64,
+      "height": 64
+    },
+    "roundId": 1,
+    "roundSeconds": 0,
+    "tick": 2831,
+    "tickWork": {
+      "p50": 0.5452999999979511,
+      "p95": 1.535600000002887,
+      "p99": 2.0283999999955995,
+      "max": 11.325700000001234,
+      "samples": 1024
+    },
+    "pendingInput": 96,
+    "lateTicks": 0,
+    "droppedInputs": 0,
+    "rss": 175853568,
+    "projectiles": 23
+  },
+  "serverBefore": {
+    "ok": true,
+    "mode": "tdm",
+    "maxPlayers": 100,
+    "players": 0,
+    "world": {
+      "seed": 12345,
+      "size": 64,
+      "height": 64
+    },
+    "roundId": 1,
+    "roundSeconds": 0,
+    "tick": 936,
+    "tickWork": {
+      "p50": 0.0037999999999556167,
+      "p95": 0.04409999999916181,
+      "p99": 0.9437999999991007,
+      "max": 1.8649000000000342,
+      "samples": 936
+    },
+    "pendingInput": 0,
+    "lateTicks": 0,
+    "droppedInputs": 0,
+    "rss": 148701184,
+    "projectiles": 0
+  },
+  "samples": [
+    {
+      "seconds": 1.0053315000000003,
+      "alive": 73,
+      "pendingInput": 31,
+      "lateTicks": 0,
+      "droppedInputs": 0
+    },
+    {
+      "seconds": 1.9969766,
+      "alive": 88,
+      "pendingInput": 88,
+      "lateTicks": 0,
+      "droppedInputs": 0
+    },
+    {
+      "seconds": 3.0073213,
+      "alive": 96,
+      "pendingInput": 94,
+      "lateTicks": 0,
+      "droppedInputs": 0
+    },
+    {
+      "seconds": 4.0053893,
+      "alive": 96,
+      "pendingInput": 90,
+      "lateTicks": 0,
+      "droppedInputs": 0
+    },
+    {
+      "seconds": 5.0167958,
+      "alive": 99,
+      "pendingInput": 144,
+      "lateTicks": 0,
+      "droppedInputs": 0
+    },
+    {
+      "seconds": 6.0004068,
+      "alive": 98,
+      "pendingInput": 92,
+      "lateTicks": 0,
+      "droppedInputs": 0
+    },
+    {
+      "seconds": 7.001272800000001,
+      "alive": 98,
+      "pendingInput": 178,
+      "lateTicks": 0,
+      "droppedInputs": 0
+    },
+    {
+      "seconds": 8.013206,
+      "alive": 97,
+      "pendingInput": 140,
+      "lateTicks": 0,
+      "droppedInputs": 0
+    },
+    {
+      "seconds": 9.0191846,
+      "alive": 98,
+      "pendingInput": 162,
+      "lateTicks": 0,
+      "droppedInputs": 0
+    },
+    {
+      "seconds": 10.0139855,
+      "alive": 98,
+      "pendingInput": 88,
+      "lateTicks": 0,
+      "droppedInputs": 0
+    },
+    {
+      "seconds": 11.016629,
+      "alive": 100,
+      "pendingInput": 92,
+      "lateTicks": 0,
+      "droppedInputs": 0
+    },
+    {
+      "seconds": 12.021456100000002,
+      "alive": 100,
+      "pendingInput": 94,
+      "lateTicks": 0,
+      "droppedInputs": 0
+    },
+    {
+      "seconds": 13.024297,
+      "alive": 100,
+      "pendingInput": 95,
+      "lateTicks": 0,
+      "droppedInputs": 0
+    },
+    {
+      "seconds": 14.0278485,
+      "alive": 100,
+      "pendingInput": 174,
+      "lateTicks": 0,
+      "droppedInputs": 0
+    },
+    {
+      "seconds": 15.014703099999998,
+      "alive": 100,
+      "pendingInput": 93,
+      "lateTicks": 0,
+      "droppedInputs": 0
+    },
+    {
+      "seconds": 16.0211175,
+      "alive": 99,
+      "pendingInput": 93,
+      "lateTicks": 0,
+      "droppedInputs": 0
+    },
+    {
+      "seconds": 17.0163643,
+      "alive": 99,
+      "pendingInput": 108,
+      "lateTicks": 0,
+      "droppedInputs": 0
+    },
+    {
+      "seconds": 18.0161656,
+      "alive": 99,
+      "pendingInput": 90,
+      "lateTicks": 0,
+      "droppedInputs": 0
+    },
+    {
+      "seconds": 19.0175404,
+      "alive": 98,
+      "pendingInput": 185,
+      "lateTicks": 0,
+      "droppedInputs": 0
+    },
+    {
+      "seconds": 20.0348492,
+      "alive": 98,
+      "pendingInput": 159,
+      "lateTicks": 0,
+      "droppedInputs": 0
+    },
+    {
+      "seconds": 21.0193105,
+      "alive": 98,
+      "pendingInput": 92,
+      "lateTicks": 0,
+      "droppedInputs": 0
+    },
+    {
+      "seconds": 22.0165377,
+      "alive": 99,
+      "pendingInput": 213,
+      "lateTicks": 0,
+      "droppedInputs": 0
+    },
+    {
+      "seconds": 23.0143983,
+      "alive": 98,
+      "pendingInput": 145,
+      "lateTicks": 0,
+      "droppedInputs": 0
+    },
+    {
+      "seconds": 24.0148255,
+      "alive": 99,
+      "pendingInput": 96,
+      "lateTicks": 0,
+      "droppedInputs": 0
+    },
+    {
+      "seconds": 25.0168507,
+      "alive": 100,
+      "pendingInput": 91,
+      "lateTicks": 0,
+      "droppedInputs": 0
+    },
+    {
+      "seconds": 26.018824000000002,
+      "alive": 100,
+      "pendingInput": 179,
+      "lateTicks": 0,
+      "droppedInputs": 0
+    },
+    {
+      "seconds": 27.0247644,
+      "alive": 100,
+      "pendingInput": 93,
+      "lateTicks": 0,
+      "droppedInputs": 0
+    },
+    {
+      "seconds": 28.0123628,
+      "alive": 100,
+      "pendingInput": 93,
+      "lateTicks": 0,
+      "droppedInputs": 0
+    },
+    {
+      "seconds": 29.0164159,
+      "alive": 100,
+      "pendingInput": 96,
+      "lateTicks": 0,
+      "droppedInputs": 0
+    }
+  ],
+  "limitation": "Les intentions sont générées à 60 Hz selon le temps écoulé et envoyées aussitôt, sans lot imposé. Comme le client, les pauses de plus de 100 ms sont plafonnées et le temps mort est exclu ; la cadence active et le temps plafonné sont mesurés. Les timers Windows peuvent regrouper plusieurs frames par callback. Générateur et serveur peuvent partager la même machine ; ce test ne mesure ni le rendu de 100 navigateurs ni Internet. Le débit reçu cumule les 100 connexions ; les files sont échantillonnées chaque seconde."
+}

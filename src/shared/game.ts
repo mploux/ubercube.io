@@ -82,6 +82,11 @@ function inputFrame(value: unknown): value is InputFrame {
     && ['jump', 'sprint', 'fire', 'alt'].every(key => typeof value[key] === 'boolean') && weapon(value.weapon);
 }
 
+function sameActionState(a: InputFrame, b: InputFrame): boolean {
+  return a.weapon === b.weapon && a.fire === b.fire && a.alt === b.alt && a.jump === b.jump
+    && !!a.cancelActions === !!b.cancelActions;
+}
+
 export class GameServer {
   readonly players = new Map<number, PlayerState>();
   readonly connections = new Set<Connection>();
@@ -216,7 +221,7 @@ export class GameServer {
       const player: PlayerState = {
         id: this.nextPlayer++, name: message.name.trim(), team, kit: 'assault', weapon: 'ak47',
         position: { x: 0, y: 0, z: 0 }, velocity: { x: 0, y: 0, z: 0 }, grounded: false, yaw: 0, pitch: 0,
-        health: 100, alive: false, kills: 0, deaths: 0, ammo: 30, grenades: 10, lastSeq: 0,
+        health: 100, alive: false, aiming: false, kills: 0, deaths: 0, ammo: 30, grenades: 10, lastSeq: 0,
       };
       connection.player = player;
       this.players.set(player.id, player);
@@ -252,6 +257,7 @@ export class GameServer {
       player.health = 100;
       player.grenades = 10;
       player.alive = true;
+      player.aiming = false;
       connection.magazines = { ak47: 30, awp: 5 };
       player.ammo = WEAPONS[player.weapon].magazine;
       connection.queue = [];
@@ -411,6 +417,7 @@ export class GameServer {
     player.health = Math.max(0, player.health - damage);
     if (player.health > 0) return;
     player.alive = false;
+    player.aiming = false;
     player.deaths++;
     const shooter = this.players.get(owner);
     if (shooter && shooter !== player) shooter.kills++;
@@ -445,6 +452,7 @@ export class GameServer {
       lookDeltaPitch: player.pitch - previousPitch, grenades: player.grenades, cancelActions: frame.cancelActions }, () => this.random());
     connection.previousFire = frame.fire && !frame.cancelActions;
     connection.previousAlt = frame.alt && !frame.cancelActions;
+    player.aiming = pose.altHeld && (player.weapon === 'ak47' || player.weapon === 'awp');
     player.ammo = player.weapon === 'ak47' || player.weapon === 'awp' ? connection.magazines[player.weapon] : 0;
     const eye = { x: player.position.x, y: player.position.y + EYE_HEIGHT, z: player.position.z };
     const aim = aimDirection(player.yaw, player.pitch);
@@ -598,6 +606,11 @@ export class GameServer {
       if (connection.initial) { this.streamInitial(connection); continue; }
       const player = connection.player;
       if (!player?.alive) continue;
+      // Recover from delivery jitter without consuming button edges or extra simulation ticks.
+      if (connection.input && this.tick - connection.lastInputTick <= 15) {
+        while (connection.queue.length > 1 && sameActionState(connection.input, connection.queue[0])
+          && sameActionState(connection.queue[0], connection.queue[1])) connection.queue.shift();
+      }
       const next = connection.queue.shift();
       if (next) {
         connection.input = next;
@@ -648,7 +661,7 @@ export class GameServer {
       connection.previousFire = false;
       connection.previousAlt = false;
       if (!connection.player) continue;
-      Object.assign(connection.player, { alive: false, health: 100, kills: 0, deaths: 0, lastSeq: 0, grenades: 10 });
+      Object.assign(connection.player, { alive: false, aiming: false, health: 100, kills: 0, deaths: 0, lastSeq: 0, grenades: 10 });
       this.send(connection, { type: 'reset', roundId: this.roundId, world: this.options.world });
       this.startInitial(connection);
       this.streamInitial(connection);

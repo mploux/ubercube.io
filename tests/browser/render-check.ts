@@ -7,6 +7,7 @@ import { checkBulletVisuals } from './bullets-check';
 import { checkWeaponView } from './weapon-check';
 import { checkMuzzleAlignment } from './muzzle-check';
 import { checkGrenadeVisuals } from './grenade-check';
+import { checkPlayers } from './player-check';
 
 const results = document.getElementById('results')!;
 const messages: string[] = [];
@@ -102,6 +103,7 @@ try {
   messages.push(...await checkWeaponView(renderer));
   messages.push(...await checkMuzzleAlignment(renderer));
   messages.push(...await checkGrenadeVisuals(renderer));
+  messages.push(...await checkPlayers(renderer));
 
   const snowScene = new THREE.Scene();
   const snow = new Snow(snowScene, 160);

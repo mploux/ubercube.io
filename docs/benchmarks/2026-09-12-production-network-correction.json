@@ -1,0 +1,243 @@
+{
+  "date": "2026-09-12T09:48:48.873Z",
+  "endpoint": "wss://game.ubercube.io/ws",
+  "origin": "https://www.ubercube.io",
+  "requestedDurationSeconds": 20,
+  "batchSize": 1,
+  "methodology": "Two Bun WSS clients on the same local monotonic clock. One mover generates harmless inputs as each 60 Hz deadline arrives, checked by a 1 ms timer, recording actual creation time separately from nominal deadline and actual send time. Batch 3 retains each generated frame until the third; batch 1 sends immediately. Observer stays still; no firing, terrain changes, resets or deployment. Delayed timer callbacks catch up elapsed deadlines and may generate multiple frames together; generation intervals report this limitation. Ping is application RTT. Send-to-ack and send-to-observer measure first received snapshot with lastSeq >= input seq. Generated-to-observer also includes the measured client batching wait. Browser interpolation/render/display are excluded; this is not input-to-photon. Different sequential sessions have different snapshot phases and cannot establish an exact universal latency improvement.",
+  "inputsSent": 1199,
+  "senderAckMilliseconds": {
+    "count": 1199,
+    "min": 42.3,
+    "p50": 66.58,
+    "p95": 88.1,
+    "p99": 92.77,
+    "max": 95.33
+  },
+  "observerReceiveMilliseconds": {
+    "count": 1199,
+    "min": 42.24,
+    "p50": 66.65,
+    "p95": 88.12,
+    "p99": 92.65,
+    "max": 95.28
+  },
+  "generatedToObserverMilliseconds": {
+    "count": 1199,
+    "min": 42.24,
+    "p50": 66.66,
+    "p95": 88.12,
+    "p99": 92.65,
+    "max": 95.28
+  },
+  "clientBatchWaitMilliseconds": {
+    "count": 1199,
+    "min": 0,
+    "p50": 0,
+    "p95": 0.01,
+    "p99": 0.02,
+    "max": 1.36
+  },
+  "generationIntervalMilliseconds": {
+    "count": 1198,
+    "min": 0.03,
+    "p50": 15.51,
+    "p95": 30.79,
+    "p99": 31.07,
+    "max": 31.42
+  },
+  "generationDeadlineDelayMilliseconds": {
+    "count": 1199,
+    "min": 0.01,
+    "p50": 6.51,
+    "p95": 15.08,
+    "p99": 21.39,
+    "max": 27.86
+  },
+  "achievedInputRate": 59.95,
+  "framesPerBatch": {
+    "count": 1199,
+    "min": 1,
+    "p50": 1,
+    "p95": 1,
+    "p99": 1,
+    "max": 1
+  },
+  "sendIntervalMilliseconds": {
+    "count": 1198,
+    "min": 0.03,
+    "p50": 15.51,
+    "p95": 30.78,
+    "p99": 31.06,
+    "max": 31.42
+  },
+  "observerDelayByFiveSecondWindow": [
+    {
+      "fromSeconds": 0,
+      "milliseconds": {
+        "count": 299,
+        "min": 42.83,
+        "p50": 66.17,
+        "p95": 88.22,
+        "p99": 93.5,
+        "max": 95.28
+      }
+    },
+    {
+      "fromSeconds": 5,
+      "milliseconds": {
+        "count": 300,
+        "min": 42.71,
+        "p50": 66.39,
+        "p95": 87.02,
+        "p99": 91.14,
+        "max": 93.49
+      }
+    },
+    {
+      "fromSeconds": 10,
+      "milliseconds": {
+        "count": 300,
+        "min": 42.24,
+        "p50": 67,
+        "p95": 89.17,
+        "p99": 92.65,
+        "max": 93.23
+      }
+    },
+    {
+      "fromSeconds": 15,
+      "milliseconds": {
+        "count": 300,
+        "min": 42.9,
+        "p50": 66.99,
+        "p95": 88.98,
+        "p99": 93.69,
+        "max": 93.99
+      }
+    }
+  ],
+  "clients": [
+    {
+      "role": "mover",
+      "id": 3,
+      "aliveAtEnd": true,
+      "bytesReceived": 76044,
+      "applicationRttMilliseconds": {
+        "count": 79,
+        "min": 41.44,
+        "p50": 42.37,
+        "p95": 43.13,
+        "p99": 43.29,
+        "max": 43.29
+      },
+      "snapshotIntervalMilliseconds": {
+        "count": 405,
+        "min": 45.35,
+        "p50": 50.58,
+        "p95": 52.16,
+        "p99": 52.98,
+        "max": 53.32
+      },
+      "snapshotTickStep": {
+        "count": 405,
+        "min": 3,
+        "p50": 3,
+        "p95": 3,
+        "p99": 3,
+        "max": 3
+      },
+      "measuredTickRate": 60.00138373561504,
+      "distinctPositions": 398,
+      "firstTick": 4035,
+      "lastTick": 5250
+    },
+    {
+      "role": "observer",
+      "id": 4,
+      "aliveAtEnd": true,
+      "bytesReceived": 76125,
+      "applicationRttMilliseconds": {
+        "count": 79,
+        "min": 41.48,
+        "p50": 42.31,
+        "p95": 43.12,
+        "p99": 43.29,
+        "max": 43.29
+      },
+      "snapshotIntervalMilliseconds": {
+        "count": 405,
+        "min": 45.55,
+        "p50": 50.6,
+        "p95": 51.99,
+        "p99": 53.02,
+        "max": 53.65
+      },
+      "snapshotTickStep": {
+        "count": 405,
+        "min": 3,
+        "p50": 3,
+        "p95": 3,
+        "p99": 3,
+        "max": 3
+      },
+      "measuredTickRate": 60.001130984281325,
+      "distinctPositions": 398,
+      "firstTick": 4035,
+      "lastTick": 5250
+    }
+  ],
+  "serverBefore": {
+    "ok": true,
+    "mode": "tdm",
+    "maxPlayers": 100,
+    "players": 0,
+    "world": {
+      "seed": 12345,
+      "size": 256,
+      "height": 64
+    },
+    "roundId": 1,
+    "roundSeconds": 0,
+    "tick": 3973,
+    "tickWork": {
+      "p50": 0.01629999999568099,
+      "p95": 0.079939999995986,
+      "p99": 0.11135900000226684,
+      "max": 3.0066489999953774,
+      "samples": 1024
+    },
+    "pendingInput": 0,
+    "lateTicks": 0,
+    "droppedInputs": 0,
+    "rss": 55259136,
+    "projectiles": 0
+  },
+  "serverAfter": {
+    "ok": true,
+    "mode": "tdm",
+    "maxPlayers": 100,
+    "players": 2,
+    "world": {
+      "seed": 12345,
+      "size": 256,
+      "height": 64
+    },
+    "roundId": 1,
+    "roundSeconds": 0,
+    "tick": 5251,
+    "tickWork": {
+      "p50": 0.1037849999993341,
+      "p95": 0.1950559999968391,
+      "p99": 0.2405810000054771,
+      "max": 3.0066489999953774,
+      "samples": 1024
+    },
+    "pendingInput": 0,
+    "lateTicks": 0,
+    "droppedInputs": 0,
+    "rss": 58003456,
+    "projectiles": 0
+  },
+  "errors": []
+}

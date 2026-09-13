@@ -27,7 +27,7 @@ export function encodeServerMessage(message: ServerMessage): string | Uint8Array
     const name = names[i];
     if (name.length > 255) throw new Error('Player name exceeds wire limit');
     u32(player.id); u8(player.team); u8(kits.indexOf(player.kit)); u8(weapons.indexOf(player.weapon));
-    u8((player.alive ? 1 : 0) | (player.grounded ? 2 : 0));
+    u8((player.alive ? 1 : 0) | (player.grounded ? 2 : 0) | (player.aiming ? 4 : 0));
     f32(player.position.x); f32(player.position.y); f32(player.position.z);
     f32(player.velocity.x); f32(player.velocity.y); f32(player.velocity.z);
     f32(player.yaw); f32(player.pitch);
@@ -71,7 +71,7 @@ export function decodeServerMessage(data: string | ArrayBuffer | ArrayBufferView
     if (!kit || !weapon || team > 2 || offset + nameLength > bytes.length) throw new Error('Invalid player record');
     const name = decoder.decode(bytes.subarray(offset, offset + nameLength));
     offset += nameLength;
-    players.push({ id, team: team as 0 | 1 | 2, kit, weapon, alive: !!(flags & 1), grounded: !!(flags & 2), position, velocity, yaw, pitch, health, ammo, grenades, kills, deaths, lastSeq, name });
+    players.push({ id, team: team as 0 | 1 | 2, kit, weapon, alive: !!(flags & 1), grounded: !!(flags & 2), aiming: !!(flags & 4), position, velocity, yaw, pitch, health, ammo, grenades, kills, deaths, lastSeq, name });
   }
   const projectiles: ProjectileState[] = [];
   for (let i = 0; i < projectileCount; i++) {

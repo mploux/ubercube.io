@@ -13,7 +13,7 @@ export interface MotionState {
 }
 export interface PlayerState extends MotionState {
   id: number; name: string; team: Team; kit: Kit; weapon: WeaponId;
-  health: number; alive: boolean; kills: number; deaths: number;
+  health: number; alive: boolean; aiming: boolean; kills: number; deaths: number;
   ammo: number; grenades: number; lastSeq: number;
 }
 export interface InputFrame {

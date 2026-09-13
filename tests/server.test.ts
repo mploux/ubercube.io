@@ -83,6 +83,36 @@ describe('authoritative simulation', () => {
     expect(start.z - player.position.z).toBeLessThanOrEqual(9 / 60);
   });
 
+  test('remote aiming reflects validated weapon state and clears on cancellation, timeout, death and reset', () => {
+    const game = new GameServer();
+    const { connection, player, peer } = join(game);
+    expect(player.aiming).toBe(false);
+    input(game, connection, { alt: true }); game.step();
+    expect(player.aiming).toBe(true);
+    game.sendSnapshot(connection);
+    const snapshot = peer.messages.filter(message => message.type === 'snapshot').at(-1)!;
+    expect(snapshot.players.find(state => state.id === player.id)?.aiming).toBe(true);
+    input(game, connection, { alt: true, cancelActions: true }); game.step();
+    expect(player.aiming).toBe(false);
+    input(game, connection, { alt: true }); game.step();
+    for (let tick = 0; tick < 16; tick++) game.step();
+    expect(player.aiming).toBe(false);
+    input(game, connection, { weapon: 'grenade', alt: true }); game.step();
+    expect(player.aiming).toBe(false);
+    input(game, connection, { weapon: 'ak47', alt: true }); game.step();
+    expect(player.aiming).toBe(true);
+    player.position.y = -20;
+    game.step();
+    expect(player.alive).toBe(false);
+    expect(player.aiming).toBe(false);
+    game.receive(connection, JSON.stringify({ type: 'spawn', roundId: game.roundId, kit: 'sniper' }));
+    expect(player.aiming).toBe(false);
+    input(game, connection, { weapon: 'awp', alt: true }); game.step();
+    expect(player.aiming).toBe(true);
+    game.resetRound();
+    expect(player.aiming).toBe(false);
+  });
+
   test('rejects forged state, nonfinite inputs, repeated sequence, disallowed kit weapons and excessive queues', () => {
     const game = new GameServer();
     const { connection, player, peer } = join(game);

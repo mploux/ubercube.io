@@ -2,6 +2,14 @@
 
 Statut : cadrage initial issu d'une lecture statique du Java le 11 septembre 2026. Certains mécanismes décrits ici restent prévus. L'implémentation livrée et ses mesures sont décrites dans le [README](../README.md) et la [validation](validation.md). Le Java est une référence de comportement, pas une architecture à porter.
 
+## Correction du retard entre joueurs — 12 septembre 2026
+
+Le client envoie désormais les intentions générées pendant chaque image, sans lot minimum de trois. Le serveur élimine uniquement les commandes en tête de file dont les boutons, l'arme et l'annulation sont identiques à l'état déjà appliqué et à la commande suivante. Les axes et l'orientation les plus récents remplacent ainsi les intentions de mouvement périmées ; le premier appui/relâchement/changement conserve sa séquence. Ce regroupement reste désactivé avant le premier input et après le délai de neutralisation. Déplacement, cadences, charge et actions sont évalués une seule fois par tick. Une pointe réseau ne laisse plus un nombre constant de commandes en retard lorsque l'envoi retrouve sa cadence normale.
+
+`RemotePlayers` utilise les ticks des snapshots et une fenêtre bornée de 40 états pour mesurer la gigue. Il interpole à un intervalle de snapshot de la réception estimée, soit environ 50 ms supplémentaires en régime stable, contre 100 ms auparavant. Le temps affiché ne recule pas ; une interruption ne provoque aucune extrapolation à travers le terrain. Mort, réapparition, déconnexion, téléportation et reset interrompent correctement les anciennes trajectoires. Les états discrets d'arme et de visée suivent le même échantillon que la pose. La visée validée par le serveur occupe un bit libre du champ de flags binaire, sans ajouter d'octets ; les anciens snapshots la décodent à `false`.
+
+Les mesures avant/après, essais à 100 joueurs et limites figurent dans la [validation](validation.md). Il n'y a toujours pas de compensation historique des impacts.
+
 ## Périmètre décidé
 
 Un serveur Bun héberge une partie TDM ou FFA, choisie au lancement. La capacité est configurable, initialement 100 joueurs. Admission immédiate tant qu'une place existe ; aucune attente d'un nombre minimum de joueurs. En TDM, chaque entrant rejoint l'équipe la moins nombreuse ; en FFA, aucune équipe. Pseudo, lobby d'équipement puis entrée en jeu, sans compte ni base de données. Construction et destruction sont conservées. Chaque nouvelle manche réinitialise le terrain. Les effondrements et la distribution de la simulation sont hors de la première version.
