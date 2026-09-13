@@ -139,10 +139,12 @@ main { position: relative; width: 100%; height: 100%; z-index: 3; pointer-events
 
 #touch-controls {
   position: fixed; inset: 0; z-index: 4; pointer-events: none;
-  --touch-size: 56px; --touch-bottom: var(--safe-bottom);
+  --touch-size: 64px; --touch-bottom: var(--safe-bottom);
   user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
 }
 #touch-look { position: absolute; inset: 0 0 0 36%; pointer-events: auto; touch-action: none; }
+/* Chromium needs an interactive CSS state to keep nearby touches on the look surface. */
+#touch-look:active { cursor: grabbing; }
 #touch-move {
   position: absolute; left: var(--safe-left); bottom: var(--touch-bottom); z-index: 1;
   width: clamp(112px, 27dvh, 144px); aspect-ratio: 1; background: rgb(0 0 0 / 25%);
@@ -158,10 +160,20 @@ main { position: relative; width: 100%; height: 100%; z-index: 3; pointer-events
 .touch-button.pressed, .touch-button.active, .touch-button[aria-pressed="true"] { background: rgb(255 255 255 / 45%); }
 .touch-menu { position: absolute; top: var(--safe-top); left: var(--safe-left); display: flex; gap: 8px; }
 .touch-menu .touch-button { min-height: 44px; min-width: 52px; font-size: 16px; }
-.touch-actions { position: absolute; right: var(--safe-right); bottom: var(--touch-bottom); display: grid; grid-template-columns: repeat(2, var(--touch-size)); gap: 8px; }
-.touch-actions .touch-button { min-height: var(--touch-size); }
-#touch-alt { font-size: 16px; padding: 4px; }
-#touch-fire { grid-column: 1 / -1; min-height: 64px; font-size: 24px; }
+.touch-actions { position: absolute; right: calc(var(--safe-right) + min(2vw, 20px)); bottom: calc(var(--touch-bottom) + min(4dvh, 20px)); width: 180px; height: 166px; }
+.touch-actions .touch-button {
+  position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+  width: 52px; height: 52px; min-width: 0; min-height: 0; padding: 4px;
+  border: 1px solid rgb(255 255 255 / 50%); background: rgb(0 0 0 / 32%); font-size: 13px; line-height: 1.1;
+}
+.touch-actions .touch-button > * { pointer-events: none; }
+.touch-actions svg { width: 21px; height: 21px; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+#touch-alt { right: 115px; bottom: 101px; }
+.touch-actions [data-touch-action="jump"] { right: 0; bottom: 98px; }
+#touch-fire { right: 45px; bottom: 2px; width: 80px; height: 80px; font-size: 18px; }
+#touch-fire svg { width: 28px; height: 28px; }
+.touch-actions .touch-button.active { background: rgb(255 255 255 / 55%); }
+#touch-fire.active, #touch-alt[aria-pressed="true"] { background: rgb(255 255 255 / 55%); box-shadow: inset 0 0 0 2px rgb(255 255 255 / 65%); }
 .touch-weapons { position: absolute; bottom: var(--safe-bottom); left: 50%; translate: -50% 0; display: flex; align-items: center; gap: 4px; }
 .touch-weapons .touch-button { min-width: 44px; min-height: 48px; font-size: 34px; }
 #touch-weapon-label { width: 120px; padding: 8px 4px; text-align: center; font-size: 17px; line-height: 1.1; text-shadow: 1px 2px rgb(0 0 0 / 70%); }
@@ -242,15 +254,14 @@ main { position: relative; width: 100%; height: 100%; z-index: 3; pointer-events
 }
 
 @media (max-width: 480px) {
-  #touch-controls { --touch-size: 52px; }
+  #touch-controls { --touch-size: 60px; }
   #touch-move { width: 120px; }
   #score-tdm { grid-template-columns: 1fr; grid-template-rows: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-height: 420px) and (min-aspect-ratio: 1/1) {
-  #touch-controls { --touch-size: 48px; }
+  #touch-controls { --touch-size: 56px; }
   #touch-move { width: 104px; }
-  #touch-fire { min-height: 56px; }
   .touch-mode .minimap-wrap { width: 128px; }
   .touch-mode .match-time { top: calc(var(--safe-top) + 96px); width: 128px; }
   .touch-mode #kill-feed { top: calc(var(--safe-top) + 44px); left: calc(var(--safe-left) + 152px); width: calc(100% - var(--safe-left) - var(--safe-right) - 296px); max-height: 36px; }

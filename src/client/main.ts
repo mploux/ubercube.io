@@ -164,10 +164,11 @@ const touchControls = new TouchControls(element('touch-controls'), {
   weapon: direction => cycleWeapon(direction),
   pause: () => setPaused(true),
   scores: down => { element('score-screen').hidden = !down; updateUI(); },
-  cancel: () => clearInput(),
+  cancel: () => clearActions(),
 });
 
 function updateTouchControls(): void {
+  if (touchMode) touchControls.setWeapon(selectedWeapon);
   touchControls.setEnabled(touchMode && screen === 'game' && !paused && !document.hidden);
 }
 
@@ -198,8 +199,13 @@ function toast(message: string): void {
 
 function clearInput(): void {
   touchControls.clear();
+  keys.clear();
+  clearActions();
+}
+
+function clearActions(): void {
   cancelActions = true;
-  keys.clear(); rightMouse = false;
+  rightMouse = false;
   fireButton.clear(); altButton.clear();
   weaponMouseDX = 0; weaponMouseDY = 0;
   weaponLookYaw = yaw; weaponLookPitch = pitch;
@@ -555,10 +561,12 @@ function simulate(): void {
 }
 
 function updateUI(): void {
+  if (touchMode) touchControls.setWeapon(selectedWeapon);
   element('touch-weapon-label').textContent = WEAPONS[selectedWeapon].name;
-  element('touch-fire').textContent = selectedWeapon === 'grenade' ? 'Lancer' : selectedWeapon === 'shovel' ? 'Creuser' : selectedWeapon === 'medic' ? 'Soigner' : 'Tirer';
-  element('touch-fire').title = selectedWeapon === 'grenade' ? 'Maintenir pour charger, relâcher pour lancer' : '';
-  element('touch-alt').textContent = selectedWeapon === 'shovel' ? 'Bâtir' : 'Viser';
+  element('touch-fire-label').textContent = selectedWeapon === 'grenade' ? 'Lancer' : selectedWeapon === 'shovel' ? 'Creuser' : selectedWeapon === 'medic' ? 'Soigner' : 'TIR';
+  element('touch-fire').title = selectedWeapon === 'grenade' ? 'Maintenir pour charger, glisser pour orienter, relâcher pour lancer' : 'Maintenir et glisser pour agir tout en regardant';
+  element('touch-alt-label').textContent = selectedWeapon === 'shovel' ? 'Bâtir' : 'Visée';
+  element('touch-alt').title = selectedWeapon === 'shovel' ? 'Maintenir pour bâtir' : 'Appuyer pour activer ou désactiver la visée';
   element<HTMLButtonElement>('touch-alt').disabled = selectedWeapon === 'grenade' || selectedWeapon === 'medic';
   if (local) {
     element('health-value').textContent = String(Math.max(0, local.health));

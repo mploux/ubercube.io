@@ -62,9 +62,18 @@
           <button class="gui-button touch-button" data-touch-action="scores" type="button" aria-label="Hold to show scores">Score</button>
         </div>
         <div class="touch-actions">
-          <button id="touch-alt" class="gui-button touch-button" data-touch-action="alt" type="button">Aim</button>
-          <button class="gui-button touch-button" data-touch-action="jump" type="button">Saut</button>
-          <button id="touch-fire" class="gui-button touch-button" data-touch-action="fire" type="button">Fire</button>
+          <button id="touch-alt" class="gui-button touch-button" data-touch-action="alt" type="button" aria-pressed="false">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 8V5a2 2 0 0 1 2-2h3m8 0h3a2 2 0 0 1 2 2v3m0 8v3a2 2 0 0 1-2 2h-3m-8 0H5a2 2 0 0 1-2-2v-3"/><circle cx="12" cy="12" r="3"/></svg>
+            <span id="touch-alt-label">Visée</span>
+          </button>
+          <button class="gui-button touch-button" data-touch-action="jump" type="button" aria-label="Sauter">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m6 9 6-6 6 6m-6-6v12M5 21h14"/></svg>
+            <span>Saut</span>
+          </button>
+          <button id="touch-fire" class="gui-button touch-button" data-touch-action="fire" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/></svg>
+            <span id="touch-fire-label">TIR</span>
+          </button>
         </div>
         <div class="touch-weapons">
           <button class="gui-button touch-button" data-touch-action="previous" type="button" aria-label="Previous weapon">&#8249;</button>
