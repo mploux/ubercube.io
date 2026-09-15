@@ -20,6 +20,8 @@ Chaque nouvelle publication Vercel doit provenir d'un **commit poussé sur GitHu
 
 Prérequis pour développer : Bun 1.3.11 ou compatible. Pour jouer : navigateur avec WebGL2, clavier/souris ou écran tactile.
 
+La suite complète de tests et les essais locaux de latence utilisent aussi Node.js 22.19 ou plus récent pour leur proxy TCP. Le serveur et le client du jeu restent exécutés avec Bun et le navigateur.
+
 ```sh
 bun install --frozen-lockfile
 bun run doctor
@@ -109,6 +111,8 @@ Les arguments `--nom=valeur` prennent priorité sur les variables d'environnemen
 | `--port` | `PORT` | `3000` |
 | `--hostname` | `HOST` | `0.0.0.0` |
 | `--max-players` | `MAX_PLAYERS` | `100` |
+| `--max-connections-per-ip` | `MAX_CONNECTIONS_PER_IP` | `24` connexions ; augmenter explicitement pour les bots sur une seule IP |
+| `--trust-proxy` | `TRUST_PROXY` | `none` ; `loopback` uniquement derrière le proxy local de confiance |
 | `--seed` | `WORLD_SEED` | `12345` |
 | `--size` | `WORLD_SIZE` | `256` blocs de côté |
 | `--height` | `WORLD_HEIGHT` | `64` blocs |
@@ -147,11 +151,15 @@ Un arrivant reçoit les différences par rapport au monde généré et rattrape 
 
 ```sh
 bun run check
+# Serveur et clients dans deux processus locaux, avec comparaison du terrain autoritaire :
+bun run qualify:local --players=100 --seconds=300 --output=.runtime/qualification-100.json
 # Serveur démarré dans un autre terminal :
 bun run loadtest --players=100 --seconds=30
 ```
 
 `check` exécute TypeScript strict, les tests et la compilation du navigateur. Le test de charge utilise de vraies connexions WebSocket avec déplacements, tirs, grenades, construction, morts et réapparitions ; son rapport est écrit dans `.runtime/loadtest-latest.json`. Un autre serveur se cible avec `--url=ws://adresse:port/ws`.
+
+La mesure commence après synchronisation et apparition de tous les clients. `loadtest` accepte jusqu'à `--seconds=28800`, `--reconnect-seconds=60` et produit un journal JSONL pendant l'essai. Les erreurs applicatives, révisions incohérentes, commandes ou ticks perdus font échouer la qualification. Sur un serveur lancé manuellement, les 100 bots d'une seule IP nécessitent `--max-connections-per-ip=116`. Le runner `qualify:local` configure cette exception pour son instance locale et vérifie aussi le terrain côté serveur et la fermeture des connexions. Voir [la stabilité et ses budgets](docs/stable-100.md).
 
 Pour vérifier les shaders sur un GPU réel, lancer `bun scripts/visual-check.ts`, puis ouvrir `http://127.0.0.1:3011/`. Cette page locale de test vérifie les pixels du terrain, des particules, de la neige et des balles, le brouillard, les quatre cascades d'ombres, leurs raccords, le déplacement des ombres et leur activation. Elle charge aussi les cinq OBJ/MTL originaux, affiche leurs captures en repos/action/visée et contrôle les aperçus du lobby. Elle doit afficher « RÉSULTAT : SUCCÈS ». Arrêter le serveur de test avec Ctrl+C. Ces contrôles navigateur sont distincts de `bun run check`.
 

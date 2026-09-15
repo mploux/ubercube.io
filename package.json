@@ -12,6 +12,7 @@
     "test": "bun test tests",
     "check": "bun run typecheck && bun test tests && bun run build",
     "loadtest": "bun scripts/loadtest.ts",
+    "qualify:local": "bun scripts/qualify-local.ts",
     "doctor": "bun scripts/doctor.ts",
     "smoke": "bun scripts/smoke.ts",
     "release:prepare": "bun scripts/release/prepare.ts",

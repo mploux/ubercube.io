@@ -2,6 +2,28 @@
 
 Le jeu est publié sur Vercel et Hetzner. Cette page distingue les vérifications locales et celles de production ; la parité des sensations avec le Java, la tenue prolongée sur Internet et les grandes distances d'affichage ne sont pas encore entièrement validées.
 
+## Candidat 100 joueurs — 15 septembre 2026
+
+Travail **local, non publié**, protocole 4 / binaire 2. `bun run check` passe : TypeScript, **466 tests / 35 592 assertions**, puis 11 sorties de build. Les protections couvrent admission, horloges, mutations pendant arrivée tardive, retour au terrain généré, reset, saturation, limites de files, isolation d'une connexion et décodage hostile. Voir [les budgets et limites](stable-100.md).
+
+Serveur et bots dans des processus distincts sur le Ryzen 7 5800X / 32 Gio de Marc, Bun 1.3.11, uniquement loopback. La mesure débute avec tous les joueurs synchronisés et apparus. Les trois essais suivants passent, avec égalité SHA256 entre terrain témoin et serveur après drainage, puis zéro connexion restante :
+
+| Scénario | Durée mesurée | Maximum des p99 échantillonnés | Trafic descendant agrégé |
+|---|---:|---:|---:|
+| 100 actifs, TDM, carte 256, sans reset | 120 s | 5,34 ms | 147,12 Mbit/s |
+| 100 actifs, FFA, carte 64, reset 30 s, 4 reconnexions | 120 s | 4,20 ms | 126,07 Mbit/s |
+| 100 actifs, TDM, carte 256, délai 50 ±20 ms par sens, reset 45 s, 3 reconnexions | 120 s | 5,76 ms | 150,83 Mbit/s |
+
+Ces trois essais n'ont aucune erreur applicative, aucun input abandonné et aucun tick abandonné. L'essai concentré reçoit quatre resets, celui avec délai deux resets. Sans délai, l'activité moyenne vaut 99,23 %, le générateur maintient 59,95 intentions/s/joueur actif et la RAM serveur échantillonnée culmine à 230,23 Mio. Le terrain final comporte 118 072 éditions. Avec délai, RTT p95 de 153,63 ms ; le proxy termine avec zéro connexion, zéro octet en attente et aucun dépassement de ses budgets.
+
+Le trafic est réduit par rapport aux essais courts d'audit à environ 289 Mbit/s ; les scénarios et durées diffèrent, ce n'est pas une comparaison déterministe image par image. L'objectif indicatif de 1 Mbit/s par joueur n'est pas encore atteint sur ces scénarios. Les octets excluent le framing WebSocket/TCP/TLS. Les percentiles serveur portent sur des fenêtres de 1 024 ticks : la colonne donne le maximum observé par échantillonnage, pas le p99 calculé sur tous les ticks de l'essai.
+
+Le premier essai 50 joueurs avait échoué au seuil p99 (25,19 ms) après passage aux envois individuels. Un profil et une comparaison sans sockets ont isolé le coût des écritures natives. Le regroupement ordonné par socket ramène ce palier à 2,83 ms, vidage compris ; le seuil de qualification n'a pas été relâché.
+
+Deux vrais clients dans le navigateur intégré passent pseudo → équipement → apparition (Assault et Sniper), reset et nouvelle apparition. Aucun avertissement/erreur console capturé, protocole 4 confirmé par le serveur avec deux sessions ; fermeture puis zéro joueur/connexion vérifiés. La capture de souris est refusée par ce navigateur : aucune validation des sensations ni mesure de rendu à 100 navigateurs n'en découle.
+
+Preuves locales : `.runtime/stable-100/check.log`, `hundred-first.*`, `hundred-concentrated.*`, `hundred-latency.*`, `browser-health.json` et `browser-cleanup.json`. Le jalon prolongé reste ouvert : huit heures de charge, puis qualification sur matériel cible et Internet. Ces résultats ne constituent pas une garantie de capacité sur le serveur de production à deux vCPU.
+
 ## Ragdolls — 14 septembre 2026
 
 Travail local, non publié. `bun run doctor`, TypeScript et `bun run build` passent (11 sorties de compilation). Les 312 tests hors outillage de publication passent, dont 28 nouveaux tests couvrant événements fatals, impulsion et couple, pose/interpolation, réapparition, collisions voxel et nettoyage. Le test `client-build.test.ts` a d'abord rencontré `EPERM` au lancement de Bun dans le bac à sable ; sa réexécution autorisée passe. Les deux fichiers `release-prepare.test.ts` et `release-vercel.test.ts` exécutent Git et sont exclus pour respecter la consigne de cette session ; `bun run check` complet n'est donc pas annoncé comme exécuté. Aucun Git ni déploiement.
