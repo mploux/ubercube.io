@@ -50,7 +50,7 @@ function shootAtTarget(kit: Kit, health: number) {
   return { game, shooter, victim, shot, direction };
 }
 
-test.each(['assault', 'sniper'] as const)('%s immediate death carries the ray contact, direction and victim pose', kit => {
+test.each(['assault', 'sniper'] as const)('%s immediate death carries the reviewed fourfold impulse, ray contact and victim pose', kit => {
   const { game, shooter, victim, shot, direction } = shootAtTarget(kit, 1);
   const event = shooter.peer.events('death')[0];
   const impact = shooter.peer.events('impact')[0];
@@ -64,7 +64,7 @@ test.each(['assault', 'sniper'] as const)('%s immediate death carries the ray co
   expect(Math.abs(event.death!.hitPoint.z - victim.player.position.z)).toBeCloseTo(PLAYER_RADIUS);
   expect(event.death!.hitPoint.y - victim.player.position.y).toBeGreaterThan(1);
   expect(event.headshot).toBe(false);
-  const strength = kit === 'sniper' ? 20 : 12;
+  const strength = kit === 'sniper' ? 80 : 48;
   for (const axis of ['x', 'y', 'z'] as const) {
     expect(event.death!.impulse[axis]).toBeCloseTo(direction[axis] * strength, 9);
   }

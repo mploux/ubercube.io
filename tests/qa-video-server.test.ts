@@ -26,14 +26,18 @@ test('video fixture uses real socket inputs, lethal combat events, and voxel cov
   await until(() => messages.some(message => message.type === 'welcome') && [...host.game.connections].every(connection => !connection.initial));
   const welcome = messages.find(message => message.type === 'welcome') as Extract<ServerMessage, { type: 'welcome' }>;
   let seq = 0;
-  for (const scene of ['ak-body', 'wall'] as const) {
+  for (const scene of ['ak-body', 'awp-body', 'wall'] as const) {
     const response = await fetch(`${base}/qa/scene`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ scene, shooterId: welcome.id }) });
     expect(response.status).toBe(200);
-    const setup = await response.json() as { yaw: number; pitch: number; targetId: number };
+    const setup = await response.json() as { yaw: number; pitch: number; targetId: number;
+      weapon: 'ak47' | 'awp'; impulseScale: null; impulseMagnitude: number };
+    expect(setup.impulseScale).toBeNull();
+    expect(setup.impulseMagnitude).toBe(scene === 'awp-body' ? 80 : 48);
+    messages.length = 0;
     const frame = (fire: boolean): InputFrame => ({ seq: ++seq, roundId: welcome.roundId, moveX: 0, moveZ: 0,
-      yaw: setup.yaw, pitch: setup.pitch, jump: false, sprint: false, fire, alt: true, weapon: 'ak47' });
-    for (let i = 0; i < 100; i++) {
+      yaw: setup.yaw, pitch: setup.pitch, jump: false, sprint: false, fire, alt: true, weapon: setup.weapon });
+    for (let i = 0; i < (scene === 'awp-body' ? 170 : 100); i++) {
       socket.send(JSON.stringify({ type: 'input', frames: [frame(i >= 50 && (scene !== 'wall' || i < 78))] }));
       await Bun.sleep(17);
     }
@@ -48,12 +52,15 @@ test('video fixture uses real socket inputs, lethal combat events, and voxel cov
       const impact = state.events.find(event => event.event === 'impact' && event.projectileId === shot.projectileId);
       if (impact) expect(impact.tick).toBe(shot.tick);
     }
-    if (scene === 'ak-body') {
+    if (scene !== 'wall') {
       expect(target.alive).toBe(false);
       const deaths = state.events.filter(event => event.event === 'death' && event.targetId === target.id);
       expect(deaths).toHaveLength(1);
       expect(deaths[0].death?.hitPoint.z).toBeCloseTo(35.3, 3);
-      expect(deaths[0].death?.impulse.z).toBeLessThan(-11);
+      const impulse = deaths[0].death!.impulse;
+      expect(Math.hypot(impulse.x, impulse.y, impulse.z)).toBeCloseTo(scene === 'awp-body' ? 80 : 48, 8);
+      expect(impulse.z).toBeLessThan(-47);
+      expect(deaths[0]).toMatchObject(messages.find(message => message.type === 'event' && message.event === 'death')!);
     } else {
       expect(target.health).toBe(100);
       expect(target.alive).toBe(true);
@@ -63,9 +70,9 @@ test('video fixture uses real socket inputs, lethal combat events, and voxel cov
   }
   expect((await fetch(`${base}/qa/scene`, { method: 'POST', headers: { Origin: 'https://www.ubercube.io', 'Content-Type': 'application/json' },
     body: JSON.stringify({ scene: 'ak-body', shooterId: welcome.id }) })).status).toBe(403);
-}, 15000);
+}, 20000);
 
-test('impulse review scales only the fatal bullet impulse and keeps each shot comparable', async () => {
+test('impulse review preserves historical magnitudes, direction, and hit point after production tuning', async () => {
   const host = await startQaVideoServer(0);
   hosts.push(host);
   const base = `http://127.0.0.1:${host.server.port}`;

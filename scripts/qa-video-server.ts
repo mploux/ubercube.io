@@ -27,11 +27,12 @@ export async function startQaVideoServer(port = 3014) {
   const inputs: { tick: number; playerId: number; frame: InputFrame }[] = [];
   const game = new GameServer({ mode: 'ffa', maxPlayers: 4, world: { seed: 121, size: 64, height: 64 } }, data => {
     let message = decodeServerMessage(data);
-    if (impulseScale !== null && impulseScale !== 1 && message.type === 'event' && message.event === 'death' &&
+    if (impulseScale !== null && message.type === 'event' && message.event === 'death' &&
       message.death && (message.weapon === 'ak47' || message.weapon === 'awp')) {
       const impulse = message.death.impulse;
+      const scale = (message.weapon === 'awp' ? 20 : 12) * impulseScale / Math.hypot(impulse.x, impulse.y, impulse.z);
       message = { ...message, death: { ...message.death, impulse: {
-        x: impulse.x * impulseScale, y: impulse.y * impulseScale, z: impulse.z * impulseScale,
+        x: impulse.x * scale, y: impulse.y * scale, z: impulse.z * scale,
       } } };
       data = encodeServerMessage(message);
     }
@@ -132,7 +133,8 @@ export async function startQaVideoServer(port = 3014) {
         const label = { 'ak-body': 'AK-47 · impacts au torse et chute', 'ak-head': 'AK-47 · impact à la tête',
           'awp-body': 'AWP · impacts au torse', wall: 'Obstacle · cible protégée', moving: 'Cible en déplacement' }[scene];
         game.sendSnapshot();
-        return Response.json({ scene, label, kit, weapon, impulseScale, impulseMagnitude: (weapon === 'awp' ? 20 : 12) * (impulseScale ?? 1),
+        return Response.json({ scene, label, kit, weapon, impulseScale,
+          impulseMagnitude: (weapon === 'awp' ? 20 : 12) * (impulseScale ?? 4),
           shooterId, targetId, yaw, pitch, aiming: true,
           targetPosition: target.position, aimPoint, tick: game.tick, distance });
       }

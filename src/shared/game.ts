@@ -582,7 +582,7 @@ export class GameServer {
       this.event('shot', origin, { shooterId: owner, weapon, projectileId: id, inputSeq: shot.inputSeq, endPosition });
       if (target) {
         const headshot = target.point.y - target.player.position.y >= PLAYER_HEIGHT / 2 + .813;
-        const corpseImpulse = weapon === 'awp' ? 20 : 12;
+        const corpseImpulse = weapon === 'awp' ? 80 : 48;
         this.hurt(target.player, headshot ? 100 : WEAPONS[weapon].damage, owner, headshot,
           { weapon, point: target.point,
             impulse: { x: direction.x * corpseImpulse, y: direction.y * corpseImpulse, z: direction.z * corpseImpulse } });

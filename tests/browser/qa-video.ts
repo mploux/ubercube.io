@@ -75,7 +75,7 @@ export function installVideoReview(client: ReviewClient): void {
     if (impulseReview && setup) {
       ctx.fillStyle = setup.impulseScale === 1 ? '#284150ee' : '#70541aee'; ctx.fillRect(1000, 24, 248, 106);
       text(`×${setup.impulseScale}  ·  ${setup.impulseMagnitude}`, 1020, 69, 34, '#ffe5a6');
-      text(setup.impulseScale === 1 ? 'VALEUR ACTUELLE' : 'VARIANTE À CHOISIR', 1020, 104, 14, '#fff');
+      text(setup.impulseScale === 1 ? 'RÉFÉRENCE INITIALE' : setup.impulseScale === 4 ? 'CHOIX VALIDÉ' : 'VARIANTE', 1020, 104, 14, '#fff');
     }
     ctx.fillStyle = '#101b2ddd'; ctx.fillRect(0, 628, 1280, 92);
     const state = client.state();
@@ -208,7 +208,7 @@ export function installVideoReview(client: ReviewClient): void {
           events, server });
         totalSeconds += (performance.now() - begin) / 1000;
       }
-      subtitle = impulseReview ? 'À toi de choisir : ×1, ×2, ×4 ou ×8. AK et AWP peuvent avoir des réglages différents.'
+      subtitle = impulseReview ? 'Choix validé par Marc : ×4 pour AK et AWP. ×1 conserve la référence initiale.'
         : 'À toi de juger les impacts et les chutes. Repères : chapitre ou minute:seconde.';
       await sleep(1700);
       const stopped = new Promise<void>(resolve => { recorder!.onstop = () => resolve(); });
@@ -222,7 +222,7 @@ export function installVideoReview(client: ReviewClient): void {
         date: new Date().toISOString(), durationIncludingSetupSeconds: (performance.now() - started) / 1000,
         width: 1280, height: 720, fps: 30, mimeType, bytes: video.size,
         scope: 'Real main.ts client, WebSocket commands and server combat; fixture arena, automated inputs, review camera, capture overlay.'
-          + (impulseReview ? ' Local-only death impulse multiplication; target starts at 1 HP for a single fatal impact. Production unchanged.' : ''),
+          + (impulseReview ? ' Local-only death impulse normalization to historical AK 12 / AWP 20 times each factor; target starts at 1 HP for a single fatal impact. Production unchanged by the fixture.' : ''),
         review: 'Pending Marc visual review', scenes: report,
       }) });
       if (!saved.ok) throw new Error(`Sauvegarde rapport : HTTP ${saved.status}`);
