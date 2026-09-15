@@ -8,13 +8,17 @@ Une tâche de code autorise l'inspection Git et les commits locaux nécessaires.
 
 Les cibles publiques sont dans [ops/production.json](../ops/production.json) : client Vercel `ubercube-io`, serveur `game.ubercube.io`, SSH `codex@2.29.30.129`, service `ubercube`, sources `/opt/ubercube`. Configuration serveur `/etc/ubercube.env`, proxy `/etc/caddy/Caddyfile`. Les outils ne modifient ni ces configurations, ni les comptes, ni les clés. Bun 1.3.11 est la référence locale de comparaison ; Vercel gère son runtime de build et `packageManager` ne garantit pas à lui seul sa version exacte. Relever la version dans les logs lors d'une divergence, sans relâcher le contrôle du code exécuté.
 
-Prérequis : Bun **1.3.11**, dépendances installées, Git avec un accès autorisé au dépôt GitHub `origin`, OpenSSH (`ssh`, `scp`), `tar`. Le serveur possède déjà Bun, bash, GNU tar/coreutils, curl et systemd. `bun run doctor` contrôle uniquement la présence locale ; il n'accorde aucun accès. Vercel doit rester relié au même dépôt GitHub avec `main` comme branche Production ; vérifier cette liaison avant une première publication depuis une nouvelle session.
+Prérequis : Bun **1.3.11**, dépendances installées, Git avec un accès autorisé au dépôt GitHub `origin`, OpenSSH (`ssh`, `scp`), `tar`. Le serveur possède déjà Bun, bash, GNU tar/coreutils, curl et systemd. `bun run doctor` contrôle la présence locale ; `bun run doctor --server` vérifie également l'accès SSH et sudo réel sans modifier la partie. Vercel doit rester relié au même dépôt GitHub avec `main` comme branche Production ; vérifier cette liaison avant une première publication depuis une nouvelle session.
 
 **Vercel** : le script lit `VERCEL_TOKEN`, sinon le fichier JSON privé désigné par `VERCEL_AUTH_FILE` (champ `token`), sinon le fichier local historique `.runtime/vercel-cli/auth.json`. Un champ d'environnement vide est considéré absent. Ce fichier existe sur le poste de Marc mais n'est pas livré avec un clone. Sur un nouveau poste, obtenir un accès autorisé au projet via le compte Vercel et fournir le token par un mécanisme privé. [.env.deploy.example](../.env.deploy.example) décrit les noms de variables ; un éventuel `.env.local` avec les vraies valeurs reste ignoré. Ne jamais afficher le token, le placer dans un argument, le copier dans `ops/`, ni l'envoyer au site du jeu. Le script l'envoie uniquement à `https://api.vercel.com`, sans suivre les redirections.
 
-**Hetzner** : utiliser une clé déjà autorisée via OpenSSH/ssh-agent, ou une saisie interactive du mot de passe SSH puis sudo. Le dernier déploiement utilisait une saisie interactive ; une authentification par clé et un sudo sans mot de passe ne sont **pas** garantis sur ce poste. Aucun mot de passe n'est enregistré dans ce guide. Une nouvelle session sans accès ne doit pas chercher dans un ancien chat ni inventer un identifiant : faire provisionner un accès privé par Marc. Lors du premier accès depuis une autre machine, faire vérifier l'empreinte de l'hôte et conserver `known_hosts` ; ne pas désactiver sa vérification.
+**Hetzner, poste de Marc** : depuis le 15 septembre 2026, les sessions du même compte Windows disposent du profil OpenSSH `ubercube-prod`, également applicable à `codex@2.29.30.129`. La configuration est dans `C:/Users/Marc/.ssh/config`, la clé dédiée dans `C:/Users/Marc/.ssh/ubercube_hetzner_ed25519`, hors du dépôt et protégée par les permissions Windows. Elle fonctionne sans mot de passe ni service `ssh-agent`. Le serveur autorise cette clé avec les restrictions OpenSSH `restrict` : pas de terminal interactif, de forwarding ou de transfert d'agent. Ne pas utiliser `ssh -t` pour ces déploiements.
 
-Si l'environnement bloque `ssh`, `scp` ou la création de sous-processus, employer son mécanisme normal d'approbation. Les droits de la machine ne sont pas définis par `AGENTS.md`. Ne pas affaiblir les contrôles pour faire passer une commande.
+Le seul exécutable autorisé avec `sudo -n` est `/usr/local/libexec/ubercube-release`, copie revue de `scripts/release/server.sh`, détenue par root dans un dossier détenu par root. Il permet `check`, `activate` et `rollback` ; le staging reste exécuté sans sudo. Ne jamais autoriser `sudo bash`, ni exécuter avec sudo une copie modifiable par l'utilisateur SSH. Un changement de ce script exige une installation administrative revue ; la permission de publication ne permet pas de remplacer le script privilégié.
+
+Avant publication, exécuter `bun run doctor --server` et exiger `readyToDeployServer: true`. Le contrôle confirme l'authentification par clé, le sudo sans interaction, le service actif sous un utilisateur non root et l'empreinte du script installé par rapport au fichier local. Il ne valide ni le commit, ni les tests de la release, ni sa compatibilité réseau. Si le hash diffère, comprendre la différence avant une mise à jour administrative du script. Sur une autre machine ou un autre compte OS, faire provisionner une clé propre ; ne pas copier la clé privée dans le dépôt ni chercher un mot de passe dans un ancien chat. Conserver la vérification stricte de `known_hosts`.
+
+Si l'environnement bloque `ssh`, `scp` ou la création de sous-processus, employer son mécanisme normal d'approbation. Sur Windows, `Get-Command ssh,scp -All` peut montrer des scripts de refus dans `.sbx-denybin` ; cela ne prouve pas un refus du serveur. Les commandes PowerShell ci-dessous utilisent les exécutables OpenSSH `ssh.exe`/`scp.exe` (équivalents `ssh`/`scp` sous Linux), dans une exécution autorisée avec accès réseau. Ne pas supprimer les scripts de refus ou modifier les protections. Les droits de la machine ne sont pas définis par `AGENTS.md`.
 
 ## Préparer une version vérifiable
 
@@ -71,9 +75,10 @@ Pour un changement serveur, transférer les quatre fichiers dans un dossier neuf
 
 ```powershell
 $sshTarget = 'codex@2.29.30.129'
-ssh -o StrictHostKeyChecking=yes $sshTarget "mkdir -p /home/codex/ubercube-releases/$releaseId"
-scp -o StrictHostKeyChecking=yes "$releasePath/server.sh" "$releasePath/server.tar.gz" "$releasePath/validation.tar.gz" "$releasePath/archives.sha256" "${sshTarget}:/home/codex/ubercube-releases/$releaseId/"
-ssh -t -o StrictHostKeyChecking=yes $sshTarget "bash /home/codex/ubercube-releases/$releaseId/server.sh stage $releaseId"
+bun run doctor --server
+ssh.exe -o BatchMode=yes -o StrictHostKeyChecking=yes $sshTarget "mkdir -p /home/codex/ubercube-releases/$releaseId"
+scp.exe -o BatchMode=yes -o StrictHostKeyChecking=yes "$releasePath/server.sh" "$releasePath/server.tar.gz" "$releasePath/validation.tar.gz" "$releasePath/archives.sha256" "${sshTarget}:/home/codex/ubercube-releases/$releaseId/"
+ssh.exe -o BatchMode=yes -o StrictHostKeyChecking=yes $sshTarget "bash /home/codex/ubercube-releases/$releaseId/server.sh stage $releaseId"
 ```
 
 Le staging tourne sans sudo : vérification des empreintes et chemins d'archives, extraction dans `staged/`, puis tests Linux avec sockets locales. Il laisse la production active. En cas d'échec, corriger et préparer une nouvelle release ; ne pas fabriquer les marqueurs de validation.
@@ -97,7 +102,7 @@ Un déploiement de staging peut être protégé par Vercel. Ne pas envoyer le to
 Quand les deux versions sont prêtes, activer le serveur si nécessaire :
 
 ```powershell
-ssh -t -o StrictHostKeyChecking=yes $sshTarget "sudo bash /home/codex/ubercube-releases/$releaseId/server.sh activate $releaseId /home/codex/ubercube-releases/$releaseId"
+ssh.exe -o BatchMode=yes -o StrictHostKeyChecking=yes $sshTarget "sudo -n /usr/local/libexec/ubercube-release activate $releaseId /home/codex/ubercube-releases/$releaseId"
 ```
 
 L'activation préserve les sources précédentes dans `/opt/ubercube/releases/ID/previous-src`, vérifie à nouveau les fichiers testés, redémarre le service, vérifie les empreintes actives et `/health`. Un échec d'activation déclenche la restauration précédente. Lire le résultat réel ; si la restauration échoue aussi, réparer le service avant de promouvoir un client incompatible.
@@ -122,7 +127,7 @@ Le smoke crée deux joueurs temporaires et vérifie protocole, monde partagé, a
 Revenir aux versions **compatibles des deux côtés** si le protocole ou le monde partagé a changé. Pour le serveur, `ID` désigne la release qui vient d'être activée, et non celle que l'on souhaite retrouver :
 
 ```sh
-sudo bash /opt/ubercube/releases/ID/server.sh rollback ID
+sudo -n /usr/local/libexec/ubercube-release rollback ID
 ```
 
 La commande refuse d'annuler une autre release installée depuis. Elle restaure `previous-src`, redémarre et contrôle la santé. Pour les archives antérieures à cet outillage, utiliser les chemins de sauvegarde documentés dans [l'historique](deployment.md) ; ils n'ont pas de `server.sh` générique.

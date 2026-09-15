@@ -3,6 +3,17 @@ set -Eeuo pipefail
 export PATH=/usr/local/bin:/usr/bin:/bin
 umask 022
 action=${1:-}
+if [[ $action == check ]]; then
+  [[ $# -eq 1 && $EUID -eq 0 ]] || { echo 'Run the installed release helper with sudo -n and check only' >&2; exit 1; }
+  systemctl is-active --quiet ubercube || { echo 'The ubercube service is not active' >&2; exit 1; }
+  service_user=$(systemctl show ubercube --property=User --value)
+  [[ -n $service_user ]] || { echo 'The ubercube service must configure a non-root User' >&2; exit 1; }
+  service_uid=$(id -u "$service_user")
+  [[ $service_uid =~ ^[0-9]+$ && $service_uid -ne 0 ]] || { echo 'The ubercube service must run as a non-root user' >&2; exit 1; }
+  helper_hash=$(sha256sum "$0")
+  printf '{"ready":true,"service":"ubercube","serviceUid":%s,"helperSha256":"%s"}\n' "$service_uid" "${helper_hash%% *}"
+  exit 0
+fi
 id=${2:-}
 [[ $id =~ ^[0-9]{8}-[0-9]{6}$ ]] || { echo 'Release id must be YYYYMMDD-HHMMSS' >&2; exit 1; }
 base=/opt/ubercube
@@ -57,7 +68,7 @@ case "$action" in
     echo "Staged and tested $id; production has not changed."
     ;;
   activate)
-    [[ $# -eq 3 && $EUID -eq 0 ]] || { echo 'Usage: sudo bash server.sh activate ID /home/USER/ubercube-releases/ID' >&2; exit 1; }
+    [[ $# -eq 3 && $EUID -eq 0 ]] || { echo 'Usage: sudo -n /usr/local/libexec/ubercube-release activate ID /home/USER/ubercube-releases/ID' >&2; exit 1; }
     upload=$3
     [[ $upload =~ ^/home/[A-Za-z0-9_-]+/ubercube-releases/$id$ && $(realpath "$upload") == "$upload" ]]
     [[ ! -e $release && -d $base/src && ! -L $base/src ]]
@@ -125,5 +136,5 @@ case "$action" in
     date -u +%FT%TZ > "$release/rolled-back-at.txt"
     trap - ERR
     ;;
-  *) echo 'Usage: server.sh stage|activate|rollback ID [upload-directory]' >&2; exit 1 ;;
+  *) echo 'Usage: server.sh check | stage|activate|rollback ID [upload-directory]' >&2; exit 1 ;;
 esac

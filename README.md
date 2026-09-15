@@ -47,6 +47,8 @@ Aucun compte, aucune base de données, aucun service externe nécessaire pour d�
 
 Pour la mise en ligne avec client Vercel et serveur Bun permanent : [publication et rollback](docs/releasing.md). Préparer une release fige un commit dans un arbre de travail propre ; cette étape locale ne publie rien.
 
+Avant une publication serveur, `bun run doctor --server` vérifie la connexion SSH et le script de déploiement privilégié sans redémarrer le jeu. Sur le poste de Marc, les agents du même compte Windows utilisent l'accès dédié configuré hors du dépôt ; aucun mot de passe issu d'une ancienne conversation n'est nécessaire.
+
 ```sh
 bun run release:prepare --id=YYYYMMDD-HHMMSS
 bun run release:vercel status

@@ -21,9 +21,10 @@ sleep() { :; }
 systemctl() {
   [[ $2 == ubercube || $2 == --quiet ]]
   case "$1" in
-    stop) printf stopped > "$SHELL_TEST_ROOT/service-state" ;;
-    start) printf active > "$SHELL_TEST_ROOT/service-state" ;;
+    stop) printf 'stop\n' >> "$SHELL_TEST_ROOT/service-mutations"; printf stopped > "$SHELL_TEST_ROOT/service-state" ;;
+    start) printf 'start\n' >> "$SHELL_TEST_ROOT/service-mutations"; printf active > "$SHELL_TEST_ROOT/service-state" ;;
     is-active) [[ $(cat "$SHELL_TEST_ROOT/service-state") == active ]] ;;
+    show) [[ $# -eq 4 && $3 == --property=User && $4 == --value ]]; printf '%s\n' "${CHECK_SERVICE_USER-}" ;;
     *) return 1 ;;
   esac
 }
@@ -62,6 +63,7 @@ if [[ ${1:-} == --stage ]]; then
   printf corrupt >> "$SHELL_TEST_HOME/ubercube-releases/20260913-190004/server.tar.gz"
   if bash "$SHELL_TEST_HOME/ubercube-releases/20260913-190004/server.sh" stage 20260913-190004; then exit 1; fi
   [[ ! -d $SHELL_TEST_HOME/ubercube-releases/20260913-190004/staged ]]
+  if bash "$SHELL_TEST_HOME/ubercube-releases/20260913-190001/server.sh" check; then exit 1; fi
   exit 0
 fi
 cleanup() {
@@ -77,16 +79,31 @@ runuser -u "$testuser" -- bash "$(realpath "$0")" --stage "$testroot" > "$testro
   printf 'previous source\n' > "$testroot/live/src/server/index.ts"
   printf 'previous protocol\n' > "$testroot/live/src/shared/protocol.ts"
   printf active > "$testroot/service-state"
+  export CHECK_SERVICE_USER=$testuser
+  installed_helper=$testroot/ubercube-release
+  cp "$SHELL_TEST_HOME/ubercube-releases/20260913-190001/server.sh" "$installed_helper"
+  chmod 755 "$installed_helper"
+  helper_hash=$(sha256sum "$installed_helper")
+  printf -v expected_check '{"ready":true,"service":"ubercube","serviceUid":%s,"helperSha256":"%s"}' "$(id -u "$testuser")" "${helper_hash%% *}"
+  [[ $("$installed_helper" check) == "$expected_check" ]]
+  if "$installed_helper" check extra; then exit 1; fi
+  if CHECK_SERVICE_USER=root "$installed_helper" check; then exit 1; fi
+  if CHECK_SERVICE_USER=0 "$installed_helper" check; then exit 1; fi
+  if CHECK_SERVICE_USER='' "$installed_helper" check; then exit 1; fi
+  printf stopped > "$testroot/service-state"
+  if "$installed_helper" check; then exit 1; fi
+  [[ $(cat "$testroot/service-state") == stopped && ! -e $testroot/service-mutations ]]
+  printf active > "$testroot/service-state"
   id=20260913-190001
-  bash "$SHELL_TEST_HOME/ubercube-releases/$id/server.sh" activate "$id" "$SHELL_TEST_HOME/ubercube-releases/$id"
+  "$installed_helper" activate "$id" "$SHELL_TEST_HOME/ubercube-releases/$id"
   grep -q 'new source' "$testroot/live/src/server/index.ts"
   if FAIL_PREVIOUS=1 bash "$testroot/live/releases/$id/server.sh" rollback "$id"; then exit 1; fi
   grep -q 'new source' "$testroot/live/src/server/index.ts"
-  bash "$testroot/live/releases/$id/server.sh" rollback "$id"
+  "$installed_helper" rollback "$id"
   grep -q 'previous source' "$testroot/live/src/server/index.ts"
   id=20260913-190002
   if FAIL_NEW=1 bash "$SHELL_TEST_HOME/ubercube-releases/$id/server.sh" activate "$id" "$SHELL_TEST_HOME/ubercube-releases/$id"; then exit 1; fi
   grep -q 'previous source' "$testroot/live/src/server/index.ts"
   [[ $(cat "$testroot/service-state") == active ]]
 } >> "$testroot/results.log" 2>&1
-echo 'PASS: staging; failed tests; corrupt archive; activation; rollback; recovery after failed activation and rollback.'
+echo 'PASS: read-only privileged access checks; staging; failed tests; corrupt archive; installed-helper activation and rollback; recovery after failed activation and rollback.'
