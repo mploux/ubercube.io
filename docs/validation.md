@@ -1,4 +1,4 @@
-# Validation du 11 au 14 septembre 2026
+# Validation du 11 au 15 septembre 2026
 
 Le jeu est publié sur Vercel et Hetzner. Cette page distingue les vérifications locales et celles de production ; la parité des sensations avec le Java, la tenue prolongée sur Internet et les grandes distances d'affichage ne sont pas encore entièrement validées.
 
@@ -23,6 +23,14 @@ Le premier essai 50 joueurs avait échoué au seuil p99 (25,19 ms) après passag
 Deux vrais clients dans le navigateur intégré passent pseudo → équipement → apparition (Assault et Sniper), reset et nouvelle apparition. Aucun avertissement/erreur console capturé, protocole 4 confirmé par le serveur avec deux sessions ; fermeture puis zéro joueur/connexion vérifiés. La capture de souris est refusée par ce navigateur : aucune validation des sensations ni mesure de rendu à 100 navigateurs n'en découle.
 
 Preuves locales : `.runtime/stable-100/check.log`, `hundred-first.*`, `hundred-concentrated.*`, `hundred-latency.*`, `browser-health.json` et `browser-cleanup.json`. Le jalon prolongé reste ouvert : huit heures de charge, puis qualification sur matériel cible et Internet. Ces résultats ne constituent pas une garantie de capacité sur le serveur de production à deux vCPU.
+
+### Arrivée sur terrain volumineux
+
+La première tentative longue s'arrête à 193 secondes : la troisième reconnexion reçoit « Synchronisation dépassée ». Les preuves sont conservées sous `.runtime/stable-100/soak-failed-initial*`. Le serveur reste actif, avec p99 échantillonné à 5,27 ms et sans tick abandonné ; la qualification échoue parce que cette arrivée n'aboutit pas.
+
+Cause reproduite : un lot initial de 512 éditions par tick demande plus de 256 ticks au-delà de 131 072 éditions. Les mutations continues remplissent alors le budget de 256 messages avant que le rattrapage puisse commencer. Le transfert initial envoie désormais jusqu'à huit lots par tick, en conservant le lot immédiat au hello, les contrôles de buffer et tous les plafonds mémoire/délais. Des tests avec 200 000 et 524 288 éditions vérifient la convergence sous mutations et les retours aux valeurs générées. Après correction, `bun run check` passe **469 tests / 35 614 assertions**, TypeScript et le build ; preuve `check-initial-pacing.log`.
+
+La qualification corrigée passe **360 secondes à 100 joueurs**, TDM carte 256, délai 50 ±20 ms par sens, reset après 300 secondes et quatre reconnexions pendant les mutations. Maximum des p99 échantillonnés : **5,56 ms** ; trafic descendant agrégé : **146,21 Mbit/s** ; activité moyenne : 98,18 %, à 59,95 intentions/s/joueur actif. Aucune erreur, aucun input ni tick abandonné. Les terrains client et serveur ont exactement le même SHA256 après drainage ; serveur et proxy terminent sans connexion restante, le proxy sans octet en attente ni dépassement. Preuves : `.runtime/stable-100/hundred-dirty-world.json`, `.qualification.json` et `.proxy.log`. Ce succès de six minutes permet de relancer l'endurance de huit heures, qui reste à valider.
 
 ## Ragdolls — 14 septembre 2026
 

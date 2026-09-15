@@ -141,6 +141,55 @@ describe('bounded network synchronization', () => {
     expect(replica.getEdits()).toEqual(game.world.getEdits());
   });
 
+  test.each([200000, 524288])('a %s-edit baseline completes before continuous terrain changes exhaust its retained delta budget', edits => {
+    const game = new GameServer({ world: { ...world, size: 128, height: 64 } });
+    const base = game.world.get(0, 1, 0);
+    fillLargeWorld(game, edits);
+    const { connection, peer } = join(game);
+    const replica = new VoxelWorld(game.options.world);
+    let completedAt: number | null = null, maximumPending = 0;
+    for (let tick = 1; tick <= 400 && !connection.closed; tick++) {
+      if (tick === 1) mutations(game).mutate(0, 1, 0, base);
+      mutations(game).mutate(127, 63, 127, tick % 2 ? block : 0);
+      mutations(game).flushWorld();
+      maximumPending = Math.max(maximumPending, connection.initial?.deltas.length ?? 0);
+      game.step();
+      for (const message of peer.messages.splice(0)) {
+        if (message.type !== 'world') continue;
+        replica.applyEdits(message.edits);
+        if (message.complete) completedAt = tick;
+      }
+    }
+    expect(connection.closed).toBe(false);
+    expect(completedAt).not.toBeNull();
+    expect(completedAt!).toBeLessThan(edits === 200000 ? 100 : 256);
+    expect(maximumPending).toBeLessThan(256);
+    expect(connection.initial).toBeNull();
+    expect(replica.get(0, 1, 0)).toBe(base);
+    expect(replica.getEdits()).toEqual(game.world.getEdits());
+  });
+
+  test('bounds baseline pacing and checks socket saturation between baseline batches', () => {
+    const game = new GameServer({ world: { ...world, size: 128, height: 64 } });
+    fillLargeWorld(game, 9000);
+    const { connection, peer } = join(game);
+    expect(connection.initial?.offset).toBe(512);
+    peer.messages.length = 0;
+    game.step();
+    expect(peer.messages.filter(message => message.type === 'world')).toHaveLength(8);
+    expect(connection.initial?.offset).toBe(512 + 8 * 512);
+    peer.messages.length = 0;
+    const send = peer.send.bind(peer);
+    peer.send = data => { const result = send(data); peer.buffered = 65537; return result; };
+    game.step();
+    expect(peer.messages.filter(message => message.type === 'world')).toHaveLength(1);
+    expect(connection.initial?.offset).toBe(512 + 9 * 512);
+    expect(connection.closed).toBe(false);
+    game.step();
+    expect(peer.messages.filter(message => message.type === 'world')).toHaveLength(1);
+    expect(connection.initial?.offset).toBe(512 + 9 * 512);
+  });
+
   test('limits catch-up batches and stops between batches when the socket becomes saturated', () => {
     const game = new GameServer({ world });
     addBaseline(game);

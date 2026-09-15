@@ -248,7 +248,7 @@ export class GameServer {
       this.send(connection, { type: 'welcome', id: player.id, roundId: this.roundId, mode: this.options.mode,
         maxPlayers: this.options.maxPlayers, world: this.options.world, tickRate: TICK_RATE });
       this.startInitial(connection);
-      this.streamInitial(connection);
+      this.streamInitial(connection, 1);
       return;
     }
     if (message.type === 'ping' && keys(message, ['type', 'time']) && number(message.time, 0, Number.MAX_SAFE_INTEGER)) {
@@ -342,7 +342,7 @@ export class GameServer {
     connection.initial = { ...this.baseline, startedAt: this.now(), offset: 0, deltas: [], deltaEdits: 0 };
   }
 
-  private streamInitial(connection: Connection): void {
+  private streamInitial(connection: Connection, baselineBatches = 8): void {
     const initial = connection.initial;
     if (!initial) return;
     if (this.now() - initial.startedAt >= INITIAL_TIMEOUT_MS) {
@@ -351,8 +351,11 @@ export class GameServer {
     }
     if (connection.peer.bufferedAmount() > STREAM_BUFFER) return;
     if (initial.offset < initial.edits.length) {
-      const edits = initial.edits.slice(initial.offset, initial.offset + WORLD_BATCH);
-      if (this.send(connection, { type: 'world', roundId: this.roundId, revision: initial.revision, initial: true, complete: false, edits })) {
+      // Drain the largest baseline before continuous terrain changes fill its bounded delta queue.
+      for (let batches = 0; batches < baselineBatches && initial.offset < initial.edits.length; batches++) {
+        if (connection.peer.bufferedAmount() > STREAM_BUFFER) return;
+        const edits = initial.edits.slice(initial.offset, initial.offset + WORLD_BATCH);
+        if (!this.send(connection, { type: 'world', roundId: this.roundId, revision: initial.revision, initial: true, complete: false, edits })) return;
         initial.offset += edits.length;
       }
       return;
