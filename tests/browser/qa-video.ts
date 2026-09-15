@@ -1,4 +1,4 @@
-import type { GameEvent, Kit, PlayerState, Vec3, WeaponId } from '../../src/shared/protocol';
+import type { GameEvent, Kit, PlayerState, RemotePlayerState, Vec3, WeaponId } from '../../src/shared/protocol';
 import type { GameAudio } from '../../src/client/presentation';
 
 interface SceneSetup {
@@ -9,7 +9,7 @@ interface SceneSetup {
 interface ReviewClient {
   canvas: HTMLCanvasElement; audio: GameAudio;
   ready(): boolean;
-  state(): { localId: number; roundId: number; local: PlayerState | null; players: PlayerState[];
+  state(): { localId: number; roundId: number; local: PlayerState | null; players: RemotePlayerState[];
     events: (GameEvent & { receivedAt: number })[]; screen: string; worldReady: boolean; terrain?: { chunks: number; queued: number; error: string | null } };
   connect(): void; spawn(kit: Kit): void; prepare(setup: SceneSetup): void;
   drive(input: { yaw?: number; pitch?: number; fire?: boolean; aim?: boolean }): void;
@@ -83,9 +83,9 @@ export function installVideoReview(client: ReviewClient): void {
     const deaths = state.events.filter(event => event.event === 'death' && event.targetId === setup?.targetId);
     const hits = state.events.filter(event => event.event === 'impact' && event.targetId === setup?.targetId);
     const shots = state.events.filter(event => event.event === 'shot' && event.shooterId === state.localId);
-    const health = deaths.length ? 0 : victim?.health ?? 100;
+    const eliminated = deaths.length > 0 || victim?.alive === false;
     text(angle, 34, 656, 13, '#e9c36f');
-    text(`Cible  ${health} PV`, 34, 692, 25, health === 0 ? '#ff9c82' : '#f3f7fa');
+    text(eliminated ? 'Cible éliminée' : victim?.alive ? 'Cible vivante' : 'Cible absente', 34, 692, 25, eliminated ? '#ff9c82' : '#f3f7fa');
     text(`Tirs ${shots.length}   /   Touches ${hits.length}   /   Morts ${deaths.length}`, 240, 690, 21, '#d9e4ee');
     const currentAmmo = document.getElementById('ammo-value')?.textContent ?? '—';
     text(`${setup?.weapon === 'awp' ? 'AWP' : 'AK-47'}   ${currentAmmo}`, 792, 690, 21);
@@ -203,7 +203,7 @@ export function installVideoReview(client: ReviewClient): void {
         const events = [...client.state().events];
         const server = await (await fetch('/qa/state')).json();
         report.push({ scene, label: setup.label, timestampSeconds: totalSeconds,
-          observed: { health: target?.health, alive: target?.alive, deaths: events.filter(e => e.event === 'death').length,
+          observed: { alive: target?.alive, deaths: events.filter(e => e.event === 'death').length,
             shots: events.filter(e => e.event === 'shot').length, hits: events.filter(e => e.event === 'impact' && e.targetId === setup!.targetId).length },
           events, server });
         totalSeconds += (performance.now() - begin) / 1000;

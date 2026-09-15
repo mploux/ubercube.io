@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { GrenadeVisuals } from '../../src/client/grenade-visuals';
 import { loadWeaponModel } from '../../src/client/weapon-model';
-import type { ProjectileState } from '../../src/shared/protocol';
+import type { RemoteProjectileState } from '../../src/shared/protocol';
 import { VoxelWorld } from '../../src/shared/voxel';
 
 export async function checkGrenadeVisuals(renderer: THREE.WebGLRenderer): Promise<string[]> {
@@ -30,8 +30,8 @@ export async function checkGrenadeVisuals(renderer: THREE.WebGLRenderer): Promis
   sheet.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;max-width:1100px;margin-top:24px';
   document.getElementById(sheet.id)?.remove(); document.body.append(sheet);
 
-  function projectile(id: number, x: number): ProjectileState {
-    return { id, weapon: 'grenade', owner: 1, position: { x, y: 0, z: 0 }, velocity: { x: 24, y: 0, z: 0 } };
+  function projectile(id: number, x: number): RemoteProjectileState {
+    return { id, weapon: 'grenade', owner: 1, position: { x, y: 0, z: 0 } };
   }
 
   function capture(label?: string) {

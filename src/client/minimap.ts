@@ -1,4 +1,4 @@
-import type { Mode, PlayerState, Team, Vec3, VoxelEdit } from '../shared/protocol';
+import type { Mode, RemotePlayerState, Team, Vec3, VoxelEdit } from '../shared/protocol';
 import { CHUNK_SIZE, type VoxelWorld } from '../shared/voxel';
 
 export const MINIMAP_LAYOUT = Object.freeze({ width: 300, height: 200, margin: 10, scale: 3, iconSize: 20, iconPadding: 5 });
@@ -7,7 +7,7 @@ export interface MinimapView {
   yaw: number;
   team: Team;
   mode: Mode;
-  players: readonly Pick<PlayerState, 'position' | 'team'>[];
+  players: readonly Pick<RemotePlayerState, 'position' | 'team'>[];
   overview?: boolean;
 }
 

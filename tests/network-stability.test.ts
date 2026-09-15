@@ -242,7 +242,8 @@ describe('bounded network synchronization', () => {
     published.length = 0;
     slow.peer.buffered = 65537;
     game.sendSnapshot();
-    expect(slow.peer.messages).toHaveLength(0);
+    expect(slow.peer.messages.map(message => message.type)).toEqual(['roster']);
+    expect(slow.peer.messages.filter(message => message.type === 'snapshot')).toHaveLength(0);
     expect(slow.connection.closed).toBe(false);
     expect(healthy.peer.messages.filter(message => message.type === 'snapshot')).toHaveLength(1);
     expect(published).toHaveLength(0);

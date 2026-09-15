@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import './styles.css';
-import { DT, KITS, PROTOCOL_VERSION, WEAPONS, type ClientMessage, type GameEvent, type InputFrame, type Kit, type Mode, type MotionState, type PlayerState, type ServerMessage, type WeaponId, type WorldConfig } from '../shared/protocol';
+import { DT, KITS, PROTOCOL_VERSION, TICK_RATE, WEAPONS, type ClientMessage, type GameEvent, type InputFrame, type Kit, type Mode, type MotionState, type PlayerState, type RemotePlayerState, type ServerMessage, type WeaponId, type WorldConfig } from '../shared/protocol';
 import { aimDirection, EYE_HEIGHT, movePlayer } from '../shared/movement';
 import { grenadeLaunch } from '../shared/grenade';
 import { getWeaponMuzzle } from '../shared/weapon-pose';
@@ -117,7 +117,7 @@ let revision = 0;
 let local: PlayerState | null = null;
 let predicted: MotionState | null = null;
 const correctionOffset = new THREE.Vector3();
-let players: PlayerState[] = [];
+let players: RemotePlayerState[] = [];
 const remotePlayers = new RemotePlayers();
 let pending: InputFrame[] = [];
 let unsent: InputFrame[] = [];
@@ -373,6 +373,7 @@ function refreshKitButtons(): void {
 }
 
 function receive(message: ServerMessage): void {
+  if (message.type === 'roster') return;
   if (message.type === 'welcome') {
     localId = message.id; roundId = message.roundId; mode = message.mode; maxPlayers = message.maxPlayers;
     worldReady = false; revision = 0; connecting = false;
@@ -416,13 +417,13 @@ function receive(message: ServerMessage): void {
   if (message.type === 'snapshot') {
     players = message.players;
     const now = performance.now();
-    effects.snapshot(message.projectiles, message.tick, now / 1000);
+    effects.snapshot(message.projectiles, message.tick, now / 1000, message.projectileVelocities);
     remotePlayers.snapshot(message.tick, message.players, now);
-    const authoritative = players.find((player) => player.id === localId);
-    if (authoritative) applyLocalState(authoritative);
+    if (message.owner?.id === localId) applyLocalState(message.owner);
     element('red-score').textContent = `Red : ${message.scores[0]}`;
     element('blue-score').textContent = `Blue : ${message.scores[1]}`;
-    element('match-time').textContent = message.remaining === null ? 'EN COURS' : `${Math.floor(Math.max(0, message.remaining) / 60)}:${Math.floor(Math.max(0, message.remaining) % 60).toString().padStart(2, '0')}`;
+    const remaining = message.roundEndTick === null ? null : Math.max(0, message.roundEndTick - message.tick) / TICK_RATE;
+    element('match-time').textContent = remaining === null ? 'EN COURS' : `${Math.floor(remaining / 60)}:${Math.floor(remaining % 60).toString().padStart(2, '0')}`;
     return;
   }
   if (message.type === 'event') handleEvent(message);
@@ -485,7 +486,7 @@ function handleEvent(event: GameEvent): void {
   if (event.event === 'death') {
     const shooter = players.find((player) => player.id === event.shooterId);
     const victim = players.find((player) => player.id === event.targetId);
-    avatars.death(event, victim, performance.now() / 1000);
+    avatars.death(event, performance.now() / 1000);
     const row = document.createElement('div');
     row.textContent = event.targetId === localId
       ? `${event.headshot ? 'Headshooted by' : 'You died by'} ${shooter?.name ?? 'World'} !`

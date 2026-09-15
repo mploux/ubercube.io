@@ -1,14 +1,13 @@
-import type { GameEvent, Kit, PlayerState, ProjectileState, ServerMessage, VoxelEdit, WeaponId } from './protocol';
+import type { DeathPlayerState, GameEvent, Kit, PlayerState, RemotePlayerState, RemoteProjectileState, ServerMessage, Vec3, VoxelEdit, WeaponId } from './protocol';
 
 const MAGIC = 0x55424331;
-const VERSION = 3;
+const VERSION = 4;
 const WORLD_BATCH_LIMIT = 512;
 const kits: Kit[] = ['assault', 'sniper', 'medic'];
 const weapons: WeaponId[] = ['ak47', 'awp', 'shovel', 'grenade', 'medic'];
 const events: GameEvent['event'][] = ['shot', 'impact', 'explosion', 'heal', 'build', 'projectile-end'];
-const binaryTypes = ['snapshot', 'world', 'event', 'snapshot', 'snapshot'] as const;
+const binaryTypes = [undefined, 'world', 'event', 'snapshot', 'snapshot'] as const;
 const encoder = new TextEncoder();
-const decoder = new TextDecoder('utf-8', { fatal: true });
 
 function integer(n: number, max: number) {
   if (!Number.isSafeInteger(n) || n < 0 || n > max) throw new Error('Invalid wire integer');
@@ -30,7 +29,7 @@ function eventLength(flags: number) {
 
 export function serverMessageType(data: string | ArrayBuffer | ArrayBufferView): ServerMessage['type'] {
   if (typeof data === 'string') {
-    const match = /^\{"type":"(welcome|world|snapshot|reset|error|pong|event)"[,}]/.exec(data.slice(0, 32));
+    const match = /^\{"type":"(welcome|world|roster|snapshot|reset|error|pong|event)"[,}]/.exec(data.slice(0, 32));
     if (!match) throw new Error('Invalid server message type');
     return match[1] as ServerMessage['type'];
   }
@@ -42,15 +41,16 @@ export function serverMessageType(data: string | ArrayBuffer | ArrayBufferView):
 }
 
 export function encodeServerMessage(message: ServerMessage): string | Uint8Array {
-  if (message.type !== 'snapshot' && message.type !== 'world'
+  if (message.type === 'snapshot') throw new Error('Snapshots require captureSnapshot and encodeRecipientSnapshot');
+  if (message.type !== 'world'
     && (message.type !== 'event' || message.event === 'death' || message.death !== undefined)) {
-    if (!['welcome', 'reset', 'error', 'pong', 'event'].includes(message.type)) throw new Error('Unsupported logical message; snapshot deltas require encodeSnapshot');
+    if (!['welcome', 'roster', 'reset', 'error', 'pong', 'event'].includes(message.type)) throw new Error('Unsupported logical message; snapshot deltas require encodeSnapshot');
+    if (message.type === 'roster') return JSON.stringify(validateRoster(message));
+    if (message.type === 'event' && message.death) return JSON.stringify({ ...message, death: { ...message.death, player: publicDeath(message.death.player) } });
     return JSON.stringify(message);
   }
   let length: number;
   let flags = 0;
-  let names: Uint8Array[] = [];
-  const playerFloats: number[][] = [], floatMasks: number[] = [];
   if (message.type === 'world') {
     if (message.edits.length > WORLD_BATCH_LIMIT) throw new Error('World batch exceeds wire limit');
     flags = (message.initial !== undefined ? 1 : 0) | (message.initial ? 2 : 0)
@@ -63,41 +63,16 @@ export function encodeServerMessage(message: ServerMessage): string | Uint8Array
       | (message.velocity !== undefined ? 128 : 0) | (message.tick !== undefined ? 256 : 0)
       | (message.inputSeq !== undefined ? 512 : 0) | (message.endPosition !== undefined ? 1024 : 0);
     length = eventLength(flags);
-  } else {
-    if (message.players.length > 1000 || message.projectiles.length > 32000) throw new Error('Snapshot exceeds wire limit');
-    names = message.players.map(player => encoder.encode(player.name));
-    if (names.some(name => name.length > 255)) throw new Error('Player name exceeds wire limit');
-    length = 30 + message.projectiles.length * 33;
-    for (const [index, player] of message.players.entries()) {
-      const floats = [player.position.x, player.position.y, player.position.z,
-        player.velocity.x, player.velocity.y, player.velocity.z, player.yaw, player.pitch];
-      let mask = 0;
-      for (const [index, value] of floats.entries()) {
-        if (Object.is(Math.fround(value), 0)) mask |= 1 << index;
-        else length += 4;
-      }
-      playerFloats.push(floats); floatMasks.push(mask);
-      length += 7 + names[index].length + varintLength(player.id, 0xffffffff)
-        + varintLength(player.kills, 0xffffffff) + varintLength(player.deaths, 0xffffffff)
-        + varintLength(player.lastSeq, Number.MAX_SAFE_INTEGER);
-    }
-  }
+  } else throw new Error('Unsupported binary message');
   const bytes = new Uint8Array(length);
   const view = new DataView(bytes.buffer);
   let offset = 0;
   const u8 = (n: number) => { view.setUint8(offset, integer(n, 255)); offset++; };
   const u16 = (n: number) => { view.setUint16(offset, integer(n, 65535), true); offset += 2; };
   const u32 = (n: number) => { view.setUint32(offset, integer(n, 0xffffffff), true); offset += 4; };
-  const f32 = (n: number) => {
-    if (!Number.isFinite(Math.fround(n))) throw new Error('Invalid wire float');
-    view.setFloat32(offset, n, true); offset += 4;
-  };
   const f64 = (n: number) => {
     if (!Number.isFinite(n)) throw new Error('Invalid wire float');
     view.setFloat64(offset, n, true); offset += 8;
-  };
-  const varint = (n: number) => {
-    do { const value = n % 128; n = Math.floor(n / 128); u8(value + (n ? 128 : 0)); } while (n);
   };
   u32(MAGIC); u8(VERSION); u8(binaryTypes.indexOf(message.type) + 1);
   if (message.type === 'world') {
@@ -119,36 +94,17 @@ export function encodeServerMessage(message: ServerMessage): string | Uint8Array
     if (message.endPosition !== undefined) { f64(message.endPosition.x); f64(message.endPosition.y); f64(message.endPosition.z); }
     return bytes;
   }
-  u32(message.roundId); u32(message.tick);
-  u32(message.scores[0]); u32(message.scores[1]);
-  f32(message.remaining ?? -1);
-  u16(message.players.length); u16(message.projectiles.length);
-  for (let i = 0; i < message.players.length; i++) {
-    const player = message.players[i];
-    const name = names[i];
-    varint(player.id);
-    u16(player.team | (kits.indexOf(player.kit) << 2) | (weapons.indexOf(player.weapon) << 4)
-      | (player.alive ? 128 : 0) | (player.grounded ? 256 : 0) | (player.aiming ? 512 : 0));
-    u8(floatMasks[i]);
-    for (const [index, value] of playerFloats[i].entries()) if (!(floatMasks[i] & (1 << index))) f32(value);
-    u8(player.health); u8(player.ammo); u8(player.grenades);
-    varint(player.kills); varint(player.deaths); varint(player.lastSeq);
-    u8(name.length); bytes.set(name, offset); offset += name.length;
-  }
-  for (const projectile of message.projectiles) {
-    u32(projectile.id); u32(projectile.owner); u8(weapons.indexOf(projectile.weapon));
-    f32(projectile.position.x); f32(projectile.position.y); f32(projectile.position.z);
-    f32(projectile.velocity.x); f32(projectile.velocity.y); f32(projectile.velocity.z);
-  }
-  return bytes;
+  throw new Error('Unsupported binary message');
 }
 
 export function decodeServerMessage(data: string | ArrayBuffer | ArrayBufferView): ServerMessage {
   if (typeof data === 'string') {
     const message = JSON.parse(data) as ServerMessage;
-    if (!message || !['welcome', 'world', 'snapshot', 'reset', 'error', 'pong', 'event'].includes(message.type)) {
+    if (!message || !['welcome', 'world', 'roster', 'reset', 'error', 'pong', 'event'].includes(message.type)) {
       throw new Error('Unsupported logical message; snapshot deltas require createServerMessageDecoder');
     }
+    if (message.type === 'roster') return validateRoster(message);
+    if (message.type === 'event' && message.death) return { ...message, death: { ...message.death, player: publicDeath(message.death.player) } };
     return message;
   }
   const bytes = ArrayBuffer.isView(data) ? new Uint8Array(data.buffer, data.byteOffset, data.byteLength) : new Uint8Array(data);
@@ -158,22 +114,7 @@ export function decodeServerMessage(data: string | ArrayBuffer | ArrayBufferView
   const u16 = () => { const n = view.getUint16(offset, true); offset += 2; return n; };
   const u32 = () => { const n = view.getUint32(offset, true); offset += 4; return n; };
   const finite = (n: number) => { if (!Number.isFinite(n)) throw new Error('Invalid wire float'); return n; };
-  const f32 = () => { const n = finite(view.getFloat32(offset, true)); offset += 4; return n; };
   const f64 = () => { const n = finite(view.getFloat64(offset, true)); offset += 8; return n; };
-  const varint = (max: number) => {
-    let result = 0, multiplier = 1;
-    for (let index = 0; index < (max <= 0xffffffff ? 5 : 8); index++) {
-      const byte = u8(), value = byte % 128;
-      if (value > Math.floor((max - result) / multiplier)) throw new Error('Wire integer overflow');
-      result += value * multiplier;
-      if (byte < 128) {
-        if (index && value === 0) throw new Error('Noncanonical wire integer');
-        return result;
-      }
-      multiplier *= 128;
-    }
-    throw new Error('Wire integer exceeds byte limit');
-  };
   if (bytes.length < 6 || u32() !== MAGIC || u8() !== VERSION) throw new Error('Invalid wire header');
   const kind = u8();
   if (kind === 2) {
@@ -212,89 +153,238 @@ export function decodeServerMessage(data: string | ArrayBuffer | ArrayBufferView
     if (flags & 1024) message.endPosition = { x: f64(), y: f64(), z: f64() };
     return message;
   }
-  if (kind === 5) throw new Error('Snapshot delta requires createServerMessageDecoder');
-  const headerLength = kind === 4 ? 34 : 30;
-  if ((kind !== 1 && kind !== 4) || bytes.length < headerLength) throw new Error('Invalid snapshot header');
-  if (kind === 4 && u32() === 0) throw new Error('Invalid snapshot id');
-  const roundId = u32(), tick = u32();
-  const scores: [number, number] = [u32(), u32()];
-  const remaining = f32();
-  const playerCount = u16(), projectileCount = u16();
-  if (playerCount > 1000 || projectileCount > 32000 || bytes.length < headerLength + playerCount * 11 + projectileCount * 33
-    || bytes.length > headerLength + playerCount * 317 + projectileCount * 33) throw new Error('Invalid snapshot length');
-  const players: PlayerState[] = [];
-  for (let i = 0; i < playerCount; i++) {
-    const id = varint(0xffffffff), packed = u16(), mask = u8();
-    const team = packed & 3, kit = kits[(packed >> 2) & 3], weapon = weapons[(packed >> 4) & 7];
-    if (packed & ~1023 || !kit || !weapon || team > 2) throw new Error('Invalid player flags');
-    const maskedFloat = (bit: number) => mask & bit ? 0 : f32();
-    const position = { x: maskedFloat(1), y: maskedFloat(2), z: maskedFloat(4) };
-    const velocity = { x: maskedFloat(8), y: maskedFloat(16), z: maskedFloat(32) };
-    const yaw = maskedFloat(64), pitch = maskedFloat(128);
-    const health = u8(), ammo = u8(), grenades = u8();
-    const kills = varint(0xffffffff), deaths = varint(0xffffffff), lastSeq = varint(Number.MAX_SAFE_INTEGER);
-    const nameLength = u8();
-    if (offset + nameLength > bytes.length) throw new Error('Invalid player record');
-    const name = decoder.decode(bytes.subarray(offset, offset + nameLength));
-    offset += nameLength;
-    players.push({ id, team: team as 0 | 1 | 2, kit, weapon, alive: !!(packed & 128), grounded: !!(packed & 256), aiming: !!(packed & 512), position, velocity, yaw, pitch, health, ammo, grenades, kills, deaths, lastSeq, name });
-  }
-  const projectiles: ProjectileState[] = [];
-  for (let i = 0; i < projectileCount; i++) {
-    const id = u32(), owner = u32(), weapon = weapons[u8()];
-    if (!weapon) throw new Error('Invalid projectile record');
-    projectiles.push({ id, owner, weapon, position: { x: f32(), y: f32(), z: f32() }, velocity: { x: f32(), y: f32(), z: f32() } });
-  }
-  if (offset !== bytes.length) throw new Error('Unexpected snapshot data');
-  return { type: 'snapshot', roundId, tick, scores, remaining: remaining < 0 ? null : remaining, players, projectiles };
+  if (kind === 4 || kind === 5) throw new Error('Snapshots require createServerMessageDecoder');
+  throw new Error('Invalid wire message type');
 }
 
 type Snapshot = Extract<ServerMessage, { type: 'snapshot' }>;
-type Fields = readonly (number | string)[];
-type FieldKind = 'name' | 'byte' | 'uint' | 'seq' | 'float';
-const playerKinds: readonly FieldKind[] = ['name', 'byte', 'byte', 'byte', 'byte', 'byte', 'byte', 'byte', 'byte', 'byte',
-  'uint', 'uint', 'seq', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float'];
-const projectileKinds: readonly FieldKind[] = ['uint', 'byte', 'float', 'float', 'float', 'float', 'float', 'float'];
+type Roster = Extract<ServerMessage, { type: 'roster' }>;
+type Fields = readonly number[];
+type FieldKind = 'byte' | 'bool' | 'uint' | 'seq' | 'float';
+const playerKinds: readonly FieldKind[] = ['byte', 'bool', 'bool', 'bool', 'uint', 'uint',
+  'float', 'float', 'float', 'float', 'float', 'float', 'float'];
+const projectileKinds: readonly FieldKind[] = ['uint', 'byte', 'float', 'float', 'float'];
+const ownerKinds: readonly FieldKind[] = ['byte', 'byte', 'byte', 'byte', 'bool', 'seq', 'float'];
+const velocityKinds: readonly FieldKind[] = ['float', 'float', 'float'];
+const EMPTY_FIELDS: ReadonlyMap<number, Fields> = new Map();
+const MAX_SNAPSHOT_BYTES = 2 * 1024 * 1024;
+
+function positiveId(value: number): number {
+  integer(value, 0xffffffff);
+  if (!value) throw new Error('Invalid player id');
+  return value;
+}
+
+function vector(value: Vec3): Vec3 {
+  if (!value || ![value.x, value.y, value.z].every(Number.isFinite)) throw new Error('Invalid wire vector');
+  return { x: value.x, y: value.y, z: value.z };
+}
+
+function publicDeath(player: DeathPlayerState): DeathPlayerState {
+  if (!player || !weapons.includes(player.weapon) || typeof player.alive !== 'boolean' || typeof player.aiming !== 'boolean'
+    || !Number.isFinite(player.yaw) || !Number.isFinite(player.pitch)) throw new Error('Invalid death player');
+  return { id: positiveId(player.id), weapon: player.weapon, alive: player.alive, aiming: player.aiming,
+    deaths: integer(player.deaths, 0xffffffff), position: vector(player.position), velocity: vector(player.velocity),
+    yaw: player.yaw, pitch: player.pitch };
+}
+
+function validateRoster(message: Roster): Roster {
+  if (!Array.isArray(message.upserts) || !Array.isArray(message.removed)
+    || message.upserts.length > 1000 || message.removed.length > 1000) throw new Error('Invalid roster length');
+  const touched = new Set<number>();
+  const removed = message.removed.map(id => {
+    positiveId(id);
+    if (touched.has(id)) throw new Error('Duplicate roster id');
+    touched.add(id); return id;
+  });
+  const upserts = message.upserts.map(player => {
+    if (!player || typeof player.name !== 'string' || encoder.encode(player.name).length > 255) throw new Error('Invalid roster name');
+    positiveId(player.id); integer(player.team, 2);
+    if (touched.has(player.id)) throw new Error('Duplicate roster id');
+    touched.add(player.id);
+    return { id: player.id, name: player.name, team: player.team };
+  });
+  return { type: 'roster', upserts, removed };
+}
+
+class SnapshotWriter {
+  readonly bytes: Uint8Array;
+  readonly view: DataView;
+  offset = 0;
+  constructor(length: number) { this.bytes = new Uint8Array(length); this.view = new DataView(this.bytes.buffer); }
+  u8(value: number) { this.view.setUint8(this.offset++, integer(value, 255)); }
+  u16(value: number) { this.view.setUint16(this.offset, integer(value, 65535), true); this.offset += 2; }
+  u32(value: number) { this.view.setUint32(this.offset, integer(value, 0xffffffff), true); this.offset += 4; }
+  f32(value: number) {
+    if (!Number.isFinite(Math.fround(value))) throw new Error('Invalid wire float');
+    this.view.setFloat32(this.offset, value, true); this.offset += 4;
+  }
+  varint(value: number) {
+    integer(value, Number.MAX_SAFE_INTEGER);
+    do { const byte = value % 128; value = Math.floor(value / 128); this.u8(byte + (value ? 128 : 0)); } while (value);
+  }
+}
+
+class SnapshotReader {
+  readonly view: DataView;
+  offset = 0;
+  constructor(bytes: Uint8Array) { this.view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength); }
+  u8() { return this.view.getUint8(this.offset++); }
+  u16() { const value = this.view.getUint16(this.offset, true); this.offset += 2; return value; }
+  u32() { const value = this.view.getUint32(this.offset, true); this.offset += 4; return value; }
+  f32() {
+    const value = this.view.getFloat32(this.offset, true); this.offset += 4;
+    if (!Number.isFinite(value)) throw new Error('Invalid wire float');
+    return value;
+  }
+  varint(max: number) {
+    let result = 0, multiplier = 1;
+    for (let index = 0; index < (max <= 0xffffffff ? 5 : 8); index++) {
+      const byte = this.u8(), value = byte % 128;
+      if (value > Math.floor((max - result) / multiplier)) throw new Error('Wire integer overflow');
+      result += value * multiplier;
+      if (byte < 128) {
+        if (index && !value) throw new Error('Noncanonical wire integer');
+        return result;
+      }
+      multiplier *= 128;
+    }
+    throw new Error('Wire integer exceeds byte limit');
+  }
+  finish() { if (this.offset !== this.view.byteLength) throw new Error('Unexpected snapshot data'); }
+}
+
+function fieldLength(value: number, kind: FieldKind): number {
+  if (kind === 'float') {
+    if (!Number.isFinite(Math.fround(value))) throw new Error('Invalid wire float');
+    return 4;
+  }
+  const max = kind === 'bool' ? 1 : kind === 'byte' ? 255 : kind === 'seq' ? Number.MAX_SAFE_INTEGER : 0xffffffff;
+  integer(value, max);
+  return kind === 'bool' || kind === 'byte' ? 1 : varintLength(value, max);
+}
+
+function changedFields(current: Fields, previous?: Fields): number {
+  let mask = 0;
+  for (let index = 0; index < current.length; index++) if (!previous || !Object.is(current[index], previous[index])) mask |= 1 << index;
+  return mask;
+}
+
+function fieldsLength(fields: Fields, kinds: readonly FieldKind[], mask: number): number {
+  let length = 0;
+  for (let index = 0; index < kinds.length; index++) if (mask & (1 << index)) length += fieldLength(fields[index], kinds[index]);
+  return length;
+}
+
+function writeFields(writer: SnapshotWriter, fields: Fields, kinds: readonly FieldKind[], mask: number): void {
+  for (let index = 0; index < kinds.length; index++) {
+    if (!(mask & (1 << index))) continue;
+    const value = fields[index], kind = kinds[index];
+    if (kind === 'float') writer.f32(value);
+    else if (kind === 'byte' || kind === 'bool') writer.u8(value);
+    else writer.varint(value);
+  }
+}
+
+function readFields(reader: SnapshotReader, kinds: readonly FieldKind[], mask: number, previous?: Fields): Fields {
+  const fields = previous ? [...previous] : [];
+  for (let index = 0; index < kinds.length; index++) {
+    if (!(mask & (1 << index))) continue;
+    const kind = kinds[index];
+    fields[index] = kind === 'float' ? reader.f32() : kind === 'byte' || kind === 'bool' ? reader.u8()
+      : reader.varint(kind === 'seq' ? Number.MAX_SAFE_INTEGER : 0xffffffff);
+    if (kind === 'bool' && fields[index] > 1) throw new Error('Invalid wire boolean');
+  }
+  return fields;
+}
+
+function changes(current: ReadonlyMap<number, Fields>, previous: ReadonlyMap<number, Fields>, kinds: readonly FieldKind[]) {
+  const removed: number[] = [], changed: { id: number; mask: number; fields: Fields }[] = [];
+  let length = 4;
+  for (const id of previous.keys()) if (!current.has(id)) { removed.push(id); length += varintLength(id, 0xffffffff); }
+  for (const [id, fields] of current) {
+    const mask = changedFields(fields, previous.get(id));
+    if (!mask) continue;
+    changed.push({ id, mask, fields });
+    length += varintLength(id, 0xffffffff) + varintLength(mask, 0xffffffff) + fieldsLength(fields, kinds, mask);
+  }
+  return { removed, changed, kinds, length };
+}
+
+function writeChanges(writer: SnapshotWriter, group: ReturnType<typeof changes>): void {
+  writer.u16(group.removed.length); for (const id of group.removed) writer.varint(id);
+  writer.u16(group.changed.length);
+  for (const { id, mask, fields } of group.changed) {
+    writer.varint(id); writer.varint(mask); writeFields(writer, fields, group.kinds, mask);
+  }
+}
+
+function readChanges(reader: SnapshotReader, previous: ReadonlyMap<number, Fields>, kinds: readonly FieldKind[], limit: number): ReadonlyMap<number, Fields> {
+  const values = new Map(previous), touched = new Set<number>();
+  const removed = reader.u16();
+  if (removed > limit) throw new Error('Invalid snapshot removal count');
+  for (let index = 0; index < removed; index++) {
+    const id = reader.varint(0xffffffff);
+    if (!values.delete(id)) throw new Error('Unknown snapshot removal');
+    touched.add(id);
+  }
+  const changed = reader.u16(), fullMask = (1 << kinds.length) - 1;
+  if (changed > limit) throw new Error('Invalid snapshot change count');
+  for (let index = 0; index < changed; index++) {
+    const id = reader.varint(0xffffffff), mask = reader.varint(fullMask), before = values.get(id);
+    if (!mask || touched.has(id) || (!before && mask !== fullMask)) throw new Error('Invalid snapshot change');
+    touched.add(id); values.set(id, readFields(reader, kinds, mask, before));
+  }
+  if (values.size > limit) throw new Error('Snapshot exceeds wire limit');
+  return values;
+}
 
 export interface SnapshotFrame {
   readonly id: number;
   readonly roundId: number;
   readonly tick: number;
   readonly scores: readonly [number, number];
-  readonly remaining: number;
+  readonly roundEndTick: number | null;
   readonly players: ReadonlyMap<number, Fields>;
   readonly projectiles: ReadonlyMap<number, Fields>;
   readonly full: Uint8Array;
 }
 
-function playerFields(player: PlayerState): (number | string)[] {
-  return [player.name, player.team, kits.indexOf(player.kit), weapons.indexOf(player.weapon), +player.alive, +player.grounded,
-    +player.aiming, player.health, player.ammo, player.grenades, player.kills, player.deaths, player.lastSeq,
-    Math.fround(player.position.x), Math.fround(player.position.y), Math.fround(player.position.z),
-    Math.fround(player.velocity.x), Math.fround(player.velocity.y), Math.fround(player.velocity.z),
-    Math.fround(player.yaw), Math.fround(player.pitch)];
+export interface OwnerState {
+  readonly snapshotId: number;
+  readonly roundId: number;
+  readonly ownerId: number;
+  readonly fields: Fields | null;
+  readonly projectileVelocities: ReadonlyMap<number, Fields>;
 }
 
-function projectileFields(projectile: ProjectileState): (number | string)[] {
-  return [projectile.owner, weapons.indexOf(projectile.weapon),
-    Math.fround(projectile.position.x), Math.fround(projectile.position.y), Math.fround(projectile.position.z),
-    Math.fround(projectile.velocity.x), Math.fround(projectile.velocity.y), Math.fround(projectile.velocity.z)];
-}
-
-// Capture once before sending: authoritative objects keep changing after this call.
-export function captureSnapshot(snapshot: Snapshot, id: number): SnapshotFrame {
-  integer(id, 0xffffffff);
-  if (!id) throw new Error('Invalid snapshot id');
-  const encoded = encodeServerMessage(snapshot) as Uint8Array;
-  const full = new Uint8Array(encoded.length + 4);
-  full.set(encoded.subarray(0, 6)); full[5] = 4;
-  new DataView(full.buffer).setUint32(6, id, true);
-  full.set(encoded.subarray(6), 10);
-  const players = new Map(snapshot.players.map(player => [player.id, playerFields(player)]));
-  const projectiles = new Map(snapshot.projectiles.map(projectile => [projectile.id, projectileFields(projectile)]));
-  if (players.size !== snapshot.players.length || projectiles.size !== snapshot.projectiles.length) throw new Error('Duplicate snapshot id');
-  return { id, roundId: snapshot.roundId, tick: snapshot.tick, scores: [...snapshot.scores],
-    remaining: Math.fround(snapshot.remaining ?? -1), players, projectiles, full };
+// Private fields never enter the shared frame, even if callers pass wider objects.
+export function captureSnapshot(snapshot: Pick<Snapshot, 'roundId' | 'tick' | 'players' | 'projectiles' | 'scores' | 'roundEndTick'>, id: number): SnapshotFrame {
+  positiveId(id); integer(snapshot.roundId, 0xffffffff); integer(snapshot.tick, 0xffffffff);
+  integer(snapshot.scores[0], 0xffffffff); integer(snapshot.scores[1], 0xffffffff);
+  if (snapshot.roundEndTick !== null) integer(snapshot.roundEndTick, 0xffffffff);
+  if (snapshot.players.length > 1000 || snapshot.projectiles.length > 32000) throw new Error('Snapshot exceeds wire limit');
+  const players = new Map<number, Fields>(), projectiles = new Map<number, Fields>();
+  for (const player of snapshot.players) {
+    positiveId(player.id);
+    if (players.has(player.id) || !weapons.includes(player.weapon)
+      || [player.alive, player.aiming, player.hasGrenades].some(value => typeof value !== 'boolean')) throw new Error('Invalid public player');
+    const fields = [weapons.indexOf(player.weapon), +player.alive, +player.aiming, +player.hasGrenades, player.kills, player.deaths,
+      Math.fround(player.position.x), Math.fround(player.position.y), Math.fround(player.position.z),
+      Math.fround(player.velocity.x), Math.fround(player.velocity.z), Math.fround(player.yaw), Math.fround(player.pitch)];
+    fieldsLength(fields, playerKinds, 8191); players.set(player.id, fields);
+  }
+  for (const projectile of snapshot.projectiles) {
+    integer(projectile.id, 0xffffffff); positiveId(projectile.owner);
+    if (projectiles.has(projectile.id) || !weapons.includes(projectile.weapon)) throw new Error('Invalid public projectile');
+    const fields = [projectile.owner, weapons.indexOf(projectile.weapon), Math.fround(projectile.position.x),
+      Math.fround(projectile.position.y), Math.fround(projectile.position.z)];
+    fieldsLength(fields, projectileKinds, 31); projectiles.set(projectile.id, fields);
+  }
+  const frame = { id, roundId: snapshot.roundId, tick: snapshot.tick, scores: [...snapshot.scores] as [number, number],
+    roundEndTick: snapshot.roundEndTick, players, projectiles, full: new Uint8Array() as Uint8Array };
+  frame.full = encodePublicSnapshot(frame);
+  return frame;
 }
 
 function preservesOrder(current: ReadonlyMap<number, Fields>, previous: ReadonlyMap<number, Fields>): boolean {
@@ -304,173 +394,147 @@ function preservesOrder(current: ReadonlyMap<number, Fields>, previous: Readonly
   return true;
 }
 
+function encodePublicSnapshot(current: SnapshotFrame, previous?: SnapshotFrame): Uint8Array {
+  const groups = [changes(current.players, previous?.players ?? EMPTY_FIELDS, playerKinds),
+    changes(current.projectiles, previous?.projectiles ?? EMPTY_FIELDS, projectileKinds)];
+  const flags = (current.scores[0] !== previous?.scores[0] ? 1 : 0) | (current.scores[1] !== previous?.scores[1] ? 2 : 0)
+    | (current.roundEndTick !== previous?.roundEndTick ? 4 : 0);
+  const length = 27 + groups[0].length + groups[1].length + (flags & 1 ? 4 : 0) + (flags & 2 ? 4 : 0)
+    + (flags & 4 ? current.roundEndTick === null ? 1 : 5 : 0);
+  if (previous && length >= current.full.length) return current.full;
+  const writer = new SnapshotWriter(length);
+  writer.u32(MAGIC); writer.u8(VERSION); writer.u8(previous ? 5 : 4); writer.u32(length);
+  writer.u32(current.roundId); writer.u32(current.tick); writer.u32(current.id); writer.u32(previous?.id ?? 0); writer.u8(flags);
+  if (flags & 1) writer.u32(current.scores[0]);
+  if (flags & 2) writer.u32(current.scores[1]);
+  if (flags & 4) { writer.u8(current.roundEndTick === null ? 0 : 1); if (current.roundEndTick !== null) writer.u32(current.roundEndTick); }
+  for (const group of groups) writeChanges(writer, group);
+  return writer.bytes;
+}
+
 export function encodeSnapshot(current: SnapshotFrame, previous?: SnapshotFrame | null): Uint8Array {
-  if (!previous || current.roundId !== previous.roundId
-    || !preservesOrder(current.players, previous.players) || !preservesOrder(current.projectiles, previous.projectiles)) return current.full;
+  if (!previous || current.roundId !== previous.roundId || !preservesOrder(current.players, previous.players)
+    || !preservesOrder(current.projectiles, previous.projectiles)) return current.full;
   if (current.id === previous.id) throw new Error('Snapshot id must advance');
-  const flags = (current.scores[0] !== previous.scores[0] ? 1 : 0) | (current.scores[1] !== previous.scores[1] ? 2 : 0)
-    | (!Object.is(current.remaining, previous.remaining) ? 4 : 0);
-  let length = 31 + (flags & 1 ? 4 : 0) + (flags & 2 ? 4 : 0) + (flags & 4 ? 4 : 0);
-  const groups = [];
-  for (const [values, old, kinds] of [[current.players, previous.players, playerKinds],
-    [current.projectiles, previous.projectiles, projectileKinds]] as const) {
-    const removed: number[] = [];
-    const changed: { id: number; mask: number; fields: Fields }[] = [];
-    for (const id of old.keys()) if (!values.has(id)) { removed.push(id); length += varintLength(id, 0xffffffff); }
-    for (const [id, fields] of values) {
-      const before = old.get(id);
-      let mask = 0;
-      for (let index = 0; index < fields.length; index++) if (!before || !Object.is(fields[index], before[index])) mask |= 1 << index;
-      if (!mask) continue;
-      changed.push({ id, mask, fields });
-      length += varintLength(id, 0xffffffff) + varintLength(mask, 0xffffffff);
-      for (let index = 0; index < kinds.length; index++) {
-        if (!(mask & (1 << index))) continue;
-        const value = fields[index], kind = kinds[index];
-        length += kind === 'name' ? 1 + encoder.encode(value as string).length : kind === 'byte' ? 1 : kind === 'float' ? 4
-          : varintLength(value as number, kind === 'seq' ? Number.MAX_SAFE_INTEGER : 0xffffffff);
-      }
-      if (length >= current.full.length) return current.full;
-    }
-    groups.push({ removed, changed, kinds });
-  }
-  if (length >= current.full.length) return current.full;
-  const bytes = new Uint8Array(length), view = new DataView(bytes.buffer);
-  let offset = 0;
-  const u8 = (value: number) => { view.setUint8(offset++, value); };
-  const u16 = (value: number) => { view.setUint16(offset, value, true); offset += 2; };
-  const u32 = (value: number) => { view.setUint32(offset, value, true); offset += 4; };
-  const f32 = (value: number) => { view.setFloat32(offset, value, true); offset += 4; };
-  const varint = (value: number) => {
-    do { const byte = value % 128; value = Math.floor(value / 128); u8(byte + (value ? 128 : 0)); } while (value);
-  };
-  u32(MAGIC); u8(VERSION); u8(5);
-  u32(current.roundId); u32(current.tick); u32(current.id); u32(previous.id); u8(flags);
-  if (flags & 1) u32(current.scores[0]);
-  if (flags & 2) u32(current.scores[1]);
-  if (flags & 4) f32(current.remaining);
-  for (const { removed, changed, kinds } of groups) {
-    u16(removed.length); for (const id of removed) varint(id);
-    u16(changed.length);
-    for (const { id, mask, fields } of changed) {
-      varint(id); varint(mask);
-      for (let index = 0; index < kinds.length; index++) {
-        if (!(mask & (1 << index))) continue;
-        const value = fields[index], kind = kinds[index];
-        if (kind === 'name') {
-          const name = encoder.encode(value as string);
-          u8(name.length); bytes.set(name, offset); offset += name.length;
-        } else if (kind === 'byte') u8(value as number);
-        else if (kind === 'float') f32(value as number);
-        else varint(value as number);
-      }
-    }
-  }
-  return bytes;
+  return encodePublicSnapshot(current, previous);
 }
 
-function playerFromFields(id: number, fields: Fields): PlayerState {
-  const [name, team, kit, weapon, alive, grounded, aiming, health, ammo, grenades, kills, deaths, lastSeq,
-    x, y, z, vx, vy, vz, yaw, pitch] = fields as readonly [string, ...number[]];
-  if (team > 2 || !kits[kit] || !weapons[weapon] || alive > 1 || grounded > 1 || aiming > 1) throw new Error('Invalid player flags');
-  return { id, name, team: team as 0 | 1 | 2, kit: kits[kit], weapon: weapons[weapon], alive: !!alive, grounded: !!grounded,
-    aiming: !!aiming, health, ammo, grenades, kills, deaths, lastSeq, position: { x, y, z }, velocity: { x: vx, y: vy, z: vz }, yaw, pitch };
+export function captureOwnerState(owner: PlayerState | null, velocities: Snapshot['projectileVelocities'], frame: SnapshotFrame): OwnerState {
+  if (velocities.length > 32000) throw new Error('Snapshot exceeds wire limit');
+  const ownerId = owner ? positiveId(owner.id) : 0;
+  if (owner && (!frame.players.has(ownerId) || !kits.includes(owner.kit) || typeof owner.grounded !== 'boolean')) throw new Error('Invalid snapshot owner');
+  const fields = owner ? [kits.indexOf(owner.kit), owner.health, owner.ammo, owner.grenades, +owner.grounded,
+    owner.lastSeq, Math.fround(owner.velocity.y)] : null;
+  if (fields) fieldsLength(fields, ownerKinds, 127);
+  const projectileVelocities = new Map<number, Fields>();
+  for (const projectile of velocities) {
+    if (!ownerId || frame.projectiles.get(projectile.id)?.[0] !== ownerId || projectileVelocities.has(projectile.id)) throw new Error('Invalid private projectile');
+    const velocity = [Math.fround(projectile.velocity.x), Math.fround(projectile.velocity.y), Math.fround(projectile.velocity.z)];
+    fieldsLength(velocity, velocityKinds, 7); projectileVelocities.set(projectile.id, velocity);
+  }
+  return { snapshotId: frame.id, roundId: frame.roundId, ownerId, fields, projectileVelocities };
 }
 
-function projectileFromFields(id: number, fields: Fields): ProjectileState {
-  const [owner, weapon, x, y, z, vx, vy, vz] = fields as readonly number[];
-  if (!weapons[weapon]) throw new Error('Invalid projectile record');
-  return { id, owner, weapon: weapons[weapon], position: { x, y, z }, velocity: { x: vx, y: vy, z: vz } };
+export function encodeRecipientSnapshot(common: Uint8Array, current: OwnerState, previous?: OwnerState | null): Uint8Array {
+  const view = new DataView(common.buffer, common.byteOffset, common.byteLength);
+  if (serverMessageType(common) !== 'snapshot' || common.length < 35 || view.getUint32(6, true) !== common.length
+    || view.getUint32(18, true) !== current.snapshotId || view.getUint32(10, true) !== current.roundId) throw new Error('Invalid common snapshot');
+  if (common[5] === 4) previous = null;
+  else if (!previous || previous.snapshotId !== view.getUint32(22, true) || previous.roundId !== current.roundId) throw new Error('Private snapshot baseline mismatch');
+  const mask = current.fields ? changedFields(current.fields, previous?.ownerId === current.ownerId ? previous.fields ?? undefined : undefined) : 0;
+  const group = changes(current.projectileVelocities, previous?.projectileVelocities ?? EMPTY_FIELDS, velocityKinds);
+  const length = common.length + varintLength(current.ownerId, 0xffffffff) + (current.fields ? 1 + fieldsLength(current.fields, ownerKinds, mask) : 0) + group.length;
+  if (length > MAX_SNAPSHOT_BYTES) throw new Error('Snapshot exceeds wire limit');
+  const writer = new SnapshotWriter(length);
+  writer.bytes.set(common); writer.offset = common.length; writer.varint(current.ownerId);
+  if (current.fields) { writer.u8(mask); writeFields(writer, current.fields, ownerKinds, mask); }
+  writeChanges(writer, group);
+  return writer.bytes;
 }
 
 export function createServerMessageDecoder(): (data: string | ArrayBuffer | ArrayBufferView) => ServerMessage {
-  let baseline: Snapshot | null = null;
-  let baselineId = 0;
+  let roster = new Map<number, Roster['upserts'][number]>();
+  let baseline: SnapshotFrame | null = null, ownerBaseline: OwnerState | null = null;
+  let localId: number | null = null, expectedRound: number | null = null;
   return data => {
     const bytes = typeof data === 'string' ? null : ArrayBuffer.isView(data)
       ? new Uint8Array(data.buffer, data.byteOffset, data.byteLength) : new Uint8Array(data);
-    if (!bytes || bytes.length < 6 || bytes[5] !== 5) {
+    if (!bytes || bytes.length < 6 || (bytes[5] !== 4 && bytes[5] !== 5)) {
       const message = decodeServerMessage(data);
-      if (message.type === 'welcome' || message.type === 'reset' || message.type === 'snapshot') {
-        baseline = null; baselineId = 0;
+      if (message.type === 'welcome' || message.type === 'reset') {
+        const round = integer(message.roundId, 0xffffffff);
+        if (message.type === 'welcome') { localId = positiveId(message.id); roster = new Map(); }
+        expectedRound = round; baseline = null; ownerBaseline = null;
       }
-      if (message.type === 'snapshot' && bytes?.[5] === 4) {
-        if (new Set(message.players.map(player => player.id)).size !== message.players.length
-          || new Set(message.projectiles.map(projectile => projectile.id)).size !== message.projectiles.length) throw new Error('Duplicate snapshot id');
-        baseline = message;
-        baselineId = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).getUint32(6, true);
+      if (message.type === 'roster') {
+        const next = new Map(roster);
+        for (const id of message.removed) if (!next.delete(id)) throw new Error('Unknown roster removal');
+        for (const player of message.upserts) next.set(player.id, { ...player });
+        if (next.size > 1000) throw new Error('Roster exceeds player limit');
+        roster = next;
       }
       return message;
     }
     serverMessageType(bytes);
-    if (bytes.length < 31 || bytes.length > 34 + 1000 * 317 + 32000 * 33) throw new Error('Invalid snapshot delta length');
-    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-    let offset = 6;
-    const u8 = () => view.getUint8(offset++);
-    const u16 = () => { const value = view.getUint16(offset, true); offset += 2; return value; };
-    const u32 = () => { const value = view.getUint32(offset, true); offset += 4; return value; };
-    const f32 = () => {
-      const value = view.getFloat32(offset, true); offset += 4;
-      if (!Number.isFinite(value)) throw new Error('Invalid wire float');
-      return value;
-    };
-    const varint = (max: number) => {
-      let result = 0, multiplier = 1;
-      for (let index = 0; index < (max <= 0xffffffff ? 5 : 8); index++) {
-        const byte = u8(), value = byte % 128;
-        if (value > Math.floor((max - result) / multiplier)) throw new Error('Wire integer overflow');
-        result += value * multiplier;
-        if (byte < 128) {
-          if (index && !value) throw new Error('Noncanonical wire integer');
-          return result;
-        }
-        multiplier *= 128;
-      }
-      throw new Error('Wire integer exceeds byte limit');
-    };
-    const roundId = u32(), tick = u32(), id = u32(), previousId = u32(), flags = u8();
-    if (!baseline || previousId !== baselineId || roundId !== baseline.roundId) throw new Error('Snapshot delta baseline mismatch');
-    if (!id || id === previousId || flags & ~7) throw new Error('Invalid snapshot delta flags');
-    const scores: [number, number] = [flags & 1 ? u32() : baseline.scores[0], flags & 2 ? u32() : baseline.scores[1]];
-    const remaining = flags & 4 ? f32() : baseline.remaining ?? -1;
-    const readChanges = <T extends { id: number }>(old: T[], kinds: readonly FieldKind[], limit: number,
-      fieldsOf: (value: T) => (number | string)[], fromFields: (id: number, fields: Fields) => T): T[] => {
-      const values = new Map(old.map(value => [value.id, value]));
-      const removed = u16();
-      if (removed > limit) throw new Error('Invalid snapshot removal count');
-      const touched = new Set<number>();
-      for (let index = 0; index < removed; index++) {
-        const id = varint(0xffffffff);
-        if (!values.delete(id)) throw new Error('Unknown snapshot removal');
-        touched.add(id);
-      }
-      const changed = u16(), fullMask = (1 << kinds.length) - 1;
-      if (changed > limit) throw new Error('Invalid snapshot change count');
-      for (let index = 0; index < changed; index++) {
-        const id = varint(0xffffffff), mask = varint(fullMask), previous = values.get(id);
-        if (!mask || touched.has(id) || (!previous && mask !== fullMask)) throw new Error('Invalid snapshot change');
-        touched.add(id);
-        const fields = previous ? fieldsOf(previous) : [];
-        for (let field = 0; field < kinds.length; field++) {
-          if (!(mask & (1 << field))) continue;
-          const kind = kinds[field];
-          if (kind === 'name') {
-            const length = u8();
-            if (offset + length > bytes.length) throw new Error('Invalid player record');
-            fields[field] = decoder.decode(bytes.subarray(offset, offset + length)); offset += length;
-          } else fields[field] = kind === 'byte' ? u8() : kind === 'float' ? f32()
-            : varint(kind === 'seq' ? Number.MAX_SAFE_INTEGER : 0xffffffff);
-        }
-        values.set(id, fromFields(id, fields));
-      }
-      if (values.size > limit) throw new Error('Snapshot exceeds wire limit');
-      return [...values.values()];
-    };
-    const players = readChanges(baseline.players, playerKinds, 1000, playerFields, playerFromFields);
-    const projectiles = readChanges(baseline.projectiles, projectileKinds, 32000, projectileFields, projectileFromFields);
-    if (offset !== bytes.length) throw new Error('Unexpected snapshot delta data');
-    const message: Snapshot = { type: 'snapshot', roundId, tick, scores, remaining: remaining < 0 ? null : remaining, players, projectiles };
-    baseline = message; baselineId = id;
-    return message;
+    if (bytes.length < 40 || bytes.length > MAX_SNAPSHOT_BYTES) throw new Error('Invalid snapshot length');
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength), length = view.getUint32(6, true);
+    if (length < 35 || length > bytes.length - 5) throw new Error('Invalid common snapshot length');
+    const reader = new SnapshotReader(bytes.subarray(0, length)); reader.offset = 10;
+    const roundId = reader.u32(), tick = reader.u32(), id = positiveId(reader.u32()), previousId = reader.u32(), flags = reader.u8();
+    const full = bytes[5] === 4;
+    if (expectedRound !== null && roundId !== expectedRound) throw new Error('Snapshot round mismatch');
+    if (full ? previousId !== 0 || flags !== 7 : !baseline || previousId !== baseline.id || roundId !== baseline.roundId) {
+      throw new Error('Snapshot baseline mismatch');
+    }
+    if (id === previousId || flags & ~7) throw new Error('Invalid snapshot flags');
+    const old = full ? null : baseline;
+    const scores: [number, number] = [flags & 1 ? reader.u32() : old!.scores[0], flags & 2 ? reader.u32() : old!.scores[1]];
+    let roundEndTick = old?.roundEndTick ?? null;
+    if (flags & 4) {
+      const present = reader.u8();
+      if (present > 1) throw new Error('Invalid round end flag');
+      roundEndTick = present ? reader.u32() : null;
+    }
+    const playerFields = readChanges(reader, old?.players ?? EMPTY_FIELDS, playerKinds, 1000);
+    const projectileFields = readChanges(reader, old?.projectiles ?? EMPTY_FIELDS, projectileKinds, 32000);
+    reader.finish();
+    const players: RemotePlayerState[] = [];
+    for (const [id, fields] of playerFields) {
+      const metadata = roster.get(id), [weapon, alive, aiming, hasGrenades, kills, deaths, x, y, z, vx, vz, yaw, pitch] = fields;
+      if (!metadata || !weapons[weapon]) throw new Error('Unknown snapshot player or weapon');
+      players.push({ id, name: metadata.name, team: metadata.team, weapon: weapons[weapon], alive: !!alive, aiming: !!aiming,
+        hasGrenades: !!hasGrenades, kills, deaths, position: { x, y, z }, velocity: { x: vx, z: vz }, yaw, pitch });
+    }
+    const projectiles: RemoteProjectileState[] = [];
+    for (const [id, [owner, weapon, x, y, z]] of projectileFields) {
+      positiveId(owner);
+      if (!weapons[weapon]) throw new Error('Invalid projectile weapon');
+      projectiles.push({ id, owner, weapon: weapons[weapon], position: { x, y, z } });
+    }
+    const privateReader = new SnapshotReader(bytes.subarray(length)), ownerId = privateReader.varint(0xffffffff);
+    if (ownerId && localId !== null && ownerId !== localId) throw new Error('Snapshot owner mismatch');
+    const oldOwner = full ? null : ownerBaseline;
+    let ownerFields: Fields | null = null, owner: PlayerState | null = null;
+    if (ownerId) {
+      const mask = privateReader.u8(), before = oldOwner?.ownerId === ownerId ? oldOwner.fields : null;
+      if (mask & ~127 || (!before && mask !== 127)) throw new Error('Invalid owner fields');
+      ownerFields = readFields(privateReader, ownerKinds, mask, before ?? undefined);
+      const [kit, health, ammo, grenades, grounded, lastSeq, vy] = ownerFields;
+      const player = players.find(player => player.id === ownerId);
+      if (!player || !kits[kit]) throw new Error('Unknown snapshot owner or kit');
+      const { hasGrenades: _hasGrenades, ...publicPlayer } = player;
+      owner = { ...publicPlayer, kit: kits[kit], health, ammo, grenades, grounded: !!grounded, lastSeq,
+        position: { ...player.position }, velocity: { x: player.velocity.x, y: vy, z: player.velocity.z } };
+    }
+    const velocityFields = readChanges(privateReader, oldOwner?.projectileVelocities ?? EMPTY_FIELDS, velocityKinds, 32000);
+    privateReader.finish();
+    const projectileVelocities: Snapshot['projectileVelocities'] = [];
+    for (const [id, [x, y, z]] of velocityFields) {
+      if (!ownerId || projectileFields.get(id)?.[0] !== ownerId) throw new Error('Invalid private projectile');
+      projectileVelocities.push({ id, velocity: { x, y, z } });
+    }
+    baseline = { id, roundId, tick, scores, roundEndTick, players: playerFields, projectiles: projectileFields, full: new Uint8Array() };
+    ownerBaseline = { snapshotId: id, roundId, ownerId, fields: ownerFields, projectileVelocities: velocityFields };
+    return { type: 'snapshot', roundId, tick, scores, roundEndTick, players, owner, projectiles, projectileVelocities };
   };
 }

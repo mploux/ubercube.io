@@ -87,7 +87,7 @@ describe('authoritative simulation', () => {
     const expected = selectedKit === 'assault' ? ['ak47', 30] as const : selectedKit === 'sniper' ? ['awp', 5] as const : ['medic', 0] as const;
     expect(player.weapon).toBe(expected[0]);
     expect(player.ammo).toBe(expected[1]);
-    const state = peer.messages.filter(message => message.type === 'snapshot').at(-1)?.players.find(state => state.id === player.id);
+    const state = peer.messages.filter(message => message.type === 'snapshot').at(-1)?.owner;
     expect(state?.kit).toBe(selectedKit);
     expect(state?.weapon).toBe(expected[0]);
     expect(state?.ammo).toBe(expected[1]);

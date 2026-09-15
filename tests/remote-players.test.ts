@@ -1,11 +1,11 @@
 import { expect, test } from 'bun:test';
 import { RemotePlayers } from '../src/client/remote-players';
-import type { PlayerState } from '../src/shared/protocol';
+import type { RemotePlayerState } from '../src/shared/protocol';
 
-const player = (x: number, changes: Partial<PlayerState> = {}): PlayerState => ({
-  id: 1, name: 'Remote', team: 1, kit: 'assault', weapon: 'ak47', alive: true, aiming: false,
-  health: 100, kills: 0, deaths: 0, ammo: 30, grenades: 10, lastSeq: 0,
-  position: { x, y: 0, z: 0 }, velocity: { x: 6, y: 0, z: 0 }, grounded: true, yaw: 0, pitch: 0,
+const player = (x: number, changes: Partial<RemotePlayerState> = {}): RemotePlayerState => ({
+  id: 1, name: 'Remote', team: 1, weapon: 'ak47', alive: true, aiming: false,
+  kills: 0, deaths: 0, hasGrenades: true,
+  position: { x, y: 0, z: 0 }, velocity: { x: 6, z: 0 }, yaw: 0, pitch: 0,
   ...changes,
 });
 
@@ -60,20 +60,20 @@ test('temporary jitter leaves the delivery window instead of creating permanent 
   expect(remote.sample(4000)[0].position.x).toBeCloseTo(17.7, 6);
 });
 
-test('position, velocity, shortest yaw and pitch share a timestamp, without future weapon, aiming or grounded state', () => {
+test('position, horizontal velocity, yaw and pitch share a timestamp without future equipment or aiming state', () => {
   const remote = new RemotePlayers();
   remote.snapshot(0, [player(0, { yaw: Math.PI - .2, pitch: -.4 })], 1000);
-  remote.snapshot(3, [player(.3, { yaw: -Math.PI + .2, pitch: .4, grounded: false, aiming: true, weapon: 'awp', velocity: { x: 0, y: 12, z: 0 } })], 1050);
+  remote.snapshot(3, [player(.3, { yaw: -Math.PI + .2, pitch: .4, hasGrenades: false, aiming: true, weapon: 'awp', velocity: { x: 0, z: 0 } })], 1050);
   const middle = remote.sample(1075)[0];
   expect(middle.position.x).toBeCloseTo(.15);
-  expect(middle.velocity).toEqual({ x: 3, y: 6, z: 0 });
+  expect(middle.velocity).toEqual({ x: 3, z: 0 });
   expect(middle.yaw).toBeCloseTo(Math.PI);
   expect(middle.pitch).toBeCloseTo(0);
-  expect(middle.grounded).toBe(true);
+  expect(middle.hasGrenades).toBe(true);
   expect(middle.aiming).toBe(false);
   expect(middle.weapon).toBe('ak47');
   const last = remote.sample(1100)[0];
-  expect(last.grounded).toBe(false);
+  expect(last.hasGrenades).toBe(false);
   expect(last.aiming).toBe(true);
   expect(last.weapon).toBe('awp');
 });
@@ -127,4 +127,22 @@ test('clearing the world or connection discards its clock and history even if th
   remote.snapshot(0, [player(0)], 12000);
   remote.snapshot(3, [player(.3)], 12050);
   expect(remote.sample(12075)[0].position.x).toBeCloseTo(.15);
+});
+
+test('interpolation preserves retained decoder baselines and exposes only horizontal velocity', () => {
+  const remote = new RemotePlayers();
+  const previous = player(0), next = player(.3, { velocity: { x: 0, z: 6 } });
+  for (const state of [previous, next]) {
+    Object.freeze(state.position); Object.freeze(state.velocity); Object.freeze(state);
+  }
+  remote.snapshot(0, [previous], 1000);
+  remote.snapshot(3, [next], 1050);
+  const rendered = remote.sample(1075)[0];
+  expect(rendered.position.x).toBeCloseTo(.15);
+  expect(rendered.velocity).toEqual({ x: 3, z: 3 });
+  rendered.position.x = 50; rendered.velocity.x = 99;
+  expect(previous.position.x).toBe(0);
+  expect(previous.velocity.x).toBe(6);
+  expect(next.position.x).toBe(.3);
+  expect(next.velocity.x).toBe(0);
 });

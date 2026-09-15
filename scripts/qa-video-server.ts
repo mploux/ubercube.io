@@ -2,11 +2,11 @@ import { mkdir } from 'node:fs/promises';
 import { resolve, sep } from 'node:path';
 import type { ServerWebSocket } from 'bun';
 import { GameServer, type Connection } from '../src/server/game.ts';
-import { DT, PROTOCOL_VERSION, WEAPONS, type GameEvent, type InputFrame, type Kit, type ServerMessage, type Vec3, type VoxelEdit } from '../src/shared/protocol.ts';
+import { DT, PROTOCOL_VERSION, WEAPONS, type GameEvent, type InputFrame, type Kit, type PlayerState, type ServerMessage, type Vec3, type VoxelEdit } from '../src/shared/protocol.ts';
 import { EYE_HEIGHT } from '../src/shared/movement.ts';
 import { packBlock } from '../src/shared/voxel.ts';
 import { createWeaponPose, getWeaponMuzzle, stepWeaponPose } from '../src/shared/weapon-pose.ts';
-import { createServerMessageDecoder, decodeServerMessage, encodeServerMessage } from '../src/shared/wire.ts';
+import { createServerMessageDecoder, decodeServerMessage, encodeServerMessage, serverMessageType } from '../src/shared/wire.ts';
 
 export const VIDEO_SCENES = ['ak-body', 'ak-head', 'awp-body', 'wall', 'moving'] as const;
 type VideoScene = typeof VIDEO_SCENES[number];
@@ -23,8 +23,15 @@ export async function startQaVideoServer(port = 3014) {
   let targetId: number | null = null;
   let botSeq = 0;
   let botDirection = 1;
+  let botState: PlayerState | null = null;
   const events: (GameEvent & { receivedAt: number })[] = [];
   const inputs: { tick: number; playerId: number; frame: InputFrame }[] = [];
+  const recordEvent = (message: GameEvent) => {
+    if (message.event === 'shot' && events.some(event => event.event === 'shot'
+      && event.roundId === message.roundId && event.projectileId === message.projectileId)) return;
+    events.push({ ...message, receivedAt: performance.now() });
+    if (events.length > 2048) events.shift();
+  };
   const game = new GameServer({ mode: 'ffa', maxPlayers: 4, world: { seed: 121, size: 64, height: 64 } }, data => {
     let message = decodeServerMessage(data);
     if (impulseScale !== null && message.type === 'event' && message.event === 'death' &&
@@ -36,10 +43,7 @@ export async function startQaVideoServer(port = 3014) {
       } } };
       data = encodeServerMessage(message);
     }
-    if (message.type === 'event') {
-      events.push({ ...message, receivedAt: performance.now() });
-      if (events.length > 2048) events.shift();
-    }
+    if (message.type === 'event') recordEvent(message);
     server.publish('game', data);
   });
 
@@ -173,7 +177,13 @@ export async function startQaVideoServer(port = 3014) {
       maxPayloadLength: 8192, backpressureLimit: 512 * 1024, closeOnBackpressureLimit: true,
       idleTimeout: 30, perMessageDeflate: false,
       open(ws: ServerWebSocket<SocketData>) {
-        ws.data.connection = game.connect({ send: data => ws.send(data), close: (code, reason) => ws.close(code, reason),
+        ws.data.connection = game.connect({ send: data => {
+          if (serverMessageType(data) === 'event') {
+            const message = decodeServerMessage(data);
+            if (message.type === 'event' && message.event === 'shot') recordEvent(message);
+          }
+          return ws.send(data);
+        }, close: (code, reason) => ws.close(code, reason),
           bufferedAmount: () => ws.getBufferedAmount(),
           setBroadcast: enabled => { if (enabled) ws.subscribe('game'); else ws.unsubscribe('game'); } });
       },
@@ -200,7 +210,9 @@ export async function startQaVideoServer(port = 3014) {
   bot.addEventListener('message', message => {
     const data = decodeBot(message.data);
     if (data.type === 'welcome') targetId = data.id;
-    if (data.type === 'world' && data.complete) bot.send(JSON.stringify({ type: 'spawn', roundId: game.roundId, kit: 'assault' }));
+    if (data.type === 'snapshot') botState = data.owner;
+    if (data.type === 'reset') { botState = null; botSeq = 0; }
+    if (data.type === 'world' && data.complete) bot.send(JSON.stringify({ type: 'spawn', roundId: data.roundId, kit: 'assault' }));
   });
   let accumulator = 0;
   let previous = performance.now();
@@ -210,7 +222,7 @@ export async function startQaVideoServer(port = 3014) {
     let count = 0;
     while (accumulator >= DT * 1000 && count++ < 4) {
       if (bot.readyState === WebSocket.OPEN && targetId !== null) {
-        const target = game.players.get(targetId);
+        const target = botState;
         if (target?.alive) {
           if (target.position.x > 36) botDirection = -1;
           else if (target.position.x < 28) botDirection = 1;

@@ -4,7 +4,7 @@ import type { World } from 'cannon-es';
 import { Ragdolls } from '../src/client/ragdolls';
 import type { RagdollPart } from '../src/client/ragdolls';
 import { PlayerVisuals } from '../src/client/player-visuals';
-import type { PlayerState } from '../src/shared/protocol';
+import type { RemotePlayerState } from '../src/shared/protocol';
 
 const empty = { config: { seed: 1, size: 64, height: 64 }, get: () => 0 };
 const floor = { ...empty, get: (_x: number, y: number, _z: number) => y === 0 ? 1 : 0 };
@@ -18,10 +18,10 @@ const advance = (ragdolls: Ragdolls, seconds: number, start = 0) => {
 };
 
 function movingSkeleton(): RagdollPart[] {
-  const player: PlayerState = {
-    id: 1, name: 'Ragdoll', team: 1, kit: 'assault', weapon: 'ak47', aiming: true,
-    position: { x: 16, y: 10, z: 16 }, velocity: { x: 6, y: 0, z: 0 }, yaw: .8, pitch: .6,
-    grounded: false, alive: true, health: 100, kills: 0, deaths: 0, ammo: 30, grenades: 10, lastSeq: 0,
+  const player: RemotePlayerState = {
+    id: 1, name: 'Ragdoll', team: 1, weapon: 'ak47', aiming: true,
+    position: { x: 16, y: 10, z: 16 }, velocity: { x: 6, z: 0 }, yaw: .8, pitch: .6,
+    alive: true, kills: 0, deaths: 0, hasGrenades: true,
   };
   const scene = new THREE.Scene(), visuals = new PlayerVisuals(scene, 160, async () => new THREE.Group());
   visuals.update([player], -1, .75, new THREE.PerspectiveCamera());

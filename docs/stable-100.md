@@ -5,7 +5,7 @@ Travail commencé le 15 septembre 2026 sur `feat/stable-100`. Cette page décrit
 ## Stabilité du transport
 
 - Simulation 60 Hz et snapshots 20 Hz conservés. Chaque destinataire dispose du contrôle de son propre buffer : snapshots ignorés au-delà de 64 Kio, fermeture au-delà de 512 Kio. Les événements et mutations restent ordonnés et fiables tant que la connexion tient son budget.
-- Dans Bun, les messages d'un tick sont envoyés dans un seul `ws.cork` par socket. La file transitoire est limitée à 1 024 messages et compte dans les 512 Kio. Les métriques comptent les envois réels et le temps de vidage fait partie du temps de tick. Cela évite les écritures natives isolées qui avaient porté le p99 échantillonné au-delà de 25 ms à 50 joueurs ; le même palier passe ensuite sous 3 ms dans les essais locaux.
+- Dans Bun, les messages d'un tick sont envoyés dans un seul `ws.cork` par socket. La file transitoire est limitée à 1 024 messages et compte dans les 512 Kio. Les métriques comptent les envois réels et le temps de vidage fait partie du temps de tick. Les essais historiques avant le protocole 6 avaient mesuré un p99 supérieur à 25 ms à 50 joueurs avec des écritures natives isolées, puis inférieur à 3 ms au même palier avec ce regroupement ; ces valeurs ne qualifient pas le nouveau contrat.
 - Une synchronisation initiale expirée ou trop coûteuse ferme proprement sa connexion. Elle ne reprend plus une nouvelle baseline sur une réplique partiellement modifiée, ce qui créait des blocs fantômes.
 - Au plus 16 transferts simultanés de terrain modifié ; baseline limitée à 524 288 éditions, total des baselines distinctes retenues à 1 048 576 éditions. Les références partagées à une même baseline ne sont comptées qu'une fois.
 - Chaque transfert garde au plus 32 768 éditions et 256 messages de rattrapage. Il expire après 30 secondes réelles. Le rattrapage traite jusqu'à quatre lots de 512 éditions par appel et termine dès que la file est vide, même si le terrain change chaque tick.
@@ -26,15 +26,38 @@ Les positions des joueurs sont encore diffusées globalement : ce jalon ne réso
 
 ## Contrat réseau
 
-Le code local utilise **protocole 5 / format binaire 3**. Les snapshots, mutations terrain et événements fréquents sont binaires ; les événements de mort, hello côté client, welcome, reset, erreur et pong restent JSON. Les événements conservent leurs coordonnées Float64 et les snapshots leur précision Float32. Aucune modification des cadences, dégâts ou trajectoires.
+Le code local utilise **protocole 6 / format binaire 4**. Les snapshots, mutations terrain et événements fréquents sont binaires ; les événements de mort, le registre des joueurs (`roster`), hello côté client, welcome, reset, erreur et pong restent JSON. Les événements conservent leurs coordonnées Float64 et les snapshots leur précision Float32. Aucune modification des cadences, dégâts ou trajectoires.
 
-Le premier snapshot est complet. Les suivants transmettent les champs modifiés, les entités ajoutées et les identifiants supprimés ; un état complet est préféré si le différentiel serait plus gros. Pseudos, scores, équipement et mouvement gardent leur valeur côté client tant qu'aucun changement n'est reçu.
+Le registre fiable transmet identifiant, pseudo et équipe à l'arrivée, puis leurs changements et les départs. Il est borné aux joueurs actifs et conservé entre les manches ; une nouvelle connexion repart d'un registre vide. Il précède les snapshots qui utilisent ces identités, sans répéter les pseudos dans chaque mise à jour du mouvement.
 
-Un identifiant de snapshot distinct du tick désigne chaque référence. Le serveur capture une seule représentation immuable par envoi global et partage l'encodage entre les connexions ayant la même référence. Chaque connexion conserve au plus sa dernière référence acceptée par la file ordonnée ; aucune référence n'avance après un abandon. Arrivée, reset et reprise après saturation envoient un état complet. Le décodeur est propre à chaque connexion et reconstruit les états sans modifier ceux déjà utilisés par l'interpolation. Une référence incompatible provoque une erreur explicite et une reconnexion, sans reconstruire un état incomplet.
+Les snapshots publics restent à **20 Hz**. Le premier état est complet ; les suivants transmettent les champs modifiés, les entités ajoutées et les identifiants supprimés, avec retour à un état complet si celui-ci est plus petit. Les autres joueurs exposent position, vitesse horizontale, orientation, arme visible, visée, état vivant, scores et présence de grenades (`hasGrenades`). Santé, kit, munitions, nombre de grenades, acquittement d'input, état au sol et vitesse verticale restent dans l'état privé `owner`, destiné à la seule connexion concernée.
+
+Les positions des grenades restent publiques. Leurs corrections de vitesse dans `projectileVelocities` ne sont envoyées qu'à leur propriétaire ; l'événement de lancement conserve sa vitesse initiale ponctuelle. La séquence d'input des événements de tir est également réservée au tireur. Une mort transmet seulement l'état nécessaire au corps visuel, le point d'impact et l'impulsion : aucune santé, aucun kit, aucune réserve de munitions ni séquence privée.
+
+L'échéance de manche est un tick fixe `roundEndTick` (ou `null`), à partir duquel le client calcule le temps restant. Elle remplace le décompte flottant modifié à chaque snapshot.
+
+| Champs | Transmission en fonctionnement normal | Destinataires |
+|---|---|---|
+| `id`, `name`, `team` du registre | Découverte, changement ou départ ; `id` sert ensuite de référence | Tous |
+| `position`, `velocity.x/z`, `yaw`, `pitch` | Champs modifiés, au plus 20 Hz | Tous |
+| `weapon`, `aiming`, `alive`, `hasGrenades` | Transition, dans le prochain snapshot | Tous |
+| `kills`, `deaths` | Changement/reset, dans le prochain snapshot ; `deaths` identifie aussi la génération de vie | Tous |
+| `lastSeq`, `velocity.y` du joueur | Champs modifiés avec la correction à 20 Hz | Propriétaire |
+| `kit`, `health`, `ammo`, `grenades`, `grounded` | Changement/reset, dans le prochain snapshot | Propriétaire |
+| Projectile : `id`, `owner`, `weapon` | Création puis référence/suppression ; propriétaire et arme restent constants | Tous |
+| Projectile : `position` | Champs modifiés, au plus 20 Hz | Tous |
+| Projectile : `velocity` | Composantes modifiées, au plus 20 Hz | Lanceur |
+| `scores`, `roundEndTick` | Changement/reset ; le client calcule le décompte | Tous |
+
+Les événements de mort restent immédiats et indépendants du snapshot suivant. Les états complets d'arrivée ou de réparation retransmettent les valeurs publiques et privées nécessaires, même inchangées ; ils réutilisent les identités du registre. Aucun canal supplémentaire à cadence différente n'est ajouté pour les transitions : les masques différentiels évitent de répéter les valeurs constantes dans le flux existant.
+
+Un identifiant de snapshot distinct du tick désigne chaque référence. Le serveur capture une représentation publique immuable et partage son encodage entre les connexions ayant la même référence ; il ajoute séparément l'état privé de chaque destinataire. Chaque connexion conserve ses dernières références publique et privée acceptées par la file ordonnée ; aucune référence n'avance après un abandon. Arrivée, reset et reprise après saturation envoient un état complet. Le reset invalide les références de snapshots et conserve le registre fiable. Le décodeur est propre à chaque connexion et reconstruit les états sans modifier ceux déjà utilisés par l'interpolation. Une référence incompatible provoque une erreur explicite et une reconnexion.
 
 Une publication devra coordonner client et serveur. Les manifests `ops/` décrivent toujours la dernière production enregistrée, en protocole 3 ; ils ne sont pas actualisés par ces essais locaux.
 
 ## Qualification
+
+Les mesures précédentes en protocole 5 sont historiques. Son essai d'endurance a été interrompu volontairement pour ce changement après **2 606,233 secondes mesurées**, soit environ **43,4 minutes**. L'arrêt et le nettoyage ont été confirmés (`clean: true`, zéro connexion restante dans le proxy). Cet essai ne valide ni huit heures d'endurance ni le protocole 6. Les nouveaux résultats du protocole 6, leurs preuves et leurs limites sont suivis dans [validation.md](validation.md) ; un essai court réussi ne remplace pas la qualification d'endurance.
 
 `bun run qualify:local` lance le serveur dans un processus Bun séparé, écoute uniquement sur `127.0.0.1` et utilise une exception d'admission explicite pour les bots locaux. Le parent inspecte le terrain autoritaire par IPC privé après drainage ; aucun endpoint de debug n'est ajouté au jeu.
 

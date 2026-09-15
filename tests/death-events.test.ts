@@ -71,7 +71,12 @@ test.each(['assault', 'sniper'] as const)('%s immediate death carries the review
   }
   expect(event.death!.impulse.x).toBeLessThan(0);
   expect(victim.player.position.x - shooter.player.position.x).toBeLessThan(0);
-  expect(event.death!.player).toEqual({ ...victim.player, aiming: true });
+  expect(event.death!.player).toEqual({ id: victim.player.id, weapon: victim.player.weapon,
+    alive: false, aiming: true, deaths: victim.player.deaths, position: victim.player.position,
+    velocity: victim.player.velocity, yaw: victim.player.yaw, pitch: victim.player.pitch });
+  for (const field of ['health', 'ammo', 'grenades', 'kit', 'lastSeq', 'grounded', 'name']) {
+    expect(event.death!.player).not.toHaveProperty(field);
+  }
   expect(event.death!.player.deaths).toBe(1);
   expect(victim.player.aiming).toBe(false);
   expect(shooter.player.kills).toBe(1);

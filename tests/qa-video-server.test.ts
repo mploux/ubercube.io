@@ -117,7 +117,9 @@ test('impulse review preserves historical magnitudes, direction, and hit point a
       expect(death.weapon).toBe(setup.weapon);
       expect(death.headshot).toBe(scene === 'ak-head');
       expect(death.death?.player.alive).toBe(false);
-      expect(death.death?.player.health).toBe(0);
+      for (const field of ['health', 'kit', 'ammo', 'grenades', 'lastSeq', 'grounded', 'name', 'team']) {
+        expect(death.death!.player).not.toHaveProperty(field);
+      }
       expect(host.game.players.get(setup.targetId)?.health).toBe(0);
       const { impulse, hitPoint } = death.death!;
       expect(Math.hypot(impulse.x, impulse.y, impulse.z)).toBeCloseTo(magnitude, 8);

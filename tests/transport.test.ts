@@ -83,7 +83,7 @@ describe('real HTTP and WebSocket transport', () => {
     let first = await peer.wait('snapshot');
     while (!first.players.some(player => player.id === welcome.id && player.alive)) first = await peer.wait('snapshot');
     expect(first.players[0].team).toBe(0);
-    expect(first.players[0].ammo).toBe(5);
+    expect(first.owner?.ammo).toBe(5);
 
     host.game.resetRound();
     const reset = await peer.wait('reset');

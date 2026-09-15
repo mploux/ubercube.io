@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { GameEvent, PlayerState, ProjectileState, Vec3 } from '../shared/protocol';
+import type { GameEvent, PlayerState, RemoteProjectileState, Vec3 } from '../shared/protocol';
 import type { GrenadeFlight } from '../shared/grenade';
 import type { VoxelWorld } from '../shared/voxel';
 import { createParticleMaterial, particleColor } from './particle-material';
@@ -33,8 +33,8 @@ export class Effects {
     this.grenades.setFogDistance(distance);
   }
 
-  snapshot(projectiles: readonly ProjectileState[], tick: number, now: number): void {
-    this.grenades.snapshot(projectiles, tick, now);
+  snapshot(projectiles: readonly RemoteProjectileState[], tick: number, now: number, velocities: readonly { id: number; velocity: Vec3 }[] = []): void {
+    this.grenades.snapshot(projectiles, tick, now, velocities);
   }
 
   predictGrenade(owner: number, seq: number, launch: GrenadeFlight, world: VoxelWorld, now: number): void {

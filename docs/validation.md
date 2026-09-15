@@ -2,6 +2,30 @@
 
 Le jeu est publié sur Vercel et Hetzner. Cette page distingue les vérifications locales et celles de production ; la parité des sensations avec le Java, la tenue prolongée sur Internet et les grandes distances d'affichage ne sont pas encore entièrement validées.
 
+## Réplication publique et propriétaire — 15 septembre 2026
+
+Travail **local, non publié**, protocole 6 / binaire 4. Les identités passent par un registre fiable conservé entre les manches ; elles ne sont plus dans les snapshots. Les champs publics et privés sont séparés, les corrections de grenades vont au lanceur, et `roundEndTick` remplace le décompte flottant. Les états restent différentiels à 20 Hz, sans changement de précision. Les références publique et privée avancent ensemble uniquement après un envoi accepté et se réparent ensemble après saturation. Les événements de mort gardent pose fatale, vitesse complète, génération de vie, point touché et impulsion, sans ressources privées ; la séquence d'input d'un tir reste au tireur.
+
+`bun run check` passe : TypeScript, **504 tests / 35 877 assertions**, 46 fichiers de tests, puis 11 sorties de build. Les régressions couvrent séparation des destinataires, modification du seul registre sans mouvement, historique immuable, reprise après abandon, reset et reconnexion, décodage tronqué ou malformé et corrections des seules grenades du propriétaire. Preuves : `.runtime/stable-100/scoped-check.log`, `scoped-recovery.log`. Le smoke local valide aussi le nouveau protocole, les états privés, acquittements, visée, annulation et départ (`scoped-smoke.log`).
+
+L'essai sans profileur passe **720 secondes à 100 joueurs actifs**, TDM carte 256, délai 50 ±20 ms par sens, reset toutes les 300 s et reconnexion toutes les 60 s. Les deux resets et dix reconnexions passent, avec une activité moyenne de 98,09 % et 59,95 intentions/s/joueur actif. Aucune erreur applicative ni aucun input/tick abandonné ; tous les critères du banc sont vrais. Le terrain témoin correspond exactement au SHA256 autoritaire après drainage, puis serveur et proxy terminent à zéro connexion et zéro octet en file. Preuves : `.runtime/stable-100/scoped-hundred.*`.
+
+| Mesure, 100 joueurs / 720 s | Protocole 5 | Protocole 6 |
+|---|---:|---:|
+| Débit descendant total serveur | 108,46 Mbit/s | **94,39 Mbit/s** |
+| Débit des snapshots | 50,45 Mbit/s | **39,49 Mbit/s** |
+| Taille moyenne d'un snapshot | 3 137 octets | **2 455 octets** |
+| Maximum des p99 serveur échantillonnés | 5,69 ms | **6,65 ms** |
+| Maximum RSS serveur échantillonné | 268,04 Mio | **271,49 Mio** |
+
+Réduction observée : **13,0 % du trafic total et 21,7 % du trafic des snapshots**. Les deux essais ont la même durée et les mêmes réglages ; leurs combats ne sont pas un replay déterministe. Le p99 mesuré augmente et reste sous le seuil local de 8 ms ; cet essai ne profile pas la part du coût de chaque étape. Le débit moyen descendant par client vaut 0,94 Mbit/s (118 ko/s) ; l'entrée serveur totale vaut 8,35 Mbit/s. Ces octets applicatifs excluent TCP/TLS/WebSocket. Le trafic restant comprend notamment 39,49 Mbit/s de snapshots, 21,24 de tirs, 14,83 d'impacts, 12,86 de mutations du terrain et 5,13 de morts. Le filtrage spatial n'est pas implémenté : les états publics de toute la partie restent diffusés.
+
+L'essai concentré passe **120 secondes à 100 joueurs**, FFA carte 64, sans délai ajouté, quatre resets et deux reconnexions. Débit total **80,62 Mbit/s**, maximum des p99 échantillonnés **6,26 ms**, RSS maximale **206,06 Mio**. Tous les critères passent, aucun input/tick abandonné ni erreur applicative ; terrain autoritaire identique après drainage et fermeture complète des connexions, sockets et files. Preuves : `.runtime/stable-100/scoped-concentrated.*`.
+
+Le contrôle WebGL affiche **RÉSULTAT : SUCCÈS**, notamment pour les grenades, personnages et ragdolls ; les captures de chute ont été inspectées. Deux vrais clients passent pseudo → équipement → apparition (Assault et Sniper), resets puis réapparition (Medic et Sniper). Les HUD affichent les ressources propres aux kits, sans erreur ni avertissement console capturé. Terrain, arme et minicarte visibles ; le serveur confirme protocole 6 et deux joueurs jusqu'à la manche 3. Les onglets fermés, zéro joueur, zéro socket et zéro octet en file sont vérifiés avant arrêt du serveur temporaire. Preuves : `scoped-browser-health.json`, `scoped-browser-after-reset.json`, `scoped-browser-cleanup.json` dans `.runtime/stable-100/`. Le navigateur intégré refuse la capture du pointeur : aucun contrôle humain libre ni rendu de 100 navigateurs n'est qualifié.
+
+L'endurance précédente du protocole 5 (`soak-delta-8h.*`, source `711c927`) a été interrompue volontairement pour cette évolution après **2 606,233 s mesurées**. Nettoyage confirmé (`clean: true`, proxy à zéro connexion et zéro octet). Son arrêt manuel n'est ni un succès de huit heures ni une nouvelle défaillance mémoire ; l'empreinte terrain finale n'est pas qualifiée lors de cette interruption. La tenue sur huit heures reste à confirmer sur le nouveau protocole, sans profileur et avec le budget RSS de 1 024 Mio.
+
 ## Snapshots différentiels — 15 septembre 2026
 
 Travail **local, non publié**, protocole 5 / binaire 3, code `b7a00d5`. Les snapshots transmettent les champs modifiés, ajouts et suppressions, avec état complet à l'arrivée, au reset et après saturation. La simulation reste à 60 Hz, les snapshots à 20 Hz et les précisions numériques sont conservées. `bun run check` passe : TypeScript, **504 tests / 35 945 assertions**, puis 11 sorties de build. Les nouvelles régressions couvrent références exactes, snapshots du même tick, états anciens d'interpolation, champs remis à zéro, décodage hostile et reprise après abandon. Preuves : `.runtime/stable-100/delta-check.log` et `delta-targeted.log`.

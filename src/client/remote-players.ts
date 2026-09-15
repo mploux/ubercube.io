@@ -1,6 +1,6 @@
-import { TICK_RATE, type PlayerState } from '../shared/protocol';
+import { TICK_RATE, type RemotePlayerState } from '../shared/protocol';
 
-interface Snapshot { tick: number; offset: number; players: Map<number, PlayerState> }
+interface Snapshot { tick: number; offset: number; players: Map<number, RemotePlayerState> }
 const TICK_MS = 1000 / TICK_RATE;
 
 export class RemotePlayers {
@@ -9,7 +9,7 @@ export class RemotePlayers {
   private interval = 3;
   private renderTick = -Infinity;
 
-  snapshot(tick: number, players: readonly PlayerState[], now: number): void {
+  snapshot(tick: number, players: readonly RemotePlayerState[], now: number): void {
     if (!Number.isInteger(tick) || tick < 0 || !Number.isFinite(now)) return;
     const latest = this.snapshots.at(-1);
     if (latest && tick < latest.tick) return;
@@ -26,7 +26,7 @@ export class RemotePlayers {
     }
   }
 
-  sample(now: number): PlayerState[] {
+  sample(now: number): RemotePlayerState[] {
     const first = this.snapshots[0], latest = this.snapshots.at(-1);
     if (!latest || !Number.isFinite(now)) return [];
     this.renderTick = Math.max(this.renderTick, first.tick, Math.min(latest.tick, (now - this.clockOffset) / TICK_MS - this.interval));
@@ -46,7 +46,7 @@ export class RemotePlayers {
       return {
         ...(fraction < 1 ? previous : next),
         position: { x: lerp(previous.position.x, next.position.x), y: lerp(previous.position.y, next.position.y), z: lerp(previous.position.z, next.position.z) },
-        velocity: { x: lerp(previous.velocity.x, next.velocity.x), y: lerp(previous.velocity.y, next.velocity.y), z: lerp(previous.velocity.z, next.velocity.z) },
+        velocity: { x: lerp(previous.velocity.x, next.velocity.x), z: lerp(previous.velocity.z, next.velocity.z) },
         yaw: previous.yaw + turn * fraction, pitch: lerp(previous.pitch, next.pitch),
       };
     });

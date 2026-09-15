@@ -1,4 +1,4 @@
-export const PROTOCOL_VERSION = 5;
+export const PROTOCOL_VERSION = 6;
 export const TICK_RATE = 60;
 export const DT = 1 / TICK_RATE;
 export type Mode = 'tdm' | 'ffa';
@@ -16,6 +16,12 @@ export interface PlayerState extends MotionState {
   health: number; alive: boolean; aiming: boolean; kills: number; deaths: number;
   ammo: number; grenades: number; lastSeq: number;
 }
+export interface RemotePlayerState {
+  id: number; name: string; team: Team; weapon: WeaponId;
+  alive: boolean; aiming: boolean; kills: number; deaths: number; hasGrenades: boolean;
+  position: Vec3; velocity: Pick<Vec3, 'x' | 'z'>; yaw: number; pitch: number;
+}
+export type DeathPlayerState = Pick<PlayerState, 'id' | 'weapon' | 'alive' | 'aiming' | 'deaths' | 'position' | 'velocity' | 'yaw' | 'pitch'>;
 export interface InputFrame {
   seq: number; roundId: number; moveX: number; moveZ: number;
   yaw: number; pitch: number; jump: boolean; sprint: boolean;
@@ -28,6 +34,7 @@ export type ClientMessage =
   | { type: 'input'; frames: InputFrame[] }
   | { type: 'ping'; time: number };
 export interface ProjectileState { id: number; position: Vec3; velocity: Vec3; weapon: WeaponId; owner: number }
+export type RemoteProjectileState = Omit<ProjectileState, 'velocity'>;
 export type GameEvent = {
   type: 'event'; roundId: number;
   event: 'shot' | 'impact' | 'explosion' | 'death' | 'heal' | 'build' | 'projectile-end';
@@ -36,12 +43,15 @@ export type GameEvent = {
   blockColor?: number; // Server-captured RGB24 before the impacted block changes.
   projectileId?: number; velocity?: Vec3; tick?: number; inputSeq?: number;
   endPosition?: Vec3; // Hitscan shot endpoint, including misses; no persistent projectile or flight velocity.
-  death?: { player: PlayerState; hitPoint: Vec3; impulse: Vec3 }; // Cosmetic corpse state; never changes gameplay physics.
+  death?: { player: DeathPlayerState; hitPoint: Vec3; impulse: Vec3 }; // Cosmetic corpse state; never changes gameplay physics.
 };
 export type ServerMessage =
   | { type: 'welcome'; id: number; roundId: number; mode: Mode; maxPlayers: number; world: WorldConfig; tickRate: number }
   | { type: 'world'; roundId: number; revision: number; edits: VoxelEdit[]; initial?: boolean; complete?: boolean }
-  | { type: 'snapshot'; roundId: number; tick: number; players: PlayerState[]; projectiles: ProjectileState[]; scores: [number, number]; remaining: number | null }
+  | { type: 'roster'; upserts: Pick<RemotePlayerState, 'id' | 'name' | 'team'>[]; removed: number[] }
+  | { type: 'snapshot'; roundId: number; tick: number; players: RemotePlayerState[]; owner: PlayerState | null;
+      projectiles: RemoteProjectileState[]; projectileVelocities: { id: number; velocity: Vec3 }[];
+      scores: [number, number]; roundEndTick: number | null }
   | { type: 'reset'; roundId: number; world: WorldConfig }
   | { type: 'error'; message: string; fatal?: boolean }
   | { type: 'pong'; time: number }

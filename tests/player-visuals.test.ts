@@ -3,12 +3,12 @@ import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
 import { PlayerVisuals } from '../src/client/player-visuals';
 import { parseWeaponModel, WEAPON_MODEL_FILES } from '../src/client/weapon-model';
-import type { PlayerState, WeaponId } from '../src/shared/protocol';
+import type { RemotePlayerState, WeaponId } from '../src/shared/protocol';
 
-const player = (overrides: Partial<PlayerState> = {}): PlayerState => ({
-  id: 1, name: 'Reference', team: 1, kit: 'assault', weapon: 'ak47', aiming: false,
-  position: { x: 0, y: 0, z: 0 }, velocity: { x: 0, y: 0, z: 0 }, yaw: 0, pitch: 0,
-  grounded: true, alive: true, health: 100, kills: 0, deaths: 0, ammo: 30, grenades: 10, lastSeq: 0, ...overrides,
+const player = (overrides: Partial<RemotePlayerState> = {}): RemotePlayerState => ({
+  id: 1, name: 'Reference', team: 1, weapon: 'ak47', aiming: false,
+  position: { x: 0, y: 0, z: 0 }, velocity: { x: 0, z: 0 }, yaw: 0, pitch: 0,
+  alive: true, kills: 0, deaths: 0, hasGrenades: true, ...overrides,
 });
 const camera = new THREE.PerspectiveCamera();
 const emptyLoader = async () => new THREE.Group();
@@ -50,7 +50,7 @@ test('the active Java player is ten articulated cuboids, with the original dimen
 test.each(['ak47', 'awp', 'shovel', 'grenade', 'medic'] as const)('%s elbows and knees remain attached while moving, looking and aiming', weapon => {
   const scene = new THREE.Scene(), visuals = new PlayerVisuals(scene, 160, emptyLoader);
   for (const aiming of [false, true]) {
-    visuals.update([player({ weapon, aiming, yaw: .8, pitch: .6, velocity: { x: 6, y: 12, z: 0 } })], -1, .75, camera);
+    visuals.update([player({ weapon, aiming, yaw: .8, pitch: .6, velocity: { x: 6, z: 0 } })], -1, .75, camera);
     const mesh = bodies(scene);
     for (const [parent, child] of [[2, 3], [4, 5], [6, 7], [8, 9]]) {
       expect(point(mesh, parent, 0, 1).distanceTo(point(mesh, child))).toBeLessThan(.000001);
@@ -71,7 +71,7 @@ test('the head follows Java sin(pitch) × 90 and rotates around its neck without
 
 test('animation depends on elapsed time, not render rate, entity count, input order or stale positions', () => {
   const scene = new THREE.Scene(), visuals = new PlayerVisuals(scene, 160, emptyLoader);
-  const moving = player({ velocity: { x: 0, y: 0, z: -9 } });
+  const moving = player({ velocity: { x: 0, z: -9 } });
   visuals.update([moving], -1, 1, camera);
   const first = Array.from(bodies(scene).instanceMatrix.array.slice(0, 160));
   for (let i = 0; i < 100; i++) visuals.update([moving, player({ id: 2 })], -1, 1, camera);
@@ -79,10 +79,6 @@ test('animation depends on elapsed time, not render rate, entity count, input or
   moving.position = { x: 200, y: 42, z: -60 };
   visuals.update([moving], -1, 1, camera);
   expect(point(bodies(scene), 0).toArray()).toEqual([200, 43.25, -60]);
-  const beforeJump = Array.from(bodies(scene).instanceMatrix.array.slice(0, 160));
-  moving.grounded = false; moving.velocity.y = 12;
-  visuals.update([moving], -1, 1, camera);
-  expect(Array.from(bodies(scene).instanceMatrix.array.slice(0, 160))).toEqual(beforeJump);
 });
 
 test('ADS changes both firearm arms and head pitch survives a weapon change; tools do not invent an ADS pose', () => {
@@ -112,7 +108,7 @@ test('the moving ADS skeleton matches matrices emitted by the compiled original 
     [.22913821,.01570079,.19300045,0,.33687833,-.4184745,-.36591277,0,.11541637,.22901888,-.15565807,0,.20867324,.60253125,.11538073,1],
   ];
   const scene = new THREE.Scene(), visuals = new PlayerVisuals(scene, 160, emptyLoader);
-  visuals.update([player({ aiming: true, pitch: .6, yaw: .7, velocity: { x: 4.8, y: 0, z: 0 } })], -1, 1, camera);
+  visuals.update([player({ aiming: true, pitch: .6, yaw: .7, velocity: { x: 4.8, z: 0 } })], -1, 1, camera);
   for (let bone = 0; bone < 10; bone++) {
     matrix(bodies(scene), bone).elements.forEach((actual, field) => {
       const expected = java[bone][field] * (field % 4 === 2 ? -1 : 1) * (Math.floor(field / 4) === 2 ? -1 : 1);
@@ -163,7 +159,7 @@ test('100 players share one body draw and weapon batches; local/dead/cleared pla
   expect(((scene.getObjectByName('UBERCUBE remote ak47') as THREE.InstancedMesh).material as THREE.ShaderMaterial).uniforms.fogDistance.value).toBe(96);
   visuals.clear();
   scene.traverse(object => { if (object instanceof THREE.InstancedMesh) expect(object.count).toBe(0); });
-  visuals.update([player({ weapon: 'grenade', grenades: 0 })], -1, 1, camera);
+  visuals.update([player({ weapon: 'grenade', hasGrenades: false })], -1, 1, camera);
   expect(bodies(scene).count).toBe(10);
   expect((scene.getObjectByName('UBERCUBE remote grenade') as THREE.InstancedMesh).count).toBe(0);
 });

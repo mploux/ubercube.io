@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { PlayerVisuals } from '../../src/client/player-visuals';
-import type { PlayerState, WeaponId } from '../../src/shared/protocol';
+import type { RemotePlayerState, WeaponId } from '../../src/shared/protocol';
 
 export async function checkPlayers(renderer: THREE.WebGLRenderer): Promise<string[]> {
   const messages: string[] = [];
@@ -27,10 +27,10 @@ export async function checkPlayers(renderer: THREE.WebGLRenderer): Promise<strin
     const caption = document.createElement('figcaption'); caption.textContent = label;
     figure.append(canvas, caption); gallery.append(figure);
   };
-  const player: PlayerState = {
-    id: 1, name: '', team: 1, kit: 'assault', weapon: 'ak47', aiming: false,
-    position: { x: 0, y: 0, z: 0 }, velocity: { x: 0, y: 0, z: 0 }, yaw: 0, pitch: 0,
-    grounded: true, alive: true, health: 100, kills: 0, deaths: 0, ammo: 30, grenades: 10, lastSeq: 0,
+  const player: RemotePlayerState = {
+    id: 1, name: '', team: 1, weapon: 'ak47', aiming: false,
+    position: { x: 0, y: 0, z: 0 }, velocity: { x: 0, z: 0 }, yaw: 0, pitch: 0,
+    alive: true, kills: 0, deaths: 0, hasGrenades: true,
   };
   const read = () => {
     renderer.setRenderTarget(target); renderer.render(scene, camera);

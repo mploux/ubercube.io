@@ -49,7 +49,15 @@ export async function smoke(server: string, frontend: string) {
         const message = decode(event.data);
         if (message.type === 'welcome') peer.welcome = message;
         else if (message.type === 'world' && message.complete) peer.complete = true;
-        else if (message.type === 'snapshot') peer.snapshot = message;
+        else if (message.type === 'snapshot') {
+          assert(peer.welcome && message.owner?.id === peer.welcome.id, 'Snapshot owner differs from the connection');
+          for (const player of message.players) {
+            assert(['health', 'kit', 'grounded', 'ammo', 'grenades', 'lastSeq'].every(key => !(key in player)),
+              'Private player fields exposed in the public snapshot');
+            assert(!('y' in player.velocity), 'Private vertical velocity exposed in the public snapshot');
+          }
+          peer.snapshot = message;
+        }
         else if (message.type === 'error' && version === PROTOCOL_VERSION) peer.failure = message.message;
         else if (message.type === 'reset') peer.failure = 'Round reset during smoke test; retry on a stable round';
         if (message.type !== 'snapshot') peer.messages.push(message);
@@ -81,26 +89,29 @@ export async function smoke(server: string, frontend: string) {
       healthy();
       return [a, b].every(peer => [a, b].every(other => peer.snapshot?.players.some(p => p.id === other.welcome!.id && p.alive)));
     }, 'spawned players visible to both clients');
-    const initial = a.snapshot!.players.find(p => p.id === a.welcome!.id)!;
+    const initial = a.snapshot!.owner!;
     const other = a.snapshot!.players.find(p => p.id === b.welcome!.id)!;
     if (baseline.mode === 'ffa') { assert.equal(initial.team, 0); assert.equal(other.team, 0); }
     else {
       assert([1, 2].includes(initial.team) && [1, 2].includes(other.team));
       if (baseline.players === 0) assert.notEqual(initial.team, other.team);
     }
-    checks.push('Distinct players, shared world/round, mode teams and authoritative spawn');
+    checks.push('Distinct players, shared world/round, mode teams, authoritative spawn and private owner state');
     const frame: InputFrame = { seq: 0, roundId: a.welcome!.roundId, moveX: 0, moveZ: 1,
       yaw: initial.yaw, pitch: 0, jump: false, sprint: false, fire: false, alt: false, weapon: 'ak47' };
     for (let i = 0; i < 36; i++) {
       a.socket.send(JSON.stringify({ type: 'input', frames: [{ ...frame, seq: ++frame.seq }] }));
       await Bun.sleep(17);
     }
-    await wait(() => { healthy(); return !!a.snapshot?.players.some(p => p.id === initial.id && p.lastSeq >= frame.seq); }, 'input acknowledgement');
+    await wait(() => { healthy(); return !!a.snapshot?.owner && a.snapshot.owner.lastSeq >= frame.seq; }, 'input acknowledgement');
     for (const aiming of [true, false]) {
       const input = { ...frame, seq: ++frame.seq, moveZ: 0, alt: aiming, cancelActions: !aiming };
       a.socket.send(JSON.stringify({ type: 'input', frames: [input] }));
-      await wait(() => { healthy(); return [a, b].every(peer => peer.snapshot?.players.some(
-        p => p.id === initial.id && p.lastSeq >= input.seq && p.aiming === aiming)); }, 'replicated aim state');
+      await wait(() => {
+        healthy();
+        return !!a.snapshot?.owner && a.snapshot.owner.lastSeq >= input.seq
+          && [a, b].every(peer => peer.snapshot?.players.some(p => p.id === initial.id && p.aiming === aiming));
+      }, 'owner acknowledgement and replicated aim state');
     }
     a.closing = true; a.socket.close(1000, 'Smoke complete');
     await wait(() => { healthy(); return !!b.snapshot && !b.snapshot.players.some(p => p.id === initial.id); }, 'observer sees departure');

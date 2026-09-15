@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { TICK_RATE, type GameEvent, type ProjectileState, type Vec3 } from '../shared/protocol';
+import { TICK_RATE, type GameEvent, type RemoteProjectileState, type Vec3 } from '../shared/protocol';
 import { stepGrenade, type GrenadeFlight } from '../shared/grenade';
 import type { VoxelWorld } from '../shared/voxel';
 import { WEAPON_MODEL_SCALE } from '../shared/weapon-pose';
@@ -132,7 +132,7 @@ export class GrenadeVisuals {
     if (grenade.samples.length > 8) grenade.samples.shift();
   }
 
-  snapshot(projectiles: readonly ProjectileState[], tick: number, now: number): void {
+  snapshot(projectiles: readonly RemoteProjectileState[], tick: number, now: number, velocities: readonly { id: number; velocity: Vec3 }[] = []): void {
     if (this.disposed || !Number.isFinite(now) || !Number.isInteger(tick) || tick < 0 || tick <= this.snapshotTick) return;
     this.snapshotTick = tick;
     this.observe(tick, now);
@@ -142,7 +142,8 @@ export class GrenadeVisuals {
       present.add(projectile.id);
       this.add(projectile.id, projectile.position, tick, now);
       const prediction = this.grenades.get(projectile.id)?.prediction;
-      if (prediction) this.reconcile(prediction, projectile.position, projectile.velocity, tick - prediction.born!, now);
+      const velocity = prediction && velocities.find(entry => entry.id === projectile.id)?.velocity;
+      if (prediction && velocity) this.reconcile(prediction, projectile.position, velocity, tick - prediction.born!, now);
     }
     for (const [id, grenade] of this.grenades) {
       if (!present.has(id) && grenade.samples.at(-1)!.tick < tick) this.remove(id);

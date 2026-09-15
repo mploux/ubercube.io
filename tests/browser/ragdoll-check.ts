@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { PlayerVisuals } from '../../src/client/player-visuals';
-import type { GameEvent, PlayerState } from '../../src/shared/protocol';
+import type { GameEvent, RemotePlayerState } from '../../src/shared/protocol';
 
 export async function checkRagdolls(renderer: THREE.WebGLRenderer): Promise<string[]> {
   const messages: string[] = [];
@@ -39,23 +39,26 @@ export async function checkRagdolls(renderer: THREE.WebGLRenderer): Promise<stri
   const outcomes: number[] = [];
   for (const sign of [-1, 1]) {
     visuals.clear();
-    const player: PlayerState = {
-      id: 1, name: '', team: 1, kit: 'assault', weapon: 'ak47', aiming: false,
-      position: { x: 20, y: 1, z: 20 }, velocity: { x: 0, y: 0, z: 0 }, yaw: 0, pitch: 0,
-      grounded: true, alive: true, health: 100, kills: 0, deaths: 0, ammo: 30, grenades: 10, lastSeq: 0,
+    const player: RemotePlayerState = {
+      id: 1, name: '', team: 1, weapon: 'ak47', aiming: false,
+      position: { x: 20, y: 1, z: 20 }, velocity: { x: 0, z: 0 }, yaw: 0, pitch: 0,
+      alive: true, kills: 0, deaths: 0, hasGrenades: true,
     };
     visuals.update([player], -1, 0, camera);
     const start = position(1);
     const event: GameEvent = { type: 'event', event: 'death', roundId: 1, tick: 1, targetId: 1,
       position: { ...player.position }, weapon: 'ak47', headshot: true,
-      death: { player: { ...player, alive: false, health: 0, deaths: 1 },
+      death: { player: { id: player.id, weapon: player.weapon, aiming: player.aiming,
+        position: { ...player.position }, velocity: { x: 0, y: 0, z: 0 }, yaw: player.yaw, pitch: player.pitch,
+        alive: false, deaths: 1 },
         hitPoint: { x: 20 - sign * .25, y: 3.7, z: 20.1 }, impulse: { x: sign * 12, y: 0, z: 0 } } };
-    visuals.death(event, player, 0);
-    visuals.update([event.death!.player], -1, 0, camera);
+    const dead = { ...player, alive: false, deaths: 1 };
+    visuals.death(event, 0);
+    visuals.update([dead], -1, 0, camera);
     capture(`${sign < 0 ? '←' : '→'} Impact tête · 0 s`);
     let previous = 0;
     for (const frame of [12, 36, 180]) {
-      for (let i = previous + 1; i <= frame; i++) visuals.update([event.death!.player], -1, i / 120, camera);
+      for (let i = previous + 1; i <= frame; i++) visuals.update([dead], -1, i / 120, camera);
       previous = frame;
       if (mesh.count !== 10) throw new Error('Le cadavre doit conserver dix membres visibles');
       if (frame === 12) {

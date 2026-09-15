@@ -162,8 +162,8 @@ export async function runLoadtest(options: Options, signal?: AbortSignal) {
             if (bot.lastSnapshotAt) maxSnapshotGap = Math.max(maxSnapshotGap, now - bot.lastSnapshotAt);
           }
           bot.lastSnapshotAt = now; bot.lastTick = message.tick;
-          const state = message.players.find(player => player.id === bot.id);
-          assert(state, 'Own player missing from snapshot');
+          const state = message.owner;
+          assert(state && state.id === bot.id, 'Own player missing or mismatched in snapshot');
           if (state.alive !== bot.state?.alive) { bot.accumulator = 0; bot.lastInputAt = now; }
           bot.state = state;
         } else if (message.type === 'reset') {

@@ -1,8 +1,8 @@
 import { DT, KITS, PROTOCOL_VERSION, TICK_RATE, WEAPONS } from './protocol.ts';
-import type { GameEvent, InputFrame, Kit, Mode, PlayerState, ProjectileState, ServerMessage, Vec3, VoxelEdit, WeaponId, WorldConfig } from './protocol.ts';
+import type { GameEvent, InputFrame, Kit, Mode, PlayerState, ProjectileState, RemotePlayerState, ServerMessage, Vec3, VoxelEdit, WeaponId, WorldConfig } from './protocol.ts';
 import { aimDirection, EYE_HEIGHT, movePlayer, playerCollides, PLAYER_HEIGHT, PLAYER_RADIUS } from './movement.ts';
 import { damageBlock, packBlock, raycast, VoxelWorld } from './voxel.ts';
-import { captureSnapshot, encodeServerMessage, encodeSnapshot, type SnapshotFrame } from './wire.ts';
+import { captureOwnerState, captureSnapshot, encodeRecipientSnapshot, encodeServerMessage, encodeSnapshot, type OwnerState, type SnapshotFrame } from './wire.ts';
 import { createWeaponPose, getWeaponMuzzle, hideWeaponPose, stepWeaponMotion, stepWeaponPose, type WeaponPoseState } from './weapon-pose.ts';
 import { grenadeLaunch, stepGrenade, type GrenadeFlight } from './grenade.ts';
 
@@ -51,6 +51,8 @@ export interface Connection {
   magazines: { ak47: number; awp: number };
   initial: InitialWorld | null;
   snapshot: SnapshotFrame | null;
+  ownerSnapshot: OwnerState | null;
+  roster: ReadonlyMap<number, { id: number; name: string; team: PlayerState['team'] }>;
 }
 interface Projectile extends ProjectileState, GrenadeFlight { damage: number; expires: number }
 interface Shot {
@@ -148,7 +150,7 @@ export class GameServer {
       peer, player: null, closed: false, connectedAt: now, rateStartedAt: now, messages: 0, frames: 0,
       invalid: 0, lastMessage: now, lobbySince: now, queue: [], input: null, highestSeq: 0, lastInputTick: this.tick,
       previousFire: false, previousAlt: false, weaponPoses: new Map(), weaponMotion: { x: 0, y: 0, z: 0 },
-      magazines: { ak47: 30, awp: 5 }, initial: null, snapshot: null,
+      magazines: { ak47: 30, awp: 5 }, initial: null, snapshot: null, ownerSnapshot: null, roster: new Map(),
     };
     this.connections.add(connection);
     return connection;
@@ -163,6 +165,8 @@ export class GameServer {
     connection.queue = [];
     connection.initial = null;
     connection.snapshot = null;
+    connection.ownerSnapshot = null;
+    connection.roster = new Map();
     connection.input = null;
   }
 
@@ -202,6 +206,16 @@ export class GameServer {
   }
 
   private broadcast(message: ServerMessage): void {
+    if (message.type === 'event' && message.inputSeq !== undefined) {
+      const { inputSeq, ...publicMessage } = message;
+      const publicData = encodeServerMessage(publicMessage), ownerData = encodeServerMessage(message);
+      for (const connection of this.connections) {
+        if (connection.player && !connection.initial) {
+          this.send(connection, connection.player.id === message.shooterId ? ownerData : publicData);
+        }
+      }
+      return;
+    }
     const encoded = encodeServerMessage(message);
     if (this.publish && message.type !== 'snapshot') { this.publish(encoded); return; }
     for (const connection of this.connections) {
@@ -476,7 +490,8 @@ export class GameServer {
     if (player.health > 0) return;
     player.alive = false;
     player.deaths++;
-    const death = { player: { ...player, position: { ...player.position }, velocity: { ...player.velocity } },
+    const death = { player: { id: player.id, weapon: player.weapon, alive: player.alive, aiming: player.aiming,
+      deaths: player.deaths, position: { ...player.position }, velocity: { ...player.velocity }, yaw: player.yaw, pitch: player.pitch },
       hitPoint: { ...(hit?.point ?? player.position) }, impulse: { ...(hit?.impulse ?? { x: 0, y: 0, z: 0 }) } };
     player.aiming = false;
     const shooter = this.players.get(owner);
@@ -715,27 +730,51 @@ export class GameServer {
   }
 
   sendSnapshot(only?: Connection): void {
+    const roster = new Map([...this.players.values()].map(({ id, name, team }) => [id, { id, name, team }]));
+    const players: RemotePlayerState[] = [...this.players.values()].map(player => ({
+      id: player.id, name: player.name, team: player.team, weapon: player.weapon, alive: player.alive,
+      aiming: player.aiming, kills: player.kills, deaths: player.deaths, hasGrenades: player.grenades > 0,
+      position: player.position, velocity: { x: player.velocity.x, z: player.velocity.z }, yaw: player.yaw, pitch: player.pitch,
+    }));
+    const velocities = new Map<number, { id: number; velocity: Vec3 }[]>();
+    for (const projectile of this.projectiles.values()) {
+      let owned = velocities.get(projectile.owner);
+      if (!owned) { owned = []; velocities.set(projectile.owner, owned); }
+      owned.push({ id: projectile.id, velocity: projectile.velocity });
+    }
     const snapshot: ServerMessage = {
-      type: 'snapshot', roundId: this.roundId, tick: this.tick, players: [...this.players.values()],
-      projectiles: [...this.projectiles.values()].map(({ id, position, velocity, weapon, owner }) => ({ id, position, velocity, weapon, owner })),
+      type: 'snapshot', roundId: this.roundId, tick: this.tick, players, owner: null, projectileVelocities: [],
+      projectiles: [...this.projectiles.values()].map(({ id, position, weapon, owner }) => ({ id, position, weapon, owner })),
       scores: this.scores,
-      remaining: this.options.roundSeconds ? Math.max(0, this.options.roundSeconds - (this.tick - this.roundStart) * DT) : null,
+      roundEndTick: this.options.roundSeconds ? this.roundStart + this.options.roundSeconds * TICK_RATE : null,
     };
     if (this.nextSnapshot > 0xffffffff) {
       this.nextSnapshot = 1;
-      for (const connection of this.connections) connection.snapshot = null;
+      for (const connection of this.connections) { connection.snapshot = null; connection.ownerSnapshot = null; }
     }
     const frame = captureSnapshot(snapshot, this.nextSnapshot++);
     const encoded = new Map<SnapshotFrame | null, Uint8Array>();
     for (const connection of only ? [only] : this.connections) {
       if (!connection.player || connection.initial || connection.closed) continue;
+      const upserts = [...roster.values()].filter(player => {
+        const known = connection.roster.get(player.id);
+        return !known || known.name !== player.name || known.team !== player.team;
+      });
+      const removed = [...connection.roster.keys()].filter(id => !roster.has(id));
+      if (upserts.length || removed.length) {
+        if (!this.send(connection, { type: 'roster', upserts, removed })) continue;
+        connection.roster = roster;
+      }
       let data = encoded.get(connection.snapshot);
       if (!data) {
         data = encodeSnapshot(frame, connection.snapshot);
         encoded.set(connection.snapshot, data);
       }
       // A skipped snapshot releases its reference; the next accepted frame repairs the stream in full.
-      connection.snapshot = this.send(connection, data, true) ? frame : null;
+      const owner = captureOwnerState(connection.player, velocities.get(connection.player.id) ?? [], frame);
+      const accepted = this.send(connection, encodeRecipientSnapshot(data, owner, connection.ownerSnapshot), true);
+      connection.snapshot = accepted ? frame : null;
+      connection.ownerSnapshot = accepted ? owner : null;
     }
   }
 
@@ -751,6 +790,7 @@ export class GameServer {
     this.scores = [0, 0];
     for (const connection of this.connections) {
       connection.snapshot = null;
+      connection.ownerSnapshot = null;
       connection.queue = [];
       connection.input = null;
       connection.highestSeq = 0;

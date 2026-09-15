@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { PLAYER_HEIGHT } from '../shared/movement';
-import type { GameEvent, PlayerState, VoxelEdit, WeaponId } from '../shared/protocol';
+import type { GameEvent, RemotePlayerState, VoxelEdit, WeaponId } from '../shared/protocol';
 import type { VoxelWorld } from '../shared/voxel';
 import { loadWeaponModel } from './weapon-model';
 import { Ragdolls } from './ragdolls';
@@ -128,7 +128,7 @@ export class PlayerVisuals {
     this.bones[index].rotation.set(-x * DEGREES, -z * DEGREES, y * DEGREES, 'YZX');
   }
 
-  private updatePose(player: PlayerState, time: number): void {
+  private updatePose(player: Pick<RemotePlayerState, 'position' | 'velocity' | 'yaw' | 'pitch' | 'weapon' | 'aiming'>, time: number): void {
     this.root.position.set(player.position.x, player.position.y + PLAYER_HEIGHT / 2, player.position.z);
     this.root.rotation.set(0, player.yaw, 0);
     // Java measured displacement every five 60 Hz ticks, multiplied by 1.5 for the skeleton.
@@ -169,27 +169,26 @@ export class PlayerVisuals {
 
   applyEdits(edits: readonly VoxelEdit[]): void { this.ragdolls?.applyEdits(edits); }
 
-  death(event: GameEvent, fallback: PlayerState | undefined, time: number): void {
-    const player = event.death?.player ?? fallback;
-    if (!this.ragdolls || event.event !== 'death' || !player || player.id !== event.targetId) return;
-    const deaths = event.death?.player.deaths ?? player.deaths + (player.alive ? 1 : 0);
+  death(event: GameEvent, time: number): void {
+    if (!this.ragdolls || event.event !== 'death' || !event.death || event.death.player.id !== event.targetId) return;
+    const { player, hitPoint, impulse } = event.death;
+    const deaths = player.deaths;
     if (deaths <= (this.deathCounts.get(player.id) ?? -1)) return;
     this.deathCounts.set(player.id, deaths);
     const cached = this.lastPoses.get(player.id);
     const useCached = cached && cached.deaths === deaths - 1 && cached.position.distanceTo(player.position) < 15;
     if (!useCached) this.updatePose(player, time);
-    const hit = event.death?.hitPoint ?? { ...event.position, y: event.position.y + PLAYER_HEIGHT * .65 };
-    const point = new THREE.Vector3(hit.x, hit.y, hit.z);
+    const point = new THREE.Vector3(hitPoint.x, hitPoint.y, hitPoint.z);
     if (useCached) {
       // Match the visible interpolated body while keeping the projectile's world-space impulse.
       point.sub(player.position).applyAxisAngle(UP, cached.yaw - player.yaw).add(cached.position);
     }
     this.ragdolls.spawn(BONES.map((spec, i) => ({ parent: spec.parent, size: spec.size,
       matrix: useCached ? cached.matrices[i] : this.bones[i].matrixWorld })), player.velocity, point,
-      event.death?.impulse ?? { x: 0, y: 0, z: 0 }, time);
+      impulse, time);
   }
 
-  update(players: PlayerState[], localId: number, time: number, camera: THREE.Camera): void {
+  update(players: readonly RemotePlayerState[], localId: number, time: number, camera: THREE.Camera): void {
     this.ragdolls?.update(this.lastTime === null ? 0 : Math.max(0, Math.min(.1, time - this.lastTime)), time);
     this.lastTime = time;
     const present = new Set(players.map(player => player.id));
@@ -227,7 +226,7 @@ export class PlayerVisuals {
         this.body.setColorAt(this.body.count++, this.colors[i]);
       }
       const weaponMeshes = this.weapons.get(player.weapon);
-      if (weaponMeshes?.length && (player.weapon !== 'grenade' || player.grenades > 0)) {
+      if (weaponMeshes?.length && (player.weapon !== 'grenade' || player.hasGrenades)) {
         this.rightHand.set(0, .5, 0).applyMatrix4(this.bones[5].matrixWorld);
         this.leftHand.set(0, .5, 0).applyMatrix4(this.bones[3].matrixWorld);
         this.transform.position.copy(this.rightHand);

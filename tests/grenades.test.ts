@@ -3,15 +3,15 @@ import * as THREE from 'three';
 import { GrenadeVisuals } from '../src/client/grenade-visuals';
 import { Effects } from '../src/client/presentation';
 import { parseWeaponModel } from '../src/client/weapon-model';
-import type { GameEvent, ProjectileState } from '../src/shared/protocol';
+import type { GameEvent, RemoteProjectileState } from '../src/shared/protocol';
 import { stepGrenade, type GrenadeFlight } from '../src/shared/grenade';
 import { packBlock, VoxelWorld } from '../src/shared/voxel';
 
 const obj = await Bun.file('public/assets/weapons/grenade/GRENADE.obj').text();
 const mtl = await Bun.file('public/assets/weapons/grenade/GRENADE.mtl').text();
 const loader = async () => parseWeaponModel(obj, mtl);
-const grenade = (x: number, id = 1, y = 3): ProjectileState => ({ id, owner: 7, weapon: 'grenade',
-  position: { x, y, z: 0 }, velocity: { x: 60, y: 0, z: 0 } });
+const grenade = (x: number, id = 1, y = 3): RemoteProjectileState => ({ id, owner: 7, weapon: 'grenade',
+  position: { x, y, z: 0 } });
 const event = (kind: GameEvent['event'], tick: number, id = 1): GameEvent => ({ type: 'event', event: kind,
   roundId: 1, tick, weapon: 'grenade', projectileId: id, position: { x: 0, y: 3, z: 0 } });
 
@@ -217,7 +217,7 @@ test.each([0, .05, .15, .3])('local prediction survives %s seconds of confirmati
       const time = 1 + delay + tick / 60;
       if (tick % 3 === 0) {
         visuals.update(time); const beforeSnapshot = position();
-        visuals.snapshot([{ ...grenade(0), position: { ...authority.position }, velocity: { ...authority.velocity } }], 59 + tick, time);
+        visuals.snapshot([{ ...grenade(0), position: { ...authority.position } }], 59 + tick, time, [{ id: 1, velocity: { ...authority.velocity } }]);
         visuals.update(time);
         expect(position().distanceTo(beforeSnapshot)).toBeLessThan(.0001);
         visuals.acknowledge(7, 30);
@@ -245,6 +245,42 @@ test('server corrections are continuous and settle onto the authoritative launch
     visuals.update(1.5);
     expect(position().distanceTo(new THREE.Vector3(authority.position.x, authority.position.y, authority.position.z))).toBeLessThan(.002);
   } finally { visuals.dispose(); }
+});
+
+test('Effects reconciles a predicted grenade only with its matching owner velocity', async () => {
+  const scene = new THREE.Scene(), effects = new Effects(scene, 160, loader);
+  await effects.ready;
+  const world = new VoxelWorld({ seed: 1, size: 256, height: 64 });
+  const launch = { position: { x: 100, y: 100, z: 100 }, velocity: { x: 60, y: 10, z: 0 } };
+  const projectile = { ...grenade(180), position: { x: 180, y: 100, z: 100 } };
+  const velocity = { x: 0, y: 0, z: 0 };
+  const original = structuredClone({ projectile, velocity });
+  const mesh = scene.getObjectByName('UBERCUBE thrown grenades') as THREE.InstancedMesh;
+  const position = () => {
+    const matrix = new THREE.Matrix4(); mesh.getMatrixAt(0, matrix);
+    return new THREE.Vector3().setFromMatrixPosition(matrix);
+  };
+  try {
+    effects.predictGrenade(7, 30, launch, world, 1);
+    effects.event({ ...event('shot', 60), position: launch.position, velocity: launch.velocity, shooterId: 7, inputSeq: 30 }, 1);
+    effects.snapshot([projectile], 65, 1.1, [{ id: 999, velocity }]);
+    effects.update(.1, 1.2);
+    expect(mesh.count).toBe(1);
+    const expected = structuredClone(launch);
+    for (let tick = 0; tick < 12; tick++) stepGrenade(expected, world);
+    expect(position().x).toBeCloseTo(expected.position.x, 4);
+    effects.snapshot([projectile], 71, 1.2);
+    effects.update(.1, 1.3);
+    for (let tick = 0; tick < 6; tick++) stepGrenade(expected, world);
+    expect(position().x).toBeCloseTo(expected.position.x, 4);
+    const before = position();
+    effects.snapshot([projectile], 77, 1.3, [{ id: 1, velocity }]);
+    effects.update(0, 1.3);
+    expect(position().distanceTo(before)).toBeLessThan(.0001);
+    effects.update(.4, 1.7);
+    expect(position().x).toBeCloseTo(180, 1);
+    expect({ projectile, velocity }).toEqual(original);
+  } finally { effects.clear(); }
 });
 
 test('input identity, acknowledgement, missing confirmation and reset bound local predictions', async () => {
@@ -290,7 +326,7 @@ test('visual capacity preserves local confirmation binding and explosions remove
     visuals.predict(7, 30, launch, world, 1);
     visuals.event({ ...event('shot', 60), position: launch.position, velocity: launch.velocity, shooterId: 7, inputSeq: 30 }, 1.1);
     visuals.event(event('shot', 61, 2), 1.12); visuals.update(1.15); expect(mesh.count).toBe(1);
-    visuals.snapshot([grenade(0, 2), { ...grenade(0), ...launch }], 63, 1.2);
+    visuals.snapshot([grenade(0, 2), { ...grenade(0), position: launch.position }], 63, 1.2, [{ id: 1, velocity: launch.velocity }]);
     visuals.update(1.2); expect(mesh.count).toBe(1);
     visuals.event(event('explosion', 64), 1.21); visuals.event(event('explosion', 64, 2), 1.21);
     visuals.update(1.21); expect(mesh.count).toBe(0);

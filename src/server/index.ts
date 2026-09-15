@@ -107,7 +107,7 @@ export function startServer(options: StartOptions = {}) {
   let maxLoopDelay = 0;
   const network = { receivedMessages: 0, receivedBytes: 0, sentMessages: 0, sentBytes: 0,
     receiveWorkMs: 0, maxReceiveWorkMs: 0,
-    sentBytesByType: { welcome: 0, world: 0, snapshot: 0, reset: 0, error: 0, pong: 0, event: 0 } };
+    sentBytesByType: { welcome: 0, roster: 0, world: 0, snapshot: 0, reset: 0, error: 0, pong: 0, event: 0 } };
   const sockets = new Set<ServerWebSocket<SocketData>>();
   let batching = false;
   const sendNow = (ws: ServerWebSocket<SocketData>, data: string | Uint8Array) => {
