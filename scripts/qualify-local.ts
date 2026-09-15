@@ -1,5 +1,7 @@
 import { strict as assert } from 'node:assert';
+import { appendFile, mkdir } from 'node:fs/promises';
 import { cpus, totalmem } from 'node:os';
+import { dirname } from 'node:path';
 import { startServer, readConfig } from '../src/server/index';
 import { parseLoadtestArgs, runLoadtest, terrainDigest } from './loadtest';
 
@@ -15,26 +17,59 @@ for (const arg of delayArgs) {
 const latencyMs = delays.get('latency-ms') ?? 0, jitterMs = delays.get('jitter-ms') ?? 0;
 assert(latencyMs <= 2000 && jitterMs <= latencyMs, 'Latency must be 0..2000 ms and jitter 0..latency');
 const loadArgs = Bun.argv.slice(2).filter(arg => !serverArgs.includes(arg) && !delayArgs.includes(arg)
-  && arg !== '--server-child' && arg !== '--cpu-profile');
+  && arg !== '--server-child' && arg !== '--cpu-profile' && arg !== '--memory-profile');
 const options = parseLoadtestArgs(loadArgs);
+const memoryProfile = Bun.argv.includes('--memory-profile');
+const memoryProfilePath = options.output.replace(/\.json$/, '.memory.jsonl');
+const stopFile = options.output + '.stop';
 assert(!loadArgs.some(arg => arg.startsWith('--url=')), 'This runner only creates its own local test server');
 
 if (Bun.argv.includes('--server-child')) {
   assert(process.send, 'The server child requires its parent IPC channel');
+  const heapStats = memoryProfile ? (await import('bun:jsc')).heapStats : undefined;
   const host = startServer({ ...readConfig(serverArgs, {}), port: 0, hostname: '127.0.0.1', maxPlayers: options.players,
     admission: { maxConnectionsPerIp: options.players + 16, ipBurst: options.players + 16 } });
+  let pendingMemoryWrite = Promise.resolve();
+  let writingMemory = false;
+  const sampleMemory = async (stage: 'start' | 'interval' | 'end') => {
+    if (!heapStats) return;
+    writingMemory = true;
+    try {
+      const entry = JSON.stringify({ date: new Date().toISOString(), stage, pid: process.pid, uptimeSeconds: process.uptime(),
+        roundId: host.game.roundId, revision: host.game.revision, players: host.game.players.size,
+        connections: host.game.connections.size, worldEdits: host.game.world.editCount,
+        memory: process.memoryUsage(), heap: heapStats(),
+        limitation: 'Diagnostic only: no explicit GC request, but heapStats may collect an empty heap and rebuild allocator free lists. Some counters describe the last collection.' });
+      pendingMemoryWrite = appendFile(memoryProfilePath, entry + '\n');
+      await pendingMemoryWrite;
+    } finally { writingMemory = false; }
+  };
+  if (memoryProfile) {
+    try {
+      await mkdir(dirname(memoryProfilePath), { recursive: true });
+      await Bun.write(memoryProfilePath, '');
+      await sampleMemory('start');
+    } catch (error) { host.stop(); process.disconnect?.(); throw error; }
+  }
+  const memoryTimer = memoryProfile ? setInterval(() => {
+    if (writingMemory) return;
+    void sampleMemory('interval').catch(error => process.send?.({ type: 'diagnostic-error', message: String(error) }));
+  }, 60000) : undefined;
   process.send({ type: 'ready', port: host.server.port });
   process.on('message', async message => {
     if (message !== 'inspect') return;
     const deadline = performance.now() + 5000;
     while (host.game.connections.size && performance.now() < deadline) await Bun.sleep(20);
     const status = await (await fetch(`http://127.0.0.1:${host.server.port}/health`)).json();
+    if (memoryTimer) clearInterval(memoryTimer);
     host.stop();
+    try { await pendingMemoryWrite; await sampleMemory('end'); }
+    catch (error) { process.send?.({ type: 'diagnostic-error', message: String(error) }); }
     process.send!({ type: 'result', status, connections: host.game.connections.size,
       terrain: terrainDigest(host.game.world, host.game.roundId, host.game.revision) });
     process.disconnect?.();
   });
-  process.on('disconnect', () => { host.stop(); process.exit(0); });
+  process.on('disconnect', () => { if (memoryTimer) clearInterval(memoryTimer); host.stop(); process.exit(0); });
 } else {
   const controller = new AbortController();
   const abort = () => controller.abort(new Error('Local qualification interrupted'));
@@ -42,20 +77,22 @@ if (Bun.argv.includes('--server-child')) {
   let port = 0;
   let proxy: ReturnType<typeof Bun.spawn<'pipe', 'pipe', 'pipe'>> | undefined;
   let proxyStderr: Promise<string> | undefined;
+  let stopTimer: ReturnType<typeof setInterval> | undefined;
   let authoritative: { status: { players: number }; connections: number; terrain: ReturnType<typeof terrainDigest> } | undefined;
   const profileArgs = Bun.argv.includes('--cpu-profile')
     ? ['--cpu-prof-md', '--cpu-prof-dir=.runtime/stable-100', '--cpu-prof-name=server-profile.md'] : [];
   const child = Bun.spawn([process.execPath, ...profileArgs, import.meta.path, ...Bun.argv.slice(2), '--server-child'], {
     stdout: 'inherit', stderr: 'inherit',
-    ipc(message: { type: string; port: number } & NonNullable<typeof authoritative>) {
+    ipc(message: { type: string; port: number; message?: string } & NonNullable<typeof authoritative>) {
       if (message.type === 'ready') port = message.port;
       if (message.type === 'result') authoritative = message;
+      if (message.type === 'diagnostic-error') controller.abort(new Error(message.message));
     },
   });
-  const wait = async (ready: () => boolean) => {
+  const wait = async (ready: () => boolean, interruptible = true) => {
     const deadline = performance.now() + 10000;
     while (!ready()) {
-      controller.signal.throwIfAborted();
+      if (interruptible) controller.signal.throwIfAborted();
       assert(child.exitCode === null && performance.now() < deadline, 'Local test server did not respond');
       await Bun.sleep(20);
     }
@@ -81,15 +118,27 @@ if (Bun.argv.includes('--server-child')) {
       reader.releaseLock();
     }
     console.log(`Local qualification: ${options.players} active clients, ${options.seconds}s, separate server PID ${child.pid}`);
+    let checkingStop = false;
+    const checkStop = async () => {
+      if (checkingStop || controller.signal.aborted) return;
+      checkingStop = true;
+      try {
+        if (await Bun.file(stopFile).exists()) controller.abort(new Error(`Local qualification stopped by ${stopFile}`));
+      } catch (error) { controller.abort(error); }
+      finally { checkingStop = false; }
+    };
+    await checkStop();
+    stopTimer = setInterval(() => { void checkStop(); }, 1000);
     const result = await runLoadtest({ ...options, url: `ws://127.0.0.1:${port}/ws` }, controller.signal);
     child.send('inspect');
-    await wait(() => authoritative !== undefined);
+    await wait(() => authoritative !== undefined, false);
     const terrainMatches = JSON.stringify(result.terrain.final) === JSON.stringify(authoritative!.terrain);
     const clean = authoritative!.status.players === 0 && authoritative!.connections === 0 && result.cleanupComplete;
-    const evidence = { ok: result.ok && terrainMatches && clean, report: options.output,
+    const evidence = { ok: result.ok && terrainMatches && clean && !controller.signal.aborted, report: options.output,
       authoritative, terrainMatches, clean, bun: Bun.version, os: process.platform,
       cpu: cpus()[0]?.model, logicalCpus: cpus().length, totalMemory: totalmem(), latencyMs, jitterMs,
-      limitation: 'Separate processes on one local machine. Optional TCP delay/jitter; no packet loss, bandwidth limit, Internet or browser rendering measurement.' };
+      memoryProfile: memoryProfile ? memoryProfilePath : null, diagnostic: memoryProfile || Bun.argv.includes('--cpu-profile'), stopFile,
+      limitation: 'Separate processes on one local machine. Optional TCP delay/jitter; no packet loss, bandwidth limit, Internet or browser rendering measurement. Memory profiling traverses the heap and may perturb timing; diagnostic runs do not qualify endurance.' };
     await Bun.write(options.output.replace(/\.json$/, '.qualification.json'), JSON.stringify(evidence, null, 2));
     console.log(JSON.stringify({ ...evidence, authoritative: undefined, metrics: {
       receivedMbps: result.receivedMbitPerSecond, p99: result.maxSampledTickP99Ms,
@@ -97,6 +146,7 @@ if (Bun.argv.includes('--server-child')) {
     } }, null, 2));
     if (!evidence.ok) process.exitCode = 1;
   } finally {
+    if (stopTimer) clearInterval(stopTimer);
     if (proxy) {
       try { proxy.stdin.write('stop\n'); proxy.stdin.end(); } catch { proxy.kill(); }
       await Promise.race([proxy.exited, Bun.sleep(3000)]);

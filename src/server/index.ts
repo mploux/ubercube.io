@@ -137,19 +137,27 @@ export function startServer(options: StartOptions = {}) {
     const percentile = (fraction: number) => sorted.length ? sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * fraction))] : 0;
     const delays = [...loopDelay].sort((a, b) => a - b);
     let pendingInput = 0, bufferedBytes = 0, maxBufferedBytes = 0, initialConnections = 0, initialDeltaEdits = 0;
+    let pendingSendBytes = 0, pendingSendMessages = 0;
+    const memory = process.memoryUsage();
     for (const connection of game.connections) {
       pendingInput += connection.queue.length;
       const buffered = connection.peer.bufferedAmount();
       bufferedBytes += buffered; maxBufferedBytes = Math.max(maxBufferedBytes, buffered);
       if (connection.initial) { initialConnections++; initialDeltaEdits += connection.initial.deltaEdits; }
     }
+    for (const ws of sockets) {
+      pendingSendBytes += ws.data.pendingBytes;
+      pendingSendMessages += ws.data.pending.length;
+    }
     return {
       tick: game.tick, tickWork: { p50: percentile(.5), p95: percentile(.95), p99: percentile(.99), max: maxTickWork, samples: sorted.length },
       loopDelay: { p95: delays[Math.min(delays.length - 1, Math.floor(delays.length * .95))] ?? 0,
         p99: delays[Math.min(delays.length - 1, Math.floor(delays.length * .99))] ?? 0, max: maxLoopDelay, samples: delays.length },
-      pendingInput, lateTicks, abandonedMs, droppedInputs: game.droppedInputs, rss: process.memoryUsage().rss,
+      pendingInput, lateTicks, abandonedMs, droppedInputs: game.droppedInputs, rss: memory.rss,
+      heapUsed: memory.heapUsed, heapTotal: memory.heapTotal, external: memory.external, arrayBuffers: memory.arrayBuffers ?? null,
       projectiles: game.projectiles.size, worldEdits: game.world.editCount,
       bufferedBytes, maxBufferedBytes, initialConnections, initialDeltaEdits,
+      transportSockets: sockets.size, pendingSendBytes, pendingSendMessages,
       network: { ...network, sentBytesByType: { ...network.sentBytesByType } }, admission: admission.stats(),
     };
   };
