@@ -13,7 +13,7 @@
   },
   {
     "file": "src/shared/game.ts",
-    "sha256": "8888c91544474469bea825bf7b6ea9fceed421b166d20112f4d0a5153f5e013f"
+    "sha256": "f1746dfa29cfd271e010d31e362cd0d3217db8b3a3e9d464f2e43c57c38eae10"
   },
   {
     "file": "src/shared/grenade.ts",
@@ -25,11 +25,11 @@
   },
   {
     "file": "src/shared/protocol.ts",
-    "sha256": "ede3680b763e716c5589b025d35d7f3b9b6b809bb831e008809e4e78a26bd5c1"
+    "sha256": "fa0db437e57615b1379f584e3213df82792a93717d53a03f30b8db386ddd05aa"
   },
   {
     "file": "src/shared/ruin-model.ts",
-    "sha256": "071717fa523d4febba59551a26e5afa0a125fedc58b5070e0b7029050d02dd33"
+    "sha256": "fd6add3fa40929e578a9a0ccd49f9504b9b75235923353d080701561f2eed397"
   },
   {
     "file": "src/shared/terrain-generation.ts",

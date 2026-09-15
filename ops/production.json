@@ -15,10 +15,10 @@
   "serverRoot": "/opt/ubercube",
   "serviceName": "ubercube",
   "bunVersion": "1.3.11",
-  "recordedAt": "2026-09-13T17:52:20.759Z",
-  "recordedDeploymentId": "dpl_9aqGDxktthNXy15yjDjnRLxMbzpo",
-  "recordedServerRelease": "20260913-terrain",
-  "recordedProtocolVersion": 2,
-  "recordedClientCommit": "c5d0b3a917c854c41330317ecdc30f9a3d29c2e2",
+  "recordedAt": "2026-09-15T07:37:22.174Z",
+  "recordedDeploymentId": "dpl_9nAEDwi3kuwXwAsgWB1MYQkFZjmP",
+  "recordedServerRelease": "20260915-091500",
+  "recordedProtocolVersion": 3,
+  "recordedClientCommit": "d7266822b0c5052e94492eb864d3032819a4af76",
   "recordedVercelBunVersion": "1.3.14"
 }

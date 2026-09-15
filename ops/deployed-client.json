@@ -1,13 +1,13 @@
 [
   {
     "file": "bun.lock",
-    "sha": "a994e49a9bb1848176ee5dedcf978ff6b32455d1",
-    "size": 2877
+    "sha": "fdc88ebdc475f2ad1fa7e12d21527e7c0c1f7d14",
+    "size": 3055
   },
   {
     "file": "package.json",
-    "sha": "e392764311ed07674c8e30220e54595248406224",
-    "size": 757
+    "sha": "373af80f1745c42a5b4d6e749fee84754a9c5034",
+    "size": 780
   },
   {
     "file": "public/assets/LICENSE.txt",
@@ -83,6 +83,11 @@
     "file": "public/assets/audio/waterexplode.wav",
     "sha": "6512941a6df0203e8267df6209a3c6b970a3c46b",
     "size": 129740
+  },
+  {
+    "file": "public/assets/cannon-es-LICENSE.txt",
+    "sha": "1e48abdab6cac29100b2d58a78d173709815a6b3",
+    "size": 1125
   },
   {
     "file": "public/assets/minimap/East.png",
@@ -236,8 +241,8 @@
   },
   {
     "file": "src/client/bullet-visuals.ts",
-    "sha": "866f9a175702b9e5195aaaf566d1aeba37bc9445",
-    "size": 5687
+    "sha": "0db77560d671b9744dceac70d94482accd6bbf70",
+    "size": 4142
   },
   {
     "file": "src/client/grenade-visuals.ts",
@@ -256,8 +261,8 @@
   },
   {
     "file": "src/client/main.ts",
-    "sha": "38029c6226ca4231b7b18e3b1d3fe618378b4d3f",
-    "size": 40119
+    "sha": "f767e38013c57df093789c8f2defa114c4ab6f95",
+    "size": 40245
   },
   {
     "file": "src/client/minimap.ts",
@@ -271,13 +276,23 @@
   },
   {
     "file": "src/client/player-visuals.ts",
-    "sha": "1e3055f30ac95abc40f73ccadabde358be802a65",
-    "size": 12933
+    "sha": "8f7bf47d3f84a64fafc9860811494f541abdfce5",
+    "size": 16239
   },
   {
     "file": "src/client/presentation.ts",
-    "sha": "542df47cf9b882f89a4e29fd3e63880c4ae5ba8a",
-    "size": 6729
+    "sha": "b7db6bebcf1e97457f689886b25f5b7b986b2f09",
+    "size": 6678
+  },
+  {
+    "file": "src/client/ragdoll-terrain.ts",
+    "sha": "de714fed2b9391576fc1d15565d779edbdd7d7cf",
+    "size": 5545
+  },
+  {
+    "file": "src/client/ragdolls.ts",
+    "sha": "ddb86439f3e23c1aa3280413ef03508fc2f4254f",
+    "size": 8130
   },
   {
     "file": "src/client/remote-players.ts",
@@ -361,8 +376,8 @@
   },
   {
     "file": "src/shared/game.ts",
-    "sha": "c8470624e77e1598195247a4f4b6f36f3d683095",
-    "size": 33494
+    "sha": "8b89dc67ef16eff42044447f08ff631806ff542d",
+    "size": 34926
   },
   {
     "file": "src/shared/grenade.ts",
@@ -376,8 +391,8 @@
   },
   {
     "file": "src/shared/protocol.ts",
-    "sha": "f7a57a76d4690759421c582e4d3f78b4d2fee105",
-    "size": 3158
+    "sha": "bb94e795d76541ff67f6becce07ed44dc820ba17",
+    "size": 3391
   },
   {
     "file": "src/shared/ruin-model.ts",

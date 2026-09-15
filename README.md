@@ -4,15 +4,15 @@ FPS multijoueur en TypeScript, Three.js et Bun, dans un monde voxel constructibl
 
 La version publiée implémente la boucle complète : pseudo → équipement → partie → mort → nouvel équipement. Le Java de `../ubercube` reste une référence en lecture seule. Ses modèles, sons, police et textures réutilisés sont copiés dans `public/assets` avec leur licence ; voir [THIRD_PARTY.md](THIRD_PARTY.md).
 
-Évolution locale non publiée : les personnages tués deviennent des ragdolls avec impulsion au point d'impact, collisions avec le terrain destructible et durée de vie bornée. Voir [le fonctionnement et les limites](docs/player-reference.md#ragdolls).
+Depuis la publication du 15 septembre 2026, les personnages tués deviennent des ragdolls avec impulsion au point d'impact, collisions avec le terrain destructible et durée de vie bornée. Voir [le fonctionnement et les limites](docs/player-reference.md#ragdolls).
 
-Évolution locale non publiée : l'AK-47 et l'AWP utilisent désormais des tirs instantanés autoritaires, avec traces jaunes brèves et impulsions ragdoll conservées. Le code local utilise le protocole 3 et devra être publié côté client et serveur ensemble ; les empreintes de production enregistrées restent inchangées.
+L'AK-47 et l'AWP utilisent des tirs instantanés autoritaires, avec traces jaunes brèves et impulsions ragdoll conservées. Client et serveur ont été publiés ensemble avec le protocole 3 ; les grenades restent physiques. Voir [la preuve de publication](docs/deployment.md#publication-du-hitscan-et-des-ragdolls--15-septembre-2026).
 
 ## Reprendre le projet
 
 Nouveau développeur ou agent : lire [AGENTS.md](AGENTS.md), puis le [guide de démarrage](docs/agent-start.md). Il donne les points d'entrée du code, les décisions produit, les vérifications et les accès de publication sans dépendre d'un historique de discussion.
 
-Le site est [www.ubercube.io](https://www.ubercube.io/), le serveur de partie [game.ubercube.io](https://game.ubercube.io/health). Client Vercel, serveur Bun permanent sur Hetzner, protocole 2. Le dernier état publié **enregistré** est dans [ops/production.json](ops/production.json) avec ses empreintes client/serveur ; il doit être revérifié avant une publication.
+Le site est [www.ubercube.io](https://www.ubercube.io/), le serveur de partie [game.ubercube.io](https://game.ubercube.io/health). Client Vercel, serveur Bun permanent sur Hetzner, protocole 3. Le dernier état publié **enregistré** est dans [ops/production.json](ops/production.json) avec ses empreintes client/serveur ; il doit être revérifié avant une publication.
 
 Chaque nouvelle publication Vercel doit provenir d'un **commit poussé sur GitHub**, normalement par le déploiement automatique de `main`. Terminer et tester le travail, créer des commits ciblés, puis pousser lorsqu'une publication est demandée. Vérifier ensuite le SHA réellement publié. Les anciennes publications depuis des fichiers locaux sont conservées comme faits historiques dans [docs/deployment.md](docs/deployment.md) ; elles ne constituent plus une procédure de publication.
 
