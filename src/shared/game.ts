@@ -50,6 +50,10 @@ export interface Connection {
   initial: InitialWorld | null;
 }
 interface Projectile extends ProjectileState, GrenadeFlight { damage: number; expires: number }
+interface Shot {
+  id: number; owner: number; weapon: 'ak47' | 'awp'; inputSeq: number;
+  eye: Vec3; origin: Vec3; direction: Vec3;
+}
 
 const INPUT_KEYS = ['seq', 'roundId', 'moveX', 'moveZ', 'yaw', 'pitch', 'jump', 'sprint', 'fire', 'alt', 'weapon'];
 const WORLD_BATCH = 512;
@@ -101,6 +105,7 @@ export class GameServer {
   private roundStart = 0;
   private nextPlayer = 1;
   private nextProjectile = 1;
+  private readonly shots: Shot[] = [];
   private randomState: number;
   private edits = new Map<string, VoxelEdit>();
   private baseline: { revision: number; edits: VoxelEdit[] } | null = null;
@@ -413,13 +418,16 @@ export class GameServer {
     this.broadcast({ type: 'event', roundId: this.roundId, tick: this.tick, event, position: { ...position }, ...details });
   }
 
-  private hurt(player: PlayerState, damage: number, owner: number, headshot = false): void {
+  private hurt(player: PlayerState, damage: number, owner: number, headshot = false,
+    hit?: { weapon: WeaponId; point: Vec3; impulse: Vec3 }): void {
     if (!player.alive) return;
     player.health = Math.max(0, player.health - damage);
     if (player.health > 0) return;
     player.alive = false;
-    player.aiming = false;
     player.deaths++;
+    const death = { player: { ...player, position: { ...player.position }, velocity: { ...player.velocity } },
+      hitPoint: { ...(hit?.point ?? player.position) }, impulse: { ...(hit?.impulse ?? { x: 0, y: 0, z: 0 }) } };
+    player.aiming = false;
     const shooter = this.players.get(owner);
     if (shooter && shooter !== player) shooter.kills++;
     if (player.team === 1) this.scores[1]++;
@@ -431,7 +439,7 @@ export class GameServer {
         for (const pose of connection.weaponPoses.values()) { pose.charge = 0; pose.fireHeld = false; pose.altHeld = false; }
       }
     }
-    this.event('death', player.position, { shooterId: owner, targetId: player.id, headshot });
+    this.event('death', player.position, { shooterId: owner, targetId: player.id, weapon: hit?.weapon, headshot, death });
   }
 
   private action(connection: Connection, frame: InputFrame, previousYaw: number, previousPitch: number): void {
@@ -458,40 +466,27 @@ export class GameServer {
     const eye = { x: player.position.x, y: player.position.y + EYE_HEIGHT, z: player.position.z };
     const aim = aimDirection(player.yaw, player.pitch);
 
-    if ((actions.fired || actions.thrown) && this.projectiles.size < this.options.maxPlayers * 32) {
-      let origin: Vec3, velocity: Vec3;
-      if (actions.thrown) {
-        ({ position: origin, velocity } = grenadeLaunch(this.world, player, throwMuzzle!, actions.force));
-      } else {
-        const muzzle = getWeaponMuzzle(pose);
-        const sy = Math.sin(player.yaw), cy = Math.cos(player.yaw), sp = Math.sin(player.pitch), cp = Math.cos(player.pitch);
-        const toWorld = (v: Vec3): Vec3 => ({ x: cy * v.x + sy * sp * v.y + aim.x * v.z,
-          y: cp * v.y + aim.y * v.z, z: -sy * v.x + cy * sp * v.y + aim.z * v.z });
-        const offset = toWorld(muzzle.position);
-        origin = { x: eye.x + offset.x, y: eye.y + offset.y, z: eye.z + offset.z };
-        const muzzleDistance = Math.hypot(offset.x, offset.y, offset.z);
-        const obstruction = raycast(this.world, eye, offset, muzzleDistance);
-        const closeTarget = actions.fired && muzzleDistance > 0 ? this.playerHit(eye,
-          { x: offset.x / muzzleDistance, y: offset.y / muzzleDistance, z: offset.z / muzzleDistance },
-          obstruction?.distance ?? muzzleDistance, player.id) : null;
-        // A barrel overlapping terrain or a player must not spawn a bullet beyond that obstacle.
-        if (closeTarget) origin = closeTarget.point;
-        else if (obstruction) origin = { x: obstruction.point.x + obstruction.normal.x * .001,
-          y: obstruction.point.y + obstruction.normal.y * .001, z: obstruction.point.z + obstruction.normal.z * .001 };
-        const direction = toWorld(muzzle.direction);
-        const speed = WEAPONS[player.weapon].speed;
-        velocity = { x: direction.x * speed, y: direction.y * speed, z: direction.z * speed };
-      }
-      if (actions.thrown) player.grenades--;
-      else if (player.weapon === 'ak47' || player.weapon === 'awp') {
-        connection.magazines[player.weapon]--;
-        if (connection.magazines[player.weapon] < 0) connection.magazines[player.weapon] = WEAPONS[player.weapon].magazine;
-        player.ammo = connection.magazines[player.weapon];
-      }
+    if (actions.thrown && this.projectiles.size < this.options.maxPlayers * 32) {
+      const { position, velocity } = grenadeLaunch(this.world, player, throwMuzzle!, actions.force);
+      player.grenades--;
       const id = this.nextProjectile++;
-      this.projectiles.set(id, { id, owner: player.id, weapon: player.weapon, position: origin, velocity,
-        damage: WEAPONS[player.weapon].damage, expires: this.tick + (actions.thrown ? 2 : 8) * TICK_RATE, gravity: 0 });
-      this.event('shot', origin, { shooterId: player.id, weapon: player.weapon, projectileId: id, velocity: { ...velocity }, inputSeq: player.lastSeq });
+      this.projectiles.set(id, { id, owner: player.id, weapon: 'grenade', position, velocity,
+        damage: WEAPONS.grenade.damage, expires: this.tick + 2 * TICK_RATE, gravity: 0 });
+      this.event('shot', position, { shooterId: player.id, weapon: 'grenade', projectileId: id, velocity: { ...velocity }, inputSeq: player.lastSeq });
+    }
+    if (actions.fired && (player.weapon === 'ak47' || player.weapon === 'awp')) {
+      const muzzle = getWeaponMuzzle(pose);
+      const sy = Math.sin(player.yaw), cy = Math.cos(player.yaw), sp = Math.sin(player.pitch), cp = Math.cos(player.pitch);
+      const toWorld = (v: Vec3): Vec3 => ({ x: cy * v.x + sy * sp * v.y + aim.x * v.z,
+        y: cp * v.y + aim.y * v.z, z: -sy * v.x + cy * sp * v.y + aim.z * v.z });
+      const offset = toWorld(muzzle.position), direction = toWorld(muzzle.direction);
+      const length = Math.hypot(direction.x, direction.y, direction.z);
+      this.shots.push({ id: this.nextProjectile++, owner: player.id, weapon: player.weapon, inputSeq: player.lastSeq, eye,
+        origin: { x: eye.x + offset.x, y: eye.y + offset.y, z: eye.z + offset.z },
+        direction: { x: direction.x / length, y: direction.y / length, z: direction.z / length } });
+      connection.magazines[player.weapon]--;
+      if (connection.magazines[player.weapon] < 0) connection.magazines[player.weapon] = WEAPONS[player.weapon].magazine;
+      player.ammo = connection.magazines[player.weapon];
     }
     if (!actions.melee && !actions.heal && !actions.build) return;
     const block = raycast(this.world, eye, aim, 5);
@@ -501,7 +496,8 @@ export class GameServer {
       this.event('heal', target.point, { shooterId: player.id, targetId: target.player.id, weapon: 'medic' });
     } else if (actions.melee && target && target.distance < 2) {
       const headshot = target.point.y - target.player.position.y >= PLAYER_HEIGHT / 2 + .813;
-      this.hurt(target.player, headshot ? 100 : WEAPONS.shovel.damage, player.id, headshot);
+      this.hurt(target.player, headshot ? 100 : WEAPONS.shovel.damage, player.id, headshot,
+        { weapon: 'shovel', point: target.point, impulse: { x: aim.x * 8, y: aim.y * 8, z: aim.z * 8 } });
       this.event('impact', target.point, { shooterId: player.id, targetId: target.player.id, weapon: 'shovel', headshot });
     } else if (player.weapon === 'shovel' && block && !target) {
       if (actions.melee) {
@@ -539,7 +535,14 @@ export class GameServer {
       const dx = player.position.x - position.x, dy = player.position.y - position.y, dz = player.position.z - position.z;
       const distance = Math.hypot(dx, dy, dz);
       if (distance >= 10) continue;
-      this.hurt(player, Math.floor((10 - distance) * 10), projectile.owner);
+      const hitPoint = { x: player.position.x, y: player.position.y + PLAYER_HEIGHT * .65, z: player.position.z };
+      const torsoDy = hitPoint.y - position.y;
+      const torsoDistance = Math.hypot(dx, torsoDy, dz);
+      // Cosmetic impulse acts at the torso; capture the corpse before the existing gameplay knockback.
+      const corpseImpulse = (1 - distance / 10) * 20;
+      this.hurt(player, Math.floor((10 - distance) * 10), projectile.owner, false, { weapon: 'grenade', point: hitPoint,
+        impulse: torsoDistance > 1e-8 ? { x: dx / torsoDistance * corpseImpulse, y: torsoDy / torsoDistance * corpseImpulse,
+          z: dz / torsoDistance * corpseImpulse } : { x: 0, y: corpseImpulse, z: 0 } });
       const impulse = (1 - distance / 10) * 12;
       player.velocity.x += dx / Math.max(distance, .1) * impulse;
       player.velocity.y += 4;
@@ -548,42 +551,59 @@ export class GameServer {
     this.event('explosion', position, { shooterId: projectile.owner, weapon: 'grenade', projectileId: projectile.id });
   }
 
+  private resolveShots(): void {
+    for (const shot of this.shots) {
+      const { direction, weapon, owner, id } = shot;
+      const offset = { x: shot.origin.x - shot.eye.x, y: shot.origin.y - shot.eye.y, z: shot.origin.z - shot.eye.z };
+      const muzzleDistance = Math.hypot(offset.x, offset.y, offset.z);
+      let block = raycast(this.world, shot.eye, offset, muzzleDistance);
+      let target = muzzleDistance > 0 ? this.playerHit(shot.eye,
+        { x: offset.x / muzzleDistance, y: offset.y / muzzleDistance, z: offset.z / muzzleDistance },
+        block?.distance ?? muzzleDistance, owner) : null;
+      // Resolve an overlapping barrel's first contact before tracing beyond its muzzle.
+      const origin = target ? target.point : block ? {
+        x: block.point.x + block.normal.x * .001, y: block.point.y + block.normal.y * .001,
+        z: block.point.z + block.normal.z * .001,
+      } : shot.origin;
+      let distance = WEAPONS[weapon].range;
+      if (!target && !block) {
+        const bounds = { x: this.world.config.size, y: this.world.config.height + 64, z: this.world.config.size };
+        for (const axis of ['x', 'y', 'z'] as const) {
+          if (origin[axis] < 0 || origin[axis] > bounds[axis]) { distance = 0; break; }
+          if (direction[axis] !== 0) distance = Math.min(distance,
+            Math.max(0, ((direction[axis] > 0 ? bounds[axis] : 0) - origin[axis]) / direction[axis]));
+        }
+        block = raycast(this.world, origin, direction, distance);
+        target = this.playerHit(origin, direction, block?.distance ?? distance, owner);
+      }
+      const endPosition = target?.point ?? block?.point ?? {
+        x: origin.x + direction.x * distance, y: origin.y + direction.y * distance, z: origin.z + direction.z * distance,
+      };
+      this.event('shot', origin, { shooterId: owner, weapon, projectileId: id, inputSeq: shot.inputSeq, endPosition });
+      if (target) {
+        const headshot = target.point.y - target.player.position.y >= PLAYER_HEIGHT / 2 + .813;
+        const corpseImpulse = weapon === 'awp' ? 20 : 12;
+        this.hurt(target.player, headshot ? 100 : WEAPONS[weapon].damage, owner, headshot,
+          { weapon, point: target.point,
+            impulse: { x: direction.x * corpseImpulse, y: direction.y * corpseImpulse, z: direction.z * corpseImpulse } });
+        this.event('impact', target.point, { shooterId: owner, targetId: target.player.id, weapon, headshot, projectileId: id });
+      } else if (block) {
+        const blockColor = block.value & 0xffffff;
+        this.mutate(block.x, block.y, block.z, damageBlock(block.value, WEAPONS[weapon].damage / 200));
+        this.event('impact', block.point, { shooterId: owner, weapon, blockColor, projectileId: id });
+      }
+    }
+    this.shots.length = 0;
+  }
+
   private updateProjectiles(): void {
     for (const projectile of this.projectiles.values()) {
       if (this.tick >= projectile.expires) {
-        if (projectile.weapon === 'grenade') this.explode(projectile);
-        else this.event('projectile-end', projectile.position, { shooterId: projectile.owner, weapon: projectile.weapon, projectileId: projectile.id });
+        this.explode(projectile);
         this.projectiles.delete(projectile.id);
         continue;
       }
-      if (projectile.weapon === 'grenade') stepGrenade(projectile, this.world);
-      else {
-        const speed = Math.hypot(projectile.velocity.x, projectile.velocity.y, projectile.velocity.z);
-        if (speed >= 1e-8) {
-          const direction = { x: projectile.velocity.x / speed, y: projectile.velocity.y / speed, z: projectile.velocity.z / speed };
-          const distance = speed * DT;
-          const block = raycast(this.world, projectile.position, direction, distance);
-          const target = this.playerHit(projectile.position, direction, block?.distance ?? distance, projectile.owner);
-          if (target) {
-            const headshot = target.point.y - target.player.position.y >= PLAYER_HEIGHT / 2 + .813;
-            this.hurt(target.player, headshot ? 100 : projectile.damage, projectile.owner, headshot);
-            this.event('impact', target.point, { shooterId: projectile.owner, targetId: target.player.id, weapon: projectile.weapon, headshot, projectileId: projectile.id });
-            this.projectiles.delete(projectile.id);
-            continue;
-          }
-          if (block) {
-            const blockColor = block.value & 0xffffff;
-            this.mutate(block.x, block.y, block.z, damageBlock(block.value, projectile.damage / 200));
-            this.event('impact', block.point, { shooterId: projectile.owner, weapon: projectile.weapon, blockColor, projectileId: projectile.id });
-            this.projectiles.delete(projectile.id);
-            continue;
-          }
-          projectile.position.x += projectile.velocity.x * DT;
-          projectile.position.y += projectile.velocity.y * DT;
-          projectile.position.z += projectile.velocity.z * DT;
-        }
-      }
-      if (!this.projectiles.has(projectile.id)) continue;
+      stepGrenade(projectile, this.world);
       const { x, y, z } = projectile.position;
       if (x < 0 || z < 0 || y < 0 || x >= this.options.world.size || z >= this.options.world.size || y > this.options.world.height + 64) {
         this.event('projectile-end', projectile.position, { shooterId: projectile.owner, weapon: projectile.weapon, projectileId: projectile.id });
@@ -630,6 +650,8 @@ export class GameServer {
       this.action(connection, frame, previousYaw, previousPitch);
       if (player.position.y < -10) this.hurt(player, 100, player.id);
     }
+    // Every accepted shot uses this tick's completed movement, including a shooter's fatal return shot.
+    this.resolveShots();
     this.updateProjectiles();
     this.flushWorld();
     if (this.tick % 3 === 0) this.sendSnapshot();
@@ -653,6 +675,7 @@ export class GameServer {
     this.edits.clear();
     this.baseline = null;
     this.projectiles.clear();
+    this.shots.length = 0;
     this.scores = [0, 0];
     for (const connection of this.connections) {
       connection.queue = [];

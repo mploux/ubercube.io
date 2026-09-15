@@ -1,7 +1,9 @@
 import * as THREE from 'three';
 import { PLAYER_HEIGHT } from '../shared/movement';
-import type { PlayerState, WeaponId } from '../shared/protocol';
+import type { GameEvent, PlayerState, VoxelEdit, WeaponId } from '../shared/protocol';
+import type { VoxelWorld } from '../shared/voxel';
 import { loadWeaponModel } from './weapon-model';
+import { Ragdolls } from './ragdolls';
 
 const BONES = [
   { name: 'body', parent: -1, position: [0, -.15, 0], size: [.65, 1.1, .3], color: [6, 46, 6] },
@@ -18,6 +20,7 @@ const BONES = [
 const WEAPONS: WeaponId[] = ['ak47', 'awp', 'shovel', 'grenade', 'medic'];
 const DEGREES = Math.PI / 180;
 const FORWARD = new THREE.Vector3(0, 0, -1);
+const UP = new THREE.Vector3(0, 1, 0);
 
 export class PlayerVisuals {
   readonly ready: Promise<void>;
@@ -35,6 +38,10 @@ export class PlayerVisuals {
   private readonly weapons = new Map<WeaponId, THREE.InstancedMesh[]>();
   private readonly names = new Map<number, THREE.Sprite>();
   private readonly aliveIds = new Set<number>();
+  private readonly lastPoses = new Map<number, { matrices: THREE.Matrix4[]; position: THREE.Vector3; yaw: number; deaths: number }>();
+  private readonly deathCounts = new Map<number, number>();
+  private ragdolls: Ragdolls | null = null;
+  private lastTime: number | null = null;
   private readonly transform = new THREE.Object3D();
   private readonly matrix = new THREE.Matrix4();
   private readonly leftHand = new THREE.Vector3();
@@ -155,10 +162,44 @@ export class PlayerVisuals {
     }
   }
 
+  setWorld(world: Pick<VoxelWorld, 'get' | 'config'>): void {
+    this.clear();
+    this.ragdolls = new Ragdolls(world);
+  }
+
+  applyEdits(edits: readonly VoxelEdit[]): void { this.ragdolls?.applyEdits(edits); }
+
+  death(event: GameEvent, fallback: PlayerState | undefined, time: number): void {
+    const player = event.death?.player ?? fallback;
+    if (!this.ragdolls || event.event !== 'death' || !player || player.id !== event.targetId) return;
+    const deaths = event.death?.player.deaths ?? player.deaths + (player.alive ? 1 : 0);
+    if (deaths <= (this.deathCounts.get(player.id) ?? -1)) return;
+    this.deathCounts.set(player.id, deaths);
+    const cached = this.lastPoses.get(player.id);
+    const useCached = cached && cached.deaths === deaths - 1 && cached.position.distanceTo(player.position) < 15;
+    if (!useCached) this.updatePose(player, time);
+    const hit = event.death?.hitPoint ?? { ...event.position, y: event.position.y + PLAYER_HEIGHT * .65 };
+    const point = new THREE.Vector3(hit.x, hit.y, hit.z);
+    if (useCached) {
+      // Match the visible interpolated body while keeping the projectile's world-space impulse.
+      point.sub(player.position).applyAxisAngle(UP, cached.yaw - player.yaw).add(cached.position);
+    }
+    this.ragdolls.spawn(BONES.map((spec, i) => ({ parent: spec.parent, size: spec.size,
+      matrix: useCached ? cached.matrices[i] : this.bones[i].matrixWorld })), player.velocity, point,
+      event.death?.impulse ?? { x: 0, y: 0, z: 0 }, time);
+  }
+
   update(players: PlayerState[], localId: number, time: number, camera: THREE.Camera): void {
+    this.ragdolls?.update(this.lastTime === null ? 0 : Math.max(0, Math.min(.1, time - this.lastTime)), time);
+    this.lastTime = time;
+    const present = new Set(players.map(player => player.id));
+    for (const id of this.lastPoses.keys()) if (!present.has(id)) this.lastPoses.delete(id);
+    for (const id of this.deathCounts.keys()) if (!present.has(id)) this.deathCounts.delete(id);
     this.aliveIds.clear();
-    let visible = 0;
-    for (const player of players) if (player.id !== localId && player.alive) visible++;
+    let visible = this.ragdolls?.poses.length ?? 0;
+    for (const player of players) {
+      if (player.id !== localId && player.alive && player.deaths >= (this.deathCounts.get(player.id) ?? 0)) visible++;
+    }
     if (visible > this.capacity) {
       this.capacity = Math.max(visible, this.capacity * 2);
       this.body.instanceMatrix = new THREE.InstancedBufferAttribute(new Float32Array(this.capacity * BONES.length * 16), 16).setUsage(THREE.DynamicDrawUsage);
@@ -170,10 +211,17 @@ export class PlayerVisuals {
     this.body.count = 0;
     for (const meshes of this.weapons.values()) for (const mesh of meshes) mesh.count = 0;
     for (const player of players) {
-      if (player.id === localId || !player.alive) continue;
+      if (player.id === localId || !player.alive || player.deaths < (this.deathCounts.get(player.id) ?? 0)) continue;
       this.aliveIds.add(player.id);
       this.updatePose(player, time);
+      let cached = this.lastPoses.get(player.id);
+      if (!cached) {
+        cached = { matrices: BONES.map(() => new THREE.Matrix4()), position: new THREE.Vector3(), yaw: 0, deaths: 0 };
+        this.lastPoses.set(player.id, cached);
+      }
+      cached.position.copy(player.position); cached.yaw = player.yaw; cached.deaths = player.deaths;
       for (let i = 0; i < BONES.length; i++) {
+        cached.matrices[i].copy(this.bones[i].matrixWorld);
         this.matrix.copy(this.bones[i].matrixWorld).scale(this.sizes[i]);
         this.body.setMatrixAt(this.body.count, this.matrix);
         this.body.setColorAt(this.body.count++, this.colors[i]);
@@ -221,6 +269,13 @@ export class PlayerVisuals {
         name.visible = camera.position.distanceToSquared(name.position) < this.fogDistance * this.fogDistance;
       }
     }
+    for (const pose of this.ragdolls?.poses ?? []) {
+      for (let i = 0; i < BONES.length; i++) {
+        this.matrix.copy(pose[i]).scale(this.sizes[i]);
+        this.body.setMatrixAt(this.body.count, this.matrix);
+        this.body.setColorAt(this.body.count++, this.colors[i]);
+      }
+    }
     this.body.instanceMatrix.needsUpdate = true;
     this.body.instanceColor!.needsUpdate = true;
     for (const meshes of this.weapons.values()) for (const mesh of meshes) mesh.instanceMatrix.needsUpdate = true;
@@ -234,6 +289,10 @@ export class PlayerVisuals {
   }
 
   clear(): void {
+    this.ragdolls?.clear();
+    this.lastPoses.clear();
+    this.deathCounts.clear();
+    this.lastTime = null;
     this.body.count = 0;
     for (const meshes of this.weapons.values()) for (const mesh of meshes) mesh.count = 0;
     for (const name of this.names.values()) {

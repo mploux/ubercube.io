@@ -273,6 +273,7 @@ function resetPrediction(): void {
 function setWorld(config: WorldConfig): void {
   snow.reset();
   world = new VoxelWorld(config);
+  avatars.setWorld(world);
   if (terrain) terrain.reset(world);
   else terrain = new TerrainRenderer(scene, world, viewDistance, shadows.splits);
   if (minimapRenderer) minimapRenderer.reset(world);
@@ -402,6 +403,7 @@ function receive(message: ServerMessage): void {
     if (!message.initial && message.revision <= revision) return;
     if (!message.initial && message.revision !== revision + 1) { disconnect('Une mise à jour du terrain manque. Reconnectez-vous pour synchroniser la carte.'); return; }
     terrain.applyEdits(message.edits);
+    avatars.applyEdits(message.edits);
     minimapRenderer?.applyEdits(message.edits);
     revision = message.revision;
     if (message.complete) {
@@ -482,6 +484,7 @@ function handleEvent(event: GameEvent): void {
   if (event.event === 'death') {
     const shooter = players.find((player) => player.id === event.shooterId);
     const victim = players.find((player) => player.id === event.targetId);
+    avatars.death(event, victim, performance.now() / 1000);
     const row = document.createElement('div');
     row.textContent = event.targetId === localId
       ? `${event.headshot ? 'Headshooted by' : 'You died by'} ${shooter?.name ?? 'World'} !`

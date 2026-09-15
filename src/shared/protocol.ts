@@ -1,4 +1,4 @@
-export const PROTOCOL_VERSION = 2;
+export const PROTOCOL_VERSION = 3;
 export const TICK_RATE = 60;
 export const DT = 1 / TICK_RATE;
 export type Mode = 'tdm' | 'ffa';
@@ -35,6 +35,8 @@ export type GameEvent = {
   weapon?: WeaponId; headshot?: boolean;
   blockColor?: number; // Server-captured RGB24 before the impacted block changes.
   projectileId?: number; velocity?: Vec3; tick?: number; inputSeq?: number;
+  endPosition?: Vec3; // Hitscan shot endpoint, including misses; no persistent projectile or flight velocity.
+  death?: { player: PlayerState; hitPoint: Vec3; impulse: Vec3 }; // Cosmetic corpse state; never changes gameplay physics.
 };
 export type ServerMessage =
   | { type: 'welcome'; id: number; roundId: number; mode: Mode; maxPlayers: number; world: WorldConfig; tickRate: number }
@@ -49,10 +51,10 @@ export const KITS: Record<Kit, readonly WeaponId[]> = {
   sniper: ['awp', 'grenade', 'shovel'],
   medic: ['medic', 'ak47', 'grenade', 'shovel'],
 };
-export const WEAPONS: Record<WeaponId, { name: string; damage: number; interval: number; speed: number; magazine: number }> = {
-  ak47: { name: 'AK-47', damage: 20, interval: 8 / TICK_RATE, speed: 300, magazine: 30 },
-  awp: { name: 'AWP', damage: 70, interval: 62 / TICK_RATE, speed: 600, magazine: 5 },
-  shovel: { name: 'Pelle', damage: 20, interval: 0, speed: 0, magazine: 0 },
-  grenade: { name: 'Grenade', damage: 100, interval: 0, speed: 145.8, magazine: 10 },
-  medic: { name: 'Soins', damage: -10, interval: 0, speed: 0, magazine: 0 },
+export const WEAPONS: Record<WeaponId, { name: string; damage: number; interval: number; range: number; magazine: number }> = {
+  ak47: { name: 'AK-47', damage: 20, interval: 8 / TICK_RATE, range: 2400, magazine: 30 },
+  awp: { name: 'AWP', damage: 70, interval: 62 / TICK_RATE, range: 4800, magazine: 5 },
+  shovel: { name: 'Pelle', damage: 20, interval: 0, range: 0, magazine: 0 },
+  grenade: { name: 'Grenade', damage: 100, interval: 0, range: 0, magazine: 10 },
+  medic: { name: 'Soins', damage: -10, interval: 0, range: 0, magazine: 0 },
 };

@@ -4,6 +4,10 @@ FPS multijoueur en TypeScript, Three.js et Bun, dans un monde voxel constructibl
 
 La version publiée implémente la boucle complète : pseudo → équipement → partie → mort → nouvel équipement. Le Java de `../ubercube` reste une référence en lecture seule. Ses modèles, sons, police et textures réutilisés sont copiés dans `public/assets` avec leur licence ; voir [THIRD_PARTY.md](THIRD_PARTY.md).
 
+Évolution locale non publiée : les personnages tués deviennent des ragdolls avec impulsion au point d'impact, collisions avec le terrain destructible et durée de vie bornée. Voir [le fonctionnement et les limites](docs/player-reference.md#ragdolls).
+
+Évolution locale non publiée : l'AK-47 et l'AWP utilisent désormais des tirs instantanés autoritaires, avec traces jaunes brèves et impulsions ragdoll conservées. Le code local utilise le protocole 3 et devra être publié côté client et serveur ensemble ; les empreintes de production enregistrées restent inchangées.
+
 ## Reprendre le projet
 
 Nouveau développeur ou agent : lire [AGENTS.md](AGENTS.md), puis le [guide de démarrage](docs/agent-start.md). Il donne les points d'entrée du code, les décisions produit, les vérifications et les accès de publication sans dépendre d'un historique de discussion.
@@ -82,8 +86,8 @@ L'accueil conserve le panorama voxel animé. Le lobby utilise le fond original, 
 - TDM : admission jusqu'à 100 joueurs par défaut, affectation à l'équipe la moins nombreuse, départ immédiat sans attendre d'autres joueurs.
 - FFA : admission identique, sans équipe, classement par éliminations.
 - Assaut : AK-47, grenades, pelle. Sniper : AWP, grenades, pelle. Médecin : soins, AK-47, grenades, pelle.
-- Projectiles à vitesse finie, dégâts de tête, pose du canon et cadence décidés par le serveur. Balles jaunes du Java animées entre les snapshots, y compris les tirs qui touchent avant le prochain snapshot. Chargeurs renouvelés instantanément après passage sous zéro ; aucun rechargement temporisé ajouté.
-- Maniement des cinq armes repris des updates Java à 60 Hz : positions et pivots OBJ, changement d'arme, inertie souris, balancement marche/course, recul, visée et zoom AWP. Cadences AK-47 de 8 ticks et AWP de 62 ticks ; pelle et soins par clic, grenade chargée puis lancée au relâchement. Le client anticipe l'animation et le son ; le serveur confirme les projectiles et leurs effets.
+- AK-47 et AWP : raycasts instantanés au tick serveur, arrêt au premier joueur ou bloc et traces jaunes cosmétiques de 60 ms. Portées maximales de 2 400 / 4 800 blocs, également bornées aux limites du monde. Pose du canon, dispersion, dégâts de tête et cadence restent décidés par le serveur. Chargeurs renouvelés instantanément après passage sous zéro ; aucun rechargement temporisé ajouté.
+- Maniement des cinq armes repris des updates Java à 60 Hz : positions et pivots OBJ, changement d'arme, inertie souris, balancement marche/course, recul, visée et zoom AWP. Cadences AK-47 de 8 ticks et AWP de 62 ticks ; pelle et soins par clic, grenade chargée puis lancée au relâchement. Le client anticipe l'animation et le son ; le serveur confirme les tirs et leurs effets.
 - Personnages distants repris du renderer Java actif : dix volumes articulés, palette verte et peau, tête, marche/course et poses de visée, armes originales attachées aux mains et pseudos Riffic aux couleurs des équipes. Références et adaptations : [personnages Java](docs/player-reference.md).
 - Grenades avec charge, rebonds et dégâts radiaux ; modèle original visible dès le relâchement pour le tireur, avec prédiction visuelle et correction sur les confirmations serveur. Les grenades des autres joueurs conservent un tampon de 100 ms pour lisser les snapshots 20 Hz. Pelle, construction et résistance des blocs ; les dégâts partiels assombrissent les blocs.
 - Tirs alliés et soins possibles sur l'autre équipe, conformément aux chemins actifs du Java. En TDM, une mort rapporte un point à l'équipe opposée à celle de la victime.

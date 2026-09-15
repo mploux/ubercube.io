@@ -49,7 +49,7 @@ export async function checkMuzzleAlignment(renderer: THREE.WebGLRenderer): Promi
   function bulletFrame(weapon: WeaponId, origin: THREE.Vector3, direction: THREE.Vector3): Uint8Array {
     bullets.clear();
     bullets.event({ type: 'event', roundId: 1, event: 'shot', projectileId: 1, tick: 1,
-      weapon, position: origin, velocity: direction.clone().multiplyScalar(weapon === 'ak47' ? 300 : 600) }, 0);
+      weapon, position: origin, endPosition: origin.clone().addScaledVector(direction, 20) }, 0);
     bullets.update(0);
     renderer.clear(true, true, true);
     renderer.render(scene, camera);

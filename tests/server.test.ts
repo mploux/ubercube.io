@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from 'bun:test';
 import { GameServer } from '../src/server/game.ts';
 import type { Connection, Peer } from '../src/server/game.ts';
 import { readConfig, startServer } from '../src/server/index.ts';
-import { PROTOCOL_VERSION } from '../src/shared/protocol.ts';
+import { PROTOCOL_VERSION, WEAPONS } from '../src/shared/protocol.ts';
 import type { InputFrame, Kit, ServerMessage } from '../src/shared/protocol.ts';
 import { packBlock, VoxelWorld } from '../src/shared/voxel.ts';
 import { playerCollides } from '../src/shared/movement.ts';
@@ -162,7 +162,7 @@ describe('authoritative simulation', () => {
 
   test('old-round commands cannot spawn or act after reset', () => {
     const game = new GameServer();
-    const { connection, player } = join(game);
+    const { connection, player, peer } = join(game);
     const oldFrame = frame(game, connection, { fire: true, moveZ: 1 });
     game.receive(connection, JSON.stringify({ type: 'input', frames: [oldFrame] }));
     game.resetRound();
@@ -173,6 +173,7 @@ describe('authoritative simulation', () => {
     expect(connection.queue).toHaveLength(0);
     expect(player.lastSeq).toBe(0);
     expect(game.projectiles.size).toBe(0);
+    expect(peer.messages.some(message => message.type === 'event' && message.event === 'shot')).toBe(false);
   });
 
   test('headshot and repeated shots count one death, with legacy TDM friendly fire scoring', () => {
@@ -195,6 +196,98 @@ describe('authoritative simulation', () => {
     expect(game.scores[0] + game.scores[1]).toBe(1);
   });
 
+  test.each(['assault', 'sniper'] as const)('%s hits a target 100 blocks away in the firing tick without a persistent bullet', selectedKit => {
+    const game = new GameServer({ mode: 'ffa' });
+    const shooter = join(game, 'Shooter', selectedKit);
+    const victim = join(game, 'Distant target');
+    shooter.player.position = { x: 128.5, y: 80, z: 180.5 };
+    victim.player.position = { x: 128.5, y: 80.8, z: 80.5 };
+    input(game, shooter.connection, { fire: true, alt: true });
+    game.step();
+    const events = shooter.peer.messages.filter(message => message.type === 'event');
+    const shot = events.find(event => event.event === 'shot')!;
+    const impact = events.find(event => event.event === 'impact')!;
+    expect(impact?.targetId).toBe(victim.player.id);
+    expect(impact.tick).toBe(1);
+    expect(shot.tick).toBe(impact.tick);
+    expect(shot.projectileId).toBe(impact.projectileId);
+    expect(shot.endPosition).toEqual(impact.position);
+    expect(shot.velocity).toBeUndefined();
+    expect(victim.player.health).toBe(100 - WEAPONS[shooter.player.weapon].damage);
+    expect(game.projectiles.size).toBe(0);
+    game.sendSnapshot(shooter.connection);
+    expect(shooter.peer.messages.filter(message => message.type === 'snapshot').at(-1)?.projectiles).toHaveLength(0);
+    input(game, shooter.connection, { fire: false });
+    for (let tick = 0; tick < 25; tick++) game.step();
+    expect(victim.player.health).toBe(100 - WEAPONS[shooter.player.weapon].damage);
+    expect(shooter.peer.messages.filter(message => message.type === 'event' && message.event === 'impact')).toHaveLength(1);
+  });
+
+  test.each([true, false])('ray stops at the first target or wall (wall in front: %s)', wallInFront => {
+    const game = new GameServer({ mode: 'ffa' });
+    const shooter = join(game, 'Shooter');
+    const far = join(game, 'Far target');
+    const near = join(game, 'Near target');
+    for (let tick = 0; tick < 40; tick++) { input(game, shooter.connection, { alt: true }); game.step(); }
+    shooter.player.position = { x: 100.5, y: 50, z: 120.5 };
+    near.player.position = { x: 100.5, y: 50.8, z: 100.5 };
+    far.player.position = { x: 100.5, y: 50.8, z: 50.5 };
+    for (const { player } of [shooter, near, far]) player.velocity = { x: 0, y: 0, z: 0 };
+    for (let y = 50; y <= 54; y++) for (let z = 49; z <= 121; z++) game.world.set(100, y, z, 0);
+    const wallZ = wallInFront ? 110 : 75;
+    const wall = packBlock(80, 120, 60);
+    game.world.set(100, 52, wallZ, wall);
+    input(game, shooter.connection, { fire: true, alt: true }); game.step();
+    const impacts = shooter.peer.messages.filter(message => message.type === 'event' && message.event === 'impact');
+    expect(impacts).toHaveLength(1);
+    expect(impacts[0].type === 'event' && impacts[0].targetId).toBe(wallInFront ? undefined : near.player.id);
+    expect(near.player.health).toBe(wallInFront ? 100 : 80);
+    expect(far.player.health).toBe(100);
+    if (wallInFront) {
+      expect(game.world.get(100, 52, wallZ)).not.toBe(wall);
+      expect(impacts[0].type === 'event' && impacts[0].position.z).toBe(wallZ + 1);
+    } else expect(game.world.get(100, 52, wallZ)).toBe(wall);
+  });
+
+  test.each([
+    { targetFirst: false, movingIn: true }, { targetFirst: true, movingIn: true },
+    { targetFirst: false, movingIn: false }, { targetFirst: true, movingIn: false },
+  ])('ray uses this tick movement regardless of connection order: %j', ({ targetFirst, movingIn }) => {
+    const game = new GameServer({ mode: 'ffa' });
+    const first = join(game, 'First'), second = join(game, 'Second');
+    const shooter = targetFirst ? second : first, victim = targetFirst ? first : second;
+    for (let tick = 0; tick < 40; tick++) { input(game, shooter.connection, { alt: true }); game.step(); }
+    shooter.player.position = { x: 100.5, y: 80, z: 120.5 };
+    shooter.player.velocity = { x: 0, y: 0, z: 0 };
+    victim.player.position = { x: movingIn ? 100.81 : 100.75, y: 80.8, z: 90.5 };
+    victim.player.grounded = false;
+    victim.player.velocity = { x: movingIn ? -6 : 6, y: 0, z: 0 };
+    input(game, shooter.connection, { fire: true, alt: true }); game.step();
+    expect(victim.player.health).toBe(movingIn ? 80 : 100);
+    const impact = shooter.peer.messages.find(message => message.type === 'event' && message.event === 'impact');
+    expect(impact?.type === 'event' ? impact.targetId : undefined).toBe(movingIn ? victim.player.id : undefined);
+  });
+
+  test('both already-fired rays resolve when the shooters kill each other in the same tick', () => {
+    const game = new GameServer({ mode: 'ffa' });
+    const first = join(game, 'First'), second = join(game, 'Second');
+    first.player.position = { x: 100.5, y: 80, z: 120.5 };
+    second.player.position = { x: 100.5, y: 80, z: 90.5 };
+    first.player.health = second.player.health = 1;
+    input(game, first.connection, { fire: true, alt: true });
+    input(game, second.connection, { fire: true, alt: true, yaw: Math.PI });
+    game.step();
+    for (const { player } of [first, second]) {
+      expect(player.alive).toBe(false);
+      expect(player.kills).toBe(1);
+      expect(player.deaths).toBe(1);
+    }
+    const events = first.peer.messages.filter(message => message.type === 'event');
+    expect(events.filter(event => event.event === 'shot')).toHaveLength(2);
+    expect(events.filter(event => event.event === 'death').map(event => event.tick)).toEqual([1, 1]);
+    expect(game.projectiles.size).toBe(0);
+  });
+
   test('cadence and magazine rollover remain server-controlled and input timeout stops firing', () => {
     const game = new GameServer();
     const { connection, player, peer } = join(game);
@@ -213,7 +306,7 @@ describe('authoritative simulation', () => {
     expect(peer.messages.filter(message => message.type === 'event' && message.event === 'shot')).toHaveLength(stopped);
   });
 
-  test.each(['assault', 'sniper'] as const)('%s sends the full authoritative shot before an impact between snapshots', selectedKit => {
+  test.each(['assault', 'sniper'] as const)('%s sends the full ray before its same-tick impact between snapshots', selectedKit => {
     const game = new GameServer();
     const { connection, player, peer } = join(game, 'Shooter', selectedKit);
     player.position = { x: 120.5, y: 45, z: 120.5 };
@@ -232,7 +325,8 @@ describe('authoritative simulation', () => {
     expect(shot.shooterId).toBe(player.id);
     expect(shot.position.z).toBeGreaterThanOrEqual(119); // The AWP muzzle would otherwise start behind this wall.
     expect(shot.roundId).toBe(game.roundId);
-    expect(Math.hypot(shot.velocity!.x, shot.velocity!.y, shot.velocity!.z)).toBeCloseTo(selectedKit === 'assault' ? 300 : 600, 6);
+    expect(shot.velocity).toBeUndefined();
+    expect(shot.endPosition).toEqual(impact.position);
     expect(game.projectiles.size).toBe(0);
     expect(peer.messages.filter(message => message.type === 'snapshot').at(-1)?.projectiles).toHaveLength(0);
   });
@@ -251,21 +345,46 @@ describe('authoritative simulation', () => {
     expect(victim.player.health).toBeLessThan(100);
   });
 
-  test('expiry identifies the authoritative projectile without an impact or duplicate termination', () => {
+  test.each(['assault', 'sniper'] as const)('%s miss ends at the world ceiling without an impact or delayed expiry', selectedKit => {
     const game = new GameServer();
-    const { connection, player, peer } = join(game);
-    player.position = { x: 120.5, y: 55, z: 120.5 };
-    input(game, connection, { fire: true, pitch: 1.4 }); game.step();
-    const projectile = [...game.projectiles.values()][0];
-    expect(projectile).toBeDefined();
-    projectile.expires = game.tick + 1;
-    const origin = { ...projectile.position };
+    const { connection, player, peer } = join(game, 'Shooter', selectedKit);
+    player.position = { x: 120.5, y: 80, z: 120.5 };
+    input(game, connection, { fire: true, alt: true, pitch: 1.4 }); game.step();
+    const shot = peer.messages.filter(message => message.type === 'event').find(event => event.event === 'shot')!;
+    expect(shot.endPosition).toBeDefined();
+    expect(shot.endPosition!.y).toBeCloseTo(game.options.world.height + 64, 8);
+    expect(shot.endPosition!.x).toBeGreaterThanOrEqual(0);
+    expect(shot.endPosition!.x).toBeLessThanOrEqual(game.options.world.size);
+    expect(shot.endPosition!.z).toBeGreaterThanOrEqual(0);
+    expect(shot.endPosition!.z).toBeLessThanOrEqual(game.options.world.size);
+    expect(game.projectiles.size).toBe(0);
     input(game, connection, { fire: false }); game.step(); game.step();
-    const ends = peer.messages.filter(message => message.type === 'event').filter(message => message.event === 'projectile-end');
-    expect(ends).toHaveLength(1);
-    expect(ends[0].projectileId).toBe(projectile.id);
-    expect(ends[0].tick).toBe(projectile.expires);
-    expect(ends[0].position).toEqual(origin);
+    expect(peer.messages.some(message => message.type === 'event' && (message.event === 'impact' || message.event === 'projectile-end'))).toBe(false);
+  });
+
+  test('AK ray stops at its finite range before the boundary of a large world', () => {
+    const game = new GameServer({ world: { size: 2048, height: 64, seed: 12345 } });
+    const { connection, player, peer } = join(game);
+    player.position = { x: 40.5, y: 80, z: 40.5 };
+    input(game, connection, { fire: true, alt: true, yaw: -3 * Math.PI / 4 }); game.step();
+    const shot = peer.messages.filter(message => message.type === 'event').find(event => event.event === 'shot')!;
+    const end = shot.endPosition!;
+    expect(Math.hypot(end.x - shot.position.x, end.y - shot.position.y, end.z - shot.position.z)).toBeCloseTo(2400, 8);
+    expect(end.x).toBeLessThan(game.options.world.size);
+    expect(end.z).toBeLessThan(game.options.world.size);
+    expect(game.projectiles.size).toBe(0);
+    expect(peer.messages.some(message => message.type === 'event' && message.event === 'impact')).toBe(false);
+  });
+
+  test.each(['assault', 'sniper'] as const)('%s horizontal miss ends at the map edge without an impact', selectedKit => {
+    const game = new GameServer();
+    const { connection, player, peer } = join(game, 'Shooter', selectedKit);
+    player.position = { x: 120.5, y: 80, z: 120.5 };
+    input(game, connection, { fire: true, alt: true }); game.step();
+    const shot = peer.messages.filter(message => message.type === 'event').find(event => event.event === 'shot')!;
+    expect(shot.endPosition).toEqual({ x: shot.position.x, y: shot.position.y, z: 0 });
+    expect(game.projectiles.size).toBe(0);
+    expect(peer.messages.some(message => message.type === 'event' && message.event === 'impact')).toBe(false);
   });
 
   test('cancelActions clears a charged grenade without treating pause as a release and rejects non-booleans', () => {

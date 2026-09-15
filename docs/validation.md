@@ -1,6 +1,16 @@
-# Validation du 11 au 13 septembre 2026
+# Validation du 11 au 14 septembre 2026
 
 Le jeu est publié sur Vercel et Hetzner. Cette page distingue les vérifications locales et celles de production ; la parité des sensations avec le Java, la tenue prolongée sur Internet et les grandes distances d'affichage ne sont pas encore entièrement validées.
+
+## Ragdolls — 14 septembre 2026
+
+Travail local, non publié. `bun run doctor`, TypeScript et `bun run build` passent (11 sorties de compilation). Les 312 tests hors outillage de publication passent, dont 28 nouveaux tests couvrant événements fatals, impulsion et couple, pose/interpolation, réapparition, collisions voxel et nettoyage. Le test `client-build.test.ts` a d'abord rencontré `EPERM` au lancement de Bun dans le bac à sable ; sa réexécution autorisée passe. Les deux fichiers `release-prepare.test.ts` et `release-vercel.test.ts` exécutent Git et sont exclus pour respecter la consigne de cette session ; `bun run check` complet n'est donc pas annoncé comme exécuté. Aucun Git ni déploiement.
+
+Le harness GPU reconstruit depuis les sources finales affiche « RÉSULTAT : SUCCÈS » dans le navigateur. Les huit captures de `ragdoll-check.ts` montrent les deux directions d'impact à 0 / 0,1 / 0,3 / 1,5 seconde, avec les dix parties visibles puis le corps au sol. À 0,1 seconde, les centres des têtes se déplacent respectivement de −0,339 et +0,357 bloc sur X. Les contrôles existants de personnages, armes, projectiles, brouillard, neige et ombres passent aussi.
+
+Mesure CPU locale Bun 1.3.11, sans rendu : seize ragdolls de dix parties issus de la pose réelle, impulsion de 20, six secondes simulées à 60 images/s. Dispersés de huit blocs : p50 3,65 ms/image, p95 5,57 ms ; concentrés à 0,15 bloc : p50 3,34 ms, p95 5,14 ms. La fusion des voxels pleins a été retenue après mesure d'une fixture de 160 boîtes : 928 corps Cannon et 6,83 ms/pas médian avant fusion, 176 corps et 1,85 ms après. Ce sont des mesures de calcul local, pas des résultats GPU, mobile, Internet ou de charge serveur à 100 joueurs.
+
+Les tests physiques vérifient notamment une chute complète de six secondes sans coin de membre sous le sol au-delà de la tolérance de contact, des pivots séparés de moins de 0,025 bloc, la destruction du support sous des membres endormis, les escaliers, murs, voûtes, constructions et budgets. Les limites anatomiques et réseau sont décrites dans [personnages](player-reference.md#ragdolls). Les sensations dans une partie humaine multijoueur et le coût sur téléphone physique restent à vérifier.
 
 ## Reprise par de nouveaux agents et outillage — 13 septembre
 
@@ -220,3 +230,29 @@ Après ajout des guides et outils durables, `bun run check` passe : **305 tests,
 Le banc Linux isolé de `tests/release-server.sh` a également passé ses sept scénarios sous WSL Debian : staging, archive corrompue, tests en échec, activation, rollback et restauration après échec d'activation ou de rollback. Ces contrôles ne redéploient pas Hetzner et ne constituent pas un nouvel essai de charge ou de rendu. Les preuves détaillées de nettoyage restent dans `.runtime/history-cleanup/`; une publication réelle doit encore être vérifiée par son SHA Vercel et ses ressources publiques.
 
 La vérification réelle du déploiement Git a ensuite exposé une différence limitée au `debugId` final de source map de `main.js` ; les 49 autres ressources publiques sont identiques. Le correctif du vérificateur ignore uniquement cette valeur, conserve les empreintes brutes et rejette les changements exécutables, les URLs différentes, les métadonnées mal placées et les octets invalides divergents. Le contrôle live passe sur les 50 ressources et le smoke WSS à deux joueurs passe. Après ce correctif, **306 tests et 12 693 assertions**, TypeScript et build client passent. Voir [la preuve datée de publication Git](deployment.md#retour-aux-publications-git--13-septembre-2026).
+
+## Hitscan AK-47 / AWP — 14 septembre 2026
+
+Implémentation locale non publiée, protocole 3. Les tirs sont résolus au même tick après les déplacements, avec arrêt au premier joueur ou bloc, protection du canon et impulsions ragdoll conservées. Le client affiche le segment confirmé pendant 60 ms ; les grenades gardent leur simulation. Les paramètres de pose, cadence, dégâts et headshot restent ceux de la version précédente.
+
+`bun run doctor`, `bun run typecheck` et `bun run build` passent (11 sorties client). Les 33 fichiers de tests exécutés passent : **326 tests, 14 227 assertions**. La commande complète `bun run check` n'a pas été lancée : les deux suites de publication `release-prepare.test.ts` et `release-vercel.test.ts` utilisent Git, exclu par la consigne de cette tâche. Tous les autres fichiers `*.test.ts` sont inclus. Le premier passage a rencontré un `EPERM` sur le sous-processus Bun du test de build ; la même sélection complète passe après autorisation des sous-processus, sans modifier les tests.
+
+Les tests protègent les impacts à 100 blocs dans le tick du tir, les tirs manqués bornés, le premier obstacle et le canon proche, les mouvements des cibles dans les deux ordres de connexion, les ripostes mortelles simultanées, les cadences/munitions, le refus des commandes périmées ou invalides, les snapshots sans balles et le transport JSON des extrémités. Les tests de mort valident le point, l'impulsion, la copie de pose et la réapparition indépendante ; les autres tests de ragdoll et de grenade restent inclus.
+
+Le harness WebGL local affiche **RÉSULTAT : SUCCÈS**, sans avertissement ni erreur console. Les contrôles hitscan vérifient le segment complet jaune dès le tir, l'impact du même tick, la disparition après la durée cosmétique et un tir manqué immobile sans snapshot. Les six contrôles de canon ne trouvent aucun pixel différent de la référence au départ du canon OBJ ; leurs captures ont été inspectées. Les contrôles de grenades, personnages et ragdolls passent également.
+
+Deux essais de charge WebSocket locaux de 30 s avec 100 joueurs actifs sur une carte 64 × 64 × 64 :
+
+| Mesure | TDM sans reset | FFA, reset toutes les 10 s |
+|---|---:|---:|
+| Joueurs connectés | 100 | 100 |
+| Intentions/s par joueur vivant | 59,90 | 59,81 |
+| Tick p95 / p99 | 1,10 / 1,71 ms | 1,82 / 4,04 ms |
+| Tick maximal depuis le lancement | 12,30 ms | 11,92 ms |
+| Ticks abandonnés / commandes rejetées / erreurs | 0 / 0 / 0 | 0 / 0 / 0 |
+
+Rapports : [TDM](benchmarks/2026-09-14-hitscan-tdm-100.json), [FFA](benchmarks/2026-09-14-hitscan-ffa-100.json). Déplacements, tirs, dégâts, mutations du terrain et réapparitions ont produit des événements ; le scénario TDM sans reset a aussi conservé 43 grenades actives au relevé final. Les joueurs sont revenus à zéro après fermeture des clients ; les serveurs locaux de jeu et du harness ont été arrêtés. Serveur et générateur partagent la machine Windows ; ces essais courts sur petite carte ne valident ni Internet, ni 100 navigateurs, ni le coût maximal sur les grandes cartes.
+
+Fichiers de code concernés : `src/shared/game.ts`, `src/shared/protocol.ts`, `src/client/bullet-visuals.ts`, `src/client/presentation.ts`. Tests adaptés : `server`, `death-events`, `wire`, `bullets` et les harnesses navigateur `bullets-check` / `muzzle-check`. README et guides gameplay, réseau, démarrage et ragdoll actualisés. Aucune commande Git ni publication ; les empreintes `ops/` restent celles de la production enregistrée.
+
+Limites : le hitscan supprime le temps de vol, sans compensation historique du réseau. Direction du canon, dispersion et AABB existantes conservées ; aucun recentrage automatique sur le viseur. Les sensations en partie avec plusieurs joueurs humains et sur téléphone physique restent à vérifier. La prochaine publication devra associer client et serveur du protocole 3.

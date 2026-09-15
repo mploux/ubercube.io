@@ -34,7 +34,6 @@ export class Effects {
   }
 
   snapshot(projectiles: readonly ProjectileState[], tick: number, now: number): void {
-    this.bullets.snapshot(projectiles, tick, now);
     this.grenades.snapshot(projectiles, tick, now);
   }
 

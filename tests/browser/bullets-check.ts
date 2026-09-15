@@ -15,49 +15,54 @@ export function checkBulletVisuals(renderer: THREE.WebGLRenderer): string[] {
   const previousAutoClear = renderer.autoClear;
   const messages: string[] = [];
 
-  function read(): { pixels: Uint8Array; yellow: number; centerX: number } {
+  function read(): { pixels: Uint8Array; yellow: number; centerX: number; minX: number; maxX: number } {
     renderer.setRenderTarget(target);
     renderer.render(scene, camera);
     const pixels = new Uint8Array(128 * 128 * 4);
     renderer.readRenderTargetPixels(target, 0, 0, 128, 128, pixels);
-    let yellow = 0, totalX = 0;
+    let yellow = 0, totalX = 0, minX = 128, maxX = -1;
     for (let index = 0; index < pixels.length; index += 4) {
       if (pixels[index] >= 253 && pixels[index + 1] >= 253 && pixels[index + 2] <= 2) {
         yellow++;
-        totalX += (index / 4) % 128;
+        const x = (index / 4) % 128;
+        totalX += x;
+        minX = Math.min(minX, x);
+        maxX = Math.max(maxX, x);
       }
     }
-    return { pixels, yellow, centerX: yellow ? totalX / yellow : -1 };
+    return { pixels, yellow, centerX: yellow ? totalX / yellow : -1, minX, maxX };
   }
 
   try {
     renderer.setClearColor(0x000000, 1);
     renderer.autoClear = true;
     const shot: GameEvent = { type: 'event', roundId: 1, event: 'shot', projectileId: 1, tick: 10,
-      weapon: 'ak47', shooterId: 1, position: { x: -1, y: 0, z: 0 }, velocity: { x: 300, y: 0, z: 0 } };
+      weapon: 'ak47', shooterId: 1, position: { x: -1, y: 0, z: 0 }, endPosition: { x: 1, y: 0, z: 0 } };
     visuals.event(shot, 1);
     visuals.event({ ...shot, event: 'impact', position: { x: 1, y: 0, z: 0 } }, 1);
     visuals.update(1.02);
     const impactFrame = read();
     const center = Array.from(impactFrame.pixels.slice((64 + 64 * 128) * 4, (64 + 64 * 128) * 4 + 3));
-    if (!impactFrame.yellow || center[0] < 253 || center[1] < 253 || center[2] > 2) {
-      throw new Error(`Balle impactée avant la frame invisible ou mal colorée : RGB ${center}`);
+    if (!impactFrame.yellow || impactFrame.maxX - impactFrame.minX < 120 || center[0] < 253 || center[1] < 253 || center[2] > 2) {
+      throw new Error(`Trace hitscan incomplète ou mal colorée : largeur ${impactFrame.maxX - impactFrame.minX}, RGB ${center}`);
     }
-    messages.push(`OK Balle : tir et impact pré-frame, ${impactFrame.yellow} pixels jaunes, RGB ${center}`);
-    visuals.update(1.04);
-    if (read().yellow !== 0) throw new Error('Balle encore dessinée après son impact');
-    messages.push('OK Balle : disparition effective après impact');
+    messages.push(`OK Hitscan : segment complet dès le tir et impact du même tick, ${impactFrame.yellow} pixels jaunes, RGB ${center}`);
+    visuals.update(1.07);
+    if (read().yellow !== 0) throw new Error('Trace encore dessinée après sa durée cosmétique');
+    messages.push('OK Hitscan : disparition après la durée cosmétique');
 
     visuals.clear();
-    visuals.event({ ...shot, position: { x: -3, y: 0, z: 0 } }, 2);
+    visuals.event({ ...shot, weapon: 'awp', position: { x: -.7, y: 0, z: 0 }, endPosition: { x: .3, y: 0, z: 0 } }, 2);
     visuals.update(2.0085);
     const first = read();
-    visuals.update(2.0105);
+    visuals.update(2.04);
     const second = read();
-    if (!first.yellow || !second.yellow || second.centerX - first.centerX < 30) {
-      throw new Error(`Trajet de balle non dessiné entre snapshots : pixels ${first.yellow}/${second.yellow}, centres ${first.centerX}/${second.centerX}`);
+    if (!first.yellow || first.maxX - first.minX < 60 || first.pixels.some((value, index) => value !== second.pixels[index])) {
+      throw new Error(`Trace de tir raté incomplète ou mobile : pixels ${first.yellow}/${second.yellow}, centres ${first.centerX}/${second.centerX}`);
     }
-    messages.push(`OK Balle : trajet animé sans nouveau snapshot, centres X ${first.centerX.toFixed(1)} → ${second.centerX.toFixed(1)}`);
+    visuals.update(2.07);
+    if (read().yellow !== 0) throw new Error('Trace de tir raté encore visible sans événement impact');
+    messages.push(`OK Hitscan : tir raté fixe sans snapshot ni impact, centre X ${first.centerX.toFixed(1)}, puis disparition`);
     return messages;
   } finally {
     visuals.dispose();

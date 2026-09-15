@@ -39,6 +39,15 @@ test('events remain human-readable JSON', () => {
   const event: ServerMessage = { type: 'pong', time: 42 };
   expect(decodeServerMessage(encodeServerMessage(event))).toEqual(event);
 });
+
+test('hitscan events preserve the complete ray and command correlation as JSON', () => {
+  const event: ServerMessage = { type: 'event', event: 'shot', roundId: 12, tick: 221,
+    shooterId: 7, weapon: 'awp', projectileId: 3, inputSeq: 4294967400,
+    position: { x: 16.123456789, y: 10.27345, z: 89.3 }, endPosition: { x: 16.123456789, y: 10.27345, z: 0 } };
+  const encoded = encodeServerMessage(event);
+  expect(typeof encoded).toBe('string');
+  expect(decodeServerMessage(encoded)).toEqual(event);
+});
 test('truncated frames and unknown versions are rejected', () => {
   const encoded = encodeServerMessage(snapshot) as Uint8Array;
   expect(() => decodeServerMessage(encoded.subarray(0, encoded.length - 1))).toThrow();
