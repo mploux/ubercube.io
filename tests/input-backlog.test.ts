@@ -1,13 +1,14 @@
 import { expect, test } from 'bun:test';
 import { GameServer } from '../src/server/game';
 import { DT, PROTOCOL_VERSION, type GameEvent, type InputFrame, type Kit, type ServerMessage, type WeaponId } from '../src/shared/protocol';
-import { decodeServerMessage } from '../src/shared/wire';
+import { createServerMessageDecoder } from '../src/shared/wire';
 import { packBlock } from '../src/shared/voxel';
 
 function join(game = new GameServer(), kit: Kit = 'assault') {
+  const decode = createServerMessageDecoder();
   const messages: ServerMessage[] = [];
   const connection = game.connect({
-    send(data) { messages.push(decodeServerMessage(data)); return typeof data === 'string' ? data.length : data.byteLength; },
+    send(data) { messages.push(decode(data)); return typeof data === 'string' ? data.length : data.byteLength; },
     close() {}, bufferedAmount: () => 0,
   })!;
   game.receive(connection, JSON.stringify({ type: 'hello', version: PROTOCOL_VERSION, name: `Player${game.players.size}` }));

@@ -1,7 +1,7 @@
 import { afterEach, expect, test } from 'bun:test';
 import { startQaVideoServer } from '../scripts/qa-video-server.ts';
 import { PROTOCOL_VERSION, type GameEvent, type InputFrame, type ServerMessage, type Vec3 } from '../src/shared/protocol.ts';
-import { decodeServerMessage } from '../src/shared/wire.ts';
+import { createServerMessageDecoder } from '../src/shared/wire.ts';
 
 const hosts: Awaited<ReturnType<typeof startQaVideoServer>>[] = [];
 const sockets: WebSocket[] = [];
@@ -18,10 +18,11 @@ test('video fixture uses real socket inputs, lethal combat events, and voxel cov
   hosts.push(host);
   const base = `http://127.0.0.1:${host.server.port}`;
   const socket = new WebSocket(base.replace('http:', 'ws:') + '/ws');
+  const decode = createServerMessageDecoder();
   sockets.push(socket);
   socket.binaryType = 'arraybuffer';
   const messages: ServerMessage[] = [];
-  socket.addEventListener('message', event => messages.push(decodeServerMessage(event.data)));
+  socket.addEventListener('message', event => messages.push(decode(event.data)));
   socket.addEventListener('open', () => socket.send(JSON.stringify({ type: 'hello', version: PROTOCOL_VERSION, name: 'QA proof' })));
   await until(() => messages.some(message => message.type === 'welcome') && [...host.game.connections].every(connection => !connection.initial));
   const welcome = messages.find(message => message.type === 'welcome') as Extract<ServerMessage, { type: 'welcome' }>;
@@ -77,10 +78,11 @@ test('impulse review preserves historical magnitudes, direction, and hit point a
   hosts.push(host);
   const base = `http://127.0.0.1:${host.server.port}`;
   const socket = new WebSocket(base.replace('http:', 'ws:') + '/ws');
+  const decode = createServerMessageDecoder();
   sockets.push(socket);
   socket.binaryType = 'arraybuffer';
   const messages: ServerMessage[] = [];
-  socket.addEventListener('message', event => messages.push(decodeServerMessage(event.data)));
+  socket.addEventListener('message', event => messages.push(decode(event.data)));
   socket.addEventListener('open', () => socket.send(JSON.stringify({ type: 'hello', version: PROTOCOL_VERSION, name: 'Impulse proof' })));
   await until(() => messages.some(message => message.type === 'welcome') && [...host.game.connections].every(connection => !connection.initial));
   const welcome = messages.find(message => message.type === 'welcome') as Extract<ServerMessage, { type: 'welcome' }>;

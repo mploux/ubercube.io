@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { startServer } from '../src/server/index';
 import { PROTOCOL_VERSION, type ServerMessage } from '../src/shared/protocol';
-import { decodeServerMessage } from '../src/shared/wire';
+import { createServerMessageDecoder } from '../src/shared/wire';
 
 const running: ReturnType<typeof startServer>[] = [];
 const sockets: WebSocket[] = [];
@@ -11,11 +11,12 @@ afterEach(() => {
 });
 
 function connect(port: number, name: string) {
+  const decode = createServerMessageDecoder();
   const socket = new WebSocket(`ws://127.0.0.1:${port}/ws`);
   socket.binaryType = 'arraybuffer';
   sockets.push(socket);
   const messages: ServerMessage[] = [];
-  socket.addEventListener('message', event => messages.push(decodeServerMessage(event.data)));
+  socket.addEventListener('message', event => messages.push(decode(event.data)));
   socket.addEventListener('open', () => socket.send(JSON.stringify({ type: 'hello', version: PROTOCOL_VERSION, name })));
   return {
     socket, messages,

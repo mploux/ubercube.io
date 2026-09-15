@@ -4,9 +4,9 @@ Statut : cadrage initial issu d'une lecture statique du Java le 11 septembre 202
 
 ## Protocole compact local — 15 septembre 2026
 
-Le protocole 4 et le format binaire 2 sont préparés localement, sans publication. Les mutations terrain et événements fréquents rejoignent les snapshots binaires. Les morts restent JSON. Les événements conservent les Float64 ; les snapshots gardent leurs Float32 et leurs entiers exacts, avec entiers de longueur variable et omission des seuls flottants `+0`. Un snapshot reste autonome : aucune dépendance à un précédent paquet, à un dictionnaire de pseudos ou à une baseline par destinataire.
+Le protocole 5 et le format binaire 3 sont préparés localement, sans publication. Les mutations terrain et événements fréquents sont binaires ; les morts restent JSON. Les événements conservent les Float64 ; les snapshots gardent leurs Float32 et leurs entiers exacts. Après un snapshot complet, le serveur transmet les seuls champs modifiés, les ajouts et les suppressions, avec retour au format complet s'il est plus petit.
 
-Le décodeur contrôle longueurs, compteurs, enums, flags, valeurs finies, encodages d'entiers canoniques et dépassements. Un snapshot synthétique de 100 joueurs actifs passe de 6 722 à 4 722 octets. Les gains réels dépendent des actions, noms et statistiques ; client et serveur doivent être publiés ensemble. Les [budgets de stabilité et essais](stable-100.md) décrivent le reste du chantier.
+Le décodeur contrôle longueurs, compteurs, enums, flags, valeurs finies, encodages d'entiers canoniques, dépassements et références. Chaque connexion possède son décodeur ; les états logiques exposés au jeu restent complets et les anciens états d'interpolation restent immuables. La référence serveur est le dernier snapshot accepté dans la file fiable et ordonnée, identifié indépendamment du tick. Un abandon pour saturation libère la référence ; la reprise, l'arrivée et le reset repartent d'un snapshot complet. Les gains réels dépendent des actions et doivent être mesurés ; client et serveur doivent être publiés ensemble. Les [budgets de stabilité et essais](stable-100.md) décrivent le reste du chantier.
 
 ## Correction du retard entre joueurs — 12 septembre 2026
 

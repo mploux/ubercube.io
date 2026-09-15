@@ -6,7 +6,7 @@ import { DT, PROTOCOL_VERSION, WEAPONS, type GameEvent, type InputFrame, type Ki
 import { EYE_HEIGHT } from '../src/shared/movement.ts';
 import { packBlock } from '../src/shared/voxel.ts';
 import { createWeaponPose, getWeaponMuzzle, stepWeaponPose } from '../src/shared/weapon-pose.ts';
-import { decodeServerMessage, encodeServerMessage } from '../src/shared/wire.ts';
+import { createServerMessageDecoder, decodeServerMessage, encodeServerMessage } from '../src/shared/wire.ts';
 
 export const VIDEO_SCENES = ['ak-body', 'ak-head', 'awp-body', 'wall', 'moving'] as const;
 type VideoScene = typeof VIDEO_SCENES[number];
@@ -194,10 +194,11 @@ export async function startQaVideoServer(port = 3014) {
     },
   });
   const bot = new WebSocket(`ws://127.0.0.1:${server.port}/ws`);
+  const decodeBot = createServerMessageDecoder();
   bot.binaryType = 'arraybuffer';
   bot.addEventListener('open', () => bot.send(JSON.stringify({ type: 'hello', version: PROTOCOL_VERSION, name: 'Cible QA' })));
   bot.addEventListener('message', message => {
-    const data = decodeServerMessage(message.data);
+    const data = decodeBot(message.data);
     if (data.type === 'welcome') targetId = data.id;
     if (data.type === 'world' && data.complete) bot.send(JSON.stringify({ type: 'spawn', roundId: game.roundId, kit: 'assault' }));
   });

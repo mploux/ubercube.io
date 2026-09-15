@@ -1,12 +1,13 @@
 import { describe, expect, test } from 'bun:test';
 import { GameServer, type Peer } from '../src/shared/game';
 import { PROTOCOL_VERSION, type GameEvent, type InputFrame, type ServerMessage } from '../src/shared/protocol';
-import { decodeServerMessage } from '../src/shared/wire';
+import { createServerMessageDecoder } from '../src/shared/wire';
 
 class TestPeer implements Peer {
   messages: ServerMessage[] = [];
   closed = false;
-  send(data: string | Uint8Array) { this.messages.push(decodeServerMessage(data)); return 1; }
+  private readonly decode = createServerMessageDecoder();
+  send(data: string | Uint8Array) { this.messages.push(this.decode(data)); return 1; }
   close() { this.closed = true; }
   bufferedAmount() { return 0; }
 }

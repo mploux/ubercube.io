@@ -3,13 +3,13 @@ import { createHash } from 'node:crypto';
 import { appendFile, mkdir, rename } from 'node:fs/promises';
 import { dirname, resolve, sep } from 'node:path';
 import { DT, KITS, PROTOCOL_VERSION, type InputFrame, type Kit, type PlayerState, type ServerMessage } from '../src/shared/protocol';
-import { decodeServerMessage } from '../src/shared/wire';
+import { createServerMessageDecoder } from '../src/shared/wire';
 import { VoxelWorld } from '../src/shared/voxel';
 
 export function parseLoadtestArgs(argumentsList: string[]) {
   const args = new Map<string, string>();
   for (const argument of argumentsList) {
-    const match = /^--(url|players|seconds|ramp-ms|warmup-seconds|sample-seconds|reconnect-seconds|output)=(.+)$/.exec(argument);
+    const match = /^--(url|players|seconds|ramp-ms|warmup-seconds|sample-seconds|reconnect-seconds|max-server-rss-mib|output)=(.+)$/.exec(argument);
     assert(match && !args.has(match[1]), `Unknown, empty or duplicate argument: ${argument}`);
     args.set(match[1], match[2]);
   }
@@ -27,6 +27,7 @@ export function parseLoadtestArgs(argumentsList: string[]) {
     url: url.href, output, players: integer('players', 100, 2, 1000), seconds: integer('seconds', 30, 1, 28800),
     rampMs: integer('ramp-ms', 100, 0, 10000), warmupSeconds: integer('warmup-seconds', 60, 1, 600),
     sampleSeconds: integer('sample-seconds', 5, 1, 60), reconnectSeconds: integer('reconnect-seconds', 0, 0, 3600),
+    maxServerRssMiB: integer('max-server-rss-mib', 1024, 0, 1048576),
   };
 }
 
@@ -78,7 +79,7 @@ export function terrainDigest(world: VoxelWorld, roundId: number, revision: numb
 }
 
 type Options = ReturnType<typeof parseLoadtestArgs>;
-type ServerStatus = { players: number; roundId: number; pendingInput: number; lateTicks: number; droppedInputs: number;
+type ServerStatus = { players: number; roundId: number; pendingInput: number; lateTicks: number; droppedInputs: number; rss: number;
   projectiles: number; tickWork: { p99: number }; [key: string]: unknown };
 type Bot = {
   socket: WebSocket; index: number; id: number; seq: number; terrain: TerrainReplica; state?: PlayerState; kit: Kit;
@@ -101,6 +102,7 @@ export async function runLoadtest(options: Options, signal?: AbortSignal) {
   let measuredTerrainChecks = 0, finalTerrainConverged = false;
   let finalTerrain: ReturnType<typeof terrainDigest> | null = null;
   let cleanupComplete = false;
+  let serverMemoryBudgetExceeded = false;
   const recordError = (message: string) => { errors[message] = (errors[message] ?? 0) + 1; };
   const healthy = () => {
     signal?.throwIfAborted();
@@ -111,8 +113,12 @@ export async function runLoadtest(options: Options, signal?: AbortSignal) {
     assert(response.ok, `Status endpoint returned ${response.status}`);
     const status = await response.json() as ServerStatus;
     assert([status.players, status.roundId, status.pendingInput, status.lateTicks, status.droppedInputs,
-      status.projectiles, status.tickWork?.p99].every(Number.isFinite),
+      status.projectiles, status.tickWork?.p99, status.rss].every(Number.isFinite) && status.rss >= 0,
       'Invalid server metrics');
+    server = status;
+    maxRss = Math.max(maxRss, status.rss);
+    serverMemoryBudgetExceeded ||= options.maxServerRssMiB > 0 && status.rss > options.maxServerRssMiB * 1024 * 1024;
+    assert(!serverMemoryBudgetExceeded, `Server RSS exceeded ${options.maxServerRssMiB} MiB budget: ${status.rss} bytes`);
     return status;
   };
   const wait = async (condition: () => boolean, seconds: number, label: string, checkErrors = true) => {
@@ -124,6 +130,7 @@ export async function runLoadtest(options: Options, signal?: AbortSignal) {
     }
   };
   const connect = (index: number) => {
+    const decode = createServerMessageDecoder();
     const socket = new WebSocket(options.url);
     socket.binaryType = 'arraybuffer';
     const now = performance.now(), previous = bots[index];
@@ -137,7 +144,7 @@ export async function runLoadtest(options: Options, signal?: AbortSignal) {
     socket.onopen = () => socket.send(JSON.stringify({ type: 'hello', version: PROTOCOL_VERSION, name: `Load-${index + 1}` }));
     socket.onmessage = event => {
       try {
-        const message = decodeServerMessage(event.data), now = performance.now();
+        const message = decode(event.data), now = performance.now();
         const size = typeof event.data === 'string' ? Buffer.byteLength(event.data) : event.data.byteLength;
         if (measuring) {
           const category = message.type === 'event' ? `event:${message.event}`
@@ -267,6 +274,7 @@ export async function runLoadtest(options: Options, signal?: AbortSignal) {
       rttMs: { p50: percentile(.5), p95: percentile(.95), p99: percentile(.99), max: maxRtt, windowSamples: sorted.length },
       maxSnapshotGapMs: maxSnapshotGap, maxClientBufferedBytes: maxClientBuffer, maxSampledPendingInput: maxPendingInput,
       maxSampledServerRss: maxRss, maxSampledTickP99Ms, droppedInputsDuringRun: dropped,
+      maxServerRssMiB: options.maxServerRssMiB,
       lateTicksDuringRun: server && serverBefore ? server.lateTicks - serverBefore.lateTicks : null,
       criteria: {
         fullPopulation: connected === options.players, allClientsPlayed: bots.filter(bot => bot.inputs > 0).length === options.players,
@@ -276,6 +284,7 @@ export async function runLoadtest(options: Options, signal?: AbortSignal) {
         finalTerrainConverged, noDroppedInputs: dropped === 0,
         noLateTicks: !!server && !!serverBefore && server.lateTicks === serverBefore.lateTicks,
         sampledTickP99Below8Ms: sampleCount > 0 && maxSampledTickP99Ms < 8,
+        noServerMemoryBudgetExceeded: !serverMemoryBudgetExceeded,
       },
       errors, server, serverBefore, sampleCount, journal, cleanupComplete,
       limitation: 'Application bytes exclude WebSocket/TCP/TLS overhead. Event counts are deliveries, not unique events. RTT percentiles cover the latest 2048 pongs; max covers the measurement. Clients generate 60 Hz inputs with pauses capped at 100 ms. This does not measure browser rendering or prove production capacity. Planned reconnects temporarily reduce connected population.',
@@ -295,7 +304,6 @@ export async function runLoadtest(options: Options, signal?: AbortSignal) {
     alive = bots.filter(bot => bot.state?.alive && !bot.closing).length;
     peakAlive = Math.max(peakAlive, alive); maxPendingInput = Math.max(maxPendingInput, server.pendingInput);
     maxSampledTickP99Ms = Math.max(maxSampledTickP99Ms, server.tickWork.p99);
-    if (typeof server.rss === 'number') maxRss = Math.max(maxRss, server.rss);
     sampleCount++; await persist();
   };
   try {
@@ -375,7 +383,7 @@ export async function runLoadtest(options: Options, signal?: AbortSignal) {
 }
 
 if (import.meta.main) {
-  if (Bun.argv.includes('--help')) console.log('bun run loadtest [--url=ws://127.0.0.1:3000/ws] [--players=100] [--seconds=28800] [--ramp-ms=100] [--warmup-seconds=60] [--sample-seconds=5] [--reconnect-seconds=60] [--output=.runtime/loadtest-latest.json]\nRun only against an authorized test target. Reports are updated throughout the run.');
+  if (Bun.argv.includes('--help')) console.log('bun run loadtest [--url=ws://127.0.0.1:3000/ws] [--players=100] [--seconds=28800] [--ramp-ms=100] [--warmup-seconds=60] [--sample-seconds=5] [--reconnect-seconds=60] [--max-server-rss-mib=1024] [--output=.runtime/loadtest-latest.json]\nRun only against an authorized test target. Reports are updated throughout the run. Set the RSS budget to 0 to disable it.');
   else {
     const controller = new AbortController(), abort = () => controller.abort(new Error('Loadtest interrupted'));
     process.on('SIGINT', abort); process.on('SIGTERM', abort);

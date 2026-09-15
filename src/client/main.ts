@@ -5,7 +5,7 @@ import { aimDirection, EYE_HEIGHT, movePlayer } from '../shared/movement';
 import { grenadeLaunch } from '../shared/grenade';
 import { getWeaponMuzzle } from '../shared/weapon-pose';
 import { raycast, VoxelWorld } from '../shared/voxel';
-import { decodeServerMessage } from '../shared/wire';
+import { createServerMessageDecoder } from '../shared/wire';
 import { TerrainRenderer } from './terrain';
 import { MinimapRenderer } from './minimap';
 import { Snow } from './snow';
@@ -323,6 +323,7 @@ function connect(solo = !serverAvailable): void {
   joinButton.querySelector('span')!.textContent = 'Connecting...';
   showScreen('entry');
   const connection = endpoints && !solo ? new WebSocket(endpoints.websocket) : new SoloConnection();
+  const decode = createServerMessageDecoder();
   const singleplayer = connection instanceof SoloConnection;
   let initialized = false;
   if (connection instanceof WebSocket) connection.binaryType = 'arraybuffer';
@@ -335,7 +336,7 @@ function connect(solo = !serverAvailable): void {
   connection.onmessage = (event: { data: string | ArrayBuffer }) => {
     if (socket !== connection) return;
     try {
-      const message = decodeServerMessage(event.data);
+      const message = decode(event.data);
       receive(message);
       if (socket !== connection) return;
       if (worldReady) initialized = true;

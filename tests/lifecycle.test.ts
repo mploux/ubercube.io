@@ -1,13 +1,14 @@
 import { expect, test } from 'bun:test';
 import { GameServer, type Connection, type Peer } from '../src/server/game';
 import { PROTOCOL_VERSION, type ClientMessage, type InputFrame, type ServerMessage } from '../src/shared/protocol';
-import { decodeServerMessage } from '../src/shared/wire';
+import { createServerMessageDecoder } from '../src/shared/wire';
 
 test('input sequence survives death with unconsumed commands, then resets only for a new round or connection', () => {
   const game = new GameServer({ world: { seed: 12, size: 64, height: 48 } });
   const messages: ServerMessage[] = [];
+  const decode = createServerMessageDecoder();
   const peer: Peer = {
-    send(data) { messages.push(decodeServerMessage(data)); return typeof data === 'string' ? data.length : data.byteLength; },
+    send(data) { messages.push(decode(data)); return typeof data === 'string' ? data.length : data.byteLength; },
     close() {}, bufferedAmount() { return 0; },
   };
   let connection: Connection = game.connect(peer)!;

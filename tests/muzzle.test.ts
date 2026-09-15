@@ -6,7 +6,7 @@ import { getWeaponMuzzle } from '../src/shared/weapon-pose';
 import { GameServer } from '../src/server/game';
 import { EYE_HEIGHT } from '../src/shared/movement';
 import { PROTOCOL_VERSION, type GameEvent, type InputFrame, type WeaponId } from '../src/shared/protocol';
-import { decodeServerMessage } from '../src/shared/wire';
+import { createServerMessageDecoder } from '../src/shared/wire';
 
 async function load(weapon: WeaponId): Promise<THREE.Group> {
   const path = `public/assets/weapons/${WEAPON_MODEL_FILES[weapon]}`;
@@ -60,8 +60,9 @@ test.each(['ak47', 'awp'] as const)('%s authoritative shot starts at the mesh ba
   await view.ready;
   const game = new GameServer();
   const shots: GameEvent[] = [];
+  const decode = createServerMessageDecoder();
   const connection = game.connect({ bufferedAmount: () => 0, close() {}, send(data) {
-    const message = decodeServerMessage(data);
+    const message = decode(data);
     if (message.type === 'event' && message.event === 'shot') shots.push(message);
     return data.length;
   } })!;

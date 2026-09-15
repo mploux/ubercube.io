@@ -2,7 +2,7 @@ import { describe, expect, spyOn, test } from 'bun:test';
 import { GameServer, type Peer } from '../src/shared/game.ts';
 import { PROTOCOL_VERSION, type ServerMessage } from '../src/shared/protocol.ts';
 import { packBlock, VoxelWorld } from '../src/shared/voxel.ts';
-import { decodeServerMessage } from '../src/shared/wire.ts';
+import { createServerMessageDecoder, decodeServerMessage } from '../src/shared/wire.ts';
 
 const world = { seed: 12345, size: 64, height: 32 };
 const block = packBlock(70, 70, 70);
@@ -13,7 +13,8 @@ class TestPeer implements Peer {
   buffered = 0;
   closed = false;
   result = 1;
-  send(data: string | Uint8Array): number { this.messages.push(decodeServerMessage(data)); return this.result; }
+  private readonly decode = createServerMessageDecoder();
+  send(data: string | Uint8Array): number { this.messages.push(this.decode(data)); return this.result; }
   close(): void { this.closed = true; }
   bufferedAmount(): number { return this.buffered; }
 }
@@ -46,6 +47,26 @@ function fillLargeWorld(game: GameServer, count: number) {
 }
 
 describe('bounded network synchronization', () => {
+  test('coalesces pending voxel changes without aliasing adjacent coordinate rows or losing a generated-value return', () => {
+    const game = new GameServer({ world }), { peer } = join(game), replica = new VoxelWorld(world);
+    const points = [[63, 1, 0], [0, 1, 1], [0, 2, 0]] as const;
+    const original = game.world.get(...points[0]);
+    mutations(game).mutate(...points[0], block);
+    mutations(game).flushWorld();
+    mutations(game).mutate(...points[0], 0);
+    mutations(game).mutate(...points[0], block);
+    mutations(game).mutate(...points[0], original);
+    mutations(game).mutate(...points[1], block);
+    mutations(game).mutate(...points[1], 0);
+    mutations(game).mutate(...points[2], block);
+    mutations(game).flushWorld();
+    const batches = peer.messages.filter(message => message.type === 'world');
+    expect(batches.at(-1)?.edits).toEqual([[...points[0], original], [...points[1], 0], [...points[2], block]]);
+    for (const batch of batches) replica.applyEdits(batch.edits);
+    for (const [x, y, z] of points) expect(replica.get(x, y, z)).toBe(game.world.get(x, y, z));
+    expect(replica.getEdits()).toEqual(game.world.getEdits());
+  });
+
   test('disconnects a stalled initial transfer before its retained deltas exceed the budget', () => {
     const game = new GameServer({ world });
     addBaseline(game);
@@ -354,10 +375,15 @@ describe('bounded network synchronization', () => {
     const game = new GameServer({ world: { ...world, size: 128, height: 64 } });
     fillLargeWorld(game, 360000);
     const first = join(game), sameRevision = join(game);
+    const retained = first.connection.initial!.edits;
+    expect(sameRevision.connection.initial!.edits).toBe(retained);
     expect(first.connection.closed).toBe(false);
     expect(sameRevision.connection.closed).toBe(false);
     mutations(game).mutate(127, 63, 127, block);
     mutations(game).flushWorld();
+    expect((game as unknown as { baseline: unknown }).baseline).toBeNull();
+    expect(first.connection.initial!.edits).toBe(retained);
+    expect(sameRevision.connection.initial!.edits).toBe(retained);
     const secondRevision = join(game);
     expect(secondRevision.connection.closed).toBe(false);
     mutations(game).mutate(126, 63, 127, block);

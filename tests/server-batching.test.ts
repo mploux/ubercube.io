@@ -2,7 +2,7 @@ import { afterEach, describe, expect, spyOn, test } from 'bun:test';
 import { startServer } from '../src/server/index.ts';
 import type { Connection, GameServer } from '../src/shared/game.ts';
 import { PROTOCOL_VERSION, type ServerMessage, type VoxelEdit } from '../src/shared/protocol.ts';
-import { decodeServerMessage, encodeServerMessage } from '../src/shared/wire.ts';
+import { createServerMessageDecoder, encodeServerMessage } from '../src/shared/wire.ts';
 
 const running: ReturnType<typeof startServer>[] = [];
 const sockets: WebSocket[] = [];
@@ -30,6 +30,7 @@ function fixture() {
 }
 
 async function connect(host: ReturnType<typeof startServer>, name: string) {
+  const decode = createServerMessageDecoder();
   const socket = new WebSocket(`ws://127.0.0.1:${host.server.port}/ws`);
   socket.binaryType = 'arraybuffer';
   sockets.push(socket);
@@ -37,7 +38,7 @@ async function connect(host: ReturnType<typeof startServer>, name: string) {
   socket.addEventListener('open', () => socket.send(JSON.stringify({ type: 'hello', version: PROTOCOL_VERSION, name })));
   socket.addEventListener('message', event => {
     peer.bytes += typeof event.data === 'string' ? Buffer.byteLength(event.data) : event.data.byteLength;
-    peer.messages.push(decodeServerMessage(event.data));
+    peer.messages.push(decode(event.data));
   });
   socket.addEventListener('close', event => { peer.closeCode = event.code; });
   await waitFor(() => peer.messages.some(message => message.type === 'snapshot'));

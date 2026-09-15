@@ -6,13 +6,14 @@ import { PROTOCOL_VERSION, WEAPONS } from '../src/shared/protocol.ts';
 import type { InputFrame, Kit, ServerMessage } from '../src/shared/protocol.ts';
 import { packBlock, VoxelWorld } from '../src/shared/voxel.ts';
 import { playerCollides } from '../src/shared/movement.ts';
-import { decodeServerMessage } from '../src/shared/wire.ts';
+import { createServerMessageDecoder } from '../src/shared/wire.ts';
 
 class TestPeer implements Peer {
   messages: ServerMessage[] = [];
   closed = false;
   buffered = 0;
-  send(data: string | Uint8Array): number { this.messages.push(decodeServerMessage(data)); return typeof data === 'string' ? data.length : data.byteLength; }
+  private readonly decode = createServerMessageDecoder();
+  send(data: string | Uint8Array): number { this.messages.push(this.decode(data)); return typeof data === 'string' ? data.length : data.byteLength; }
   close(): void { this.closed = true; }
   bufferedAmount(): number { return this.buffered; }
 }
@@ -628,12 +629,13 @@ describe('Bun transport and configuration', () => {
     expect(status.tickWork.samples).toBe(0);
     await new Promise<void>((resolve, reject) => {
       const socket = new WebSocket(`${base.replace('http:', 'ws:')}/ws`);
+      const decode = createServerMessageDecoder();
       socket.binaryType = 'arraybuffer';
       const timer = setTimeout(() => { socket.close(); reject(new Error('WebSocket test timed out')); }, 2000);
       socket.onopen = () => socket.send(JSON.stringify({ type: 'hello', version: PROTOCOL_VERSION, name: 'Browser' }));
       socket.onerror = () => { clearTimeout(timer); reject(new Error('WebSocket error')); };
       socket.onmessage = event => {
-        const message = decodeServerMessage(event.data);
+        const message = decode(event.data);
         if (message.type === 'welcome') {
           expect(message.id).toBe(1);
           expect(instance.game.players.get(message.id)?.name).toBe('Browser');

@@ -51,7 +51,7 @@ test('binary hitscan events preserve the complete ray and command correlation ex
 test('truncated frames and unknown versions are rejected', () => {
   const encoded = encodeServerMessage(snapshot) as Uint8Array;
   expect(() => decodeServerMessage(encoded.subarray(0, encoded.length - 1))).toThrow();
-  encoded[4] = 3;
+  encoded[4] = 255;
   expect(() => decodeServerMessage(encoded)).toThrow();
 });
 
@@ -232,7 +232,7 @@ describe('wire frame boundaries', () => {
   test('rejects unknown magic, versions and message kinds in decoder and classifier', () => {
     for (const message of frames) {
       const encoded = encodeServerMessage(message) as Uint8Array;
-      for (const [offset, value] of [[0, 0], [4, 0], [4, 1], [4, 3], [4, 255], [5, 0], [5, 4], [5, 255]]) {
+      for (const [offset, value] of [[0, 0], [4, 0], [4, 1], [4, 2], [4, 255], [5, 0], [5, 6], [5, 255]]) {
         const corrupted = encoded.slice(); corrupted[offset] = value;
         expect(() => decodeServerMessage(corrupted)).toThrow();
         expect(() => serverMessageType(corrupted)).toThrow();

@@ -2,9 +2,10 @@ import { expect, test } from 'bun:test';
 import { SoloConnection } from '../src/client/solo-connection';
 import type { SoloWorkerRequest, SoloWorkerResponse } from '../src/client/solo.worker';
 import { PROTOCOL_VERSION, type ClientMessage, type InputFrame, type ServerMessage } from '../src/shared/protocol';
-import { decodeServerMessage } from '../src/shared/wire';
+import { createServerMessageDecoder } from '../src/shared/wire';
 
 function soloWorker() {
+  const decode = createServerMessageDecoder();
   const worker = new Worker(new URL('../src/client/solo.worker.ts', import.meta.url).href, { type: 'module' });
   const messages: ServerMessage[] = [];
   let ready = false;
@@ -13,7 +14,7 @@ function soloWorker() {
   worker.onmessage = ({ data }: MessageEvent<SoloWorkerResponse>) => {
     if (data.type === 'ready') ready = true;
     else if (data.type === 'close') closed = true;
-    else messages.push(decodeServerMessage(data.data));
+    else messages.push(decode(data.data));
   };
   worker.onerror = event => { failure = event.message; };
   const send = (message: ClientMessage) => worker.postMessage({ type: 'message', data: JSON.stringify(message) } satisfies SoloWorkerRequest);

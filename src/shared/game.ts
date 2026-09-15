@@ -2,7 +2,7 @@ import { DT, KITS, PROTOCOL_VERSION, TICK_RATE, WEAPONS } from './protocol.ts';
 import type { GameEvent, InputFrame, Kit, Mode, PlayerState, ProjectileState, ServerMessage, Vec3, VoxelEdit, WeaponId, WorldConfig } from './protocol.ts';
 import { aimDirection, EYE_HEIGHT, movePlayer, playerCollides, PLAYER_HEIGHT, PLAYER_RADIUS } from './movement.ts';
 import { damageBlock, packBlock, raycast, VoxelWorld } from './voxel.ts';
-import { encodeServerMessage } from './wire.ts';
+import { captureSnapshot, encodeServerMessage, encodeSnapshot, type SnapshotFrame } from './wire.ts';
 import { createWeaponPose, getWeaponMuzzle, hideWeaponPose, stepWeaponMotion, stepWeaponPose, type WeaponPoseState } from './weapon-pose.ts';
 import { grenadeLaunch, stepGrenade, type GrenadeFlight } from './grenade.ts';
 
@@ -50,6 +50,7 @@ export interface Connection {
   weaponMotion: Vec3;
   magazines: { ak47: number; awp: number };
   initial: InitialWorld | null;
+  snapshot: SnapshotFrame | null;
 }
 interface Projectile extends ProjectileState, GrenadeFlight { damage: number; expires: number }
 interface Shot {
@@ -113,9 +114,10 @@ export class GameServer {
   private roundStart = 0;
   private nextPlayer = 1;
   private nextProjectile = 1;
+  private nextSnapshot = 1;
   private readonly shots: Shot[] = [];
   private randomState: number;
-  private edits = new Map<string, VoxelEdit>();
+  private edits = new Map<number, VoxelEdit>();
   private baseline: { revision: number; edits: VoxelEdit[] } | null = null;
 
   // Hosts inject monotonic milliseconds; the default keeps solo and deterministic tests tick-driven.
@@ -146,7 +148,7 @@ export class GameServer {
       peer, player: null, closed: false, connectedAt: now, rateStartedAt: now, messages: 0, frames: 0,
       invalid: 0, lastMessage: now, lobbySince: now, queue: [], input: null, highestSeq: 0, lastInputTick: this.tick,
       previousFire: false, previousAlt: false, weaponPoses: new Map(), weaponMotion: { x: 0, y: 0, z: 0 },
-      magazines: { ak47: 30, awp: 5 }, initial: null,
+      magazines: { ak47: 30, awp: 5 }, initial: null, snapshot: null,
     };
     this.connections.add(connection);
     return connection;
@@ -160,6 +162,7 @@ export class GameServer {
     if (connection.player) this.players.delete(connection.player.id);
     connection.queue = [];
     connection.initial = null;
+    connection.snapshot = null;
     connection.input = null;
   }
 
@@ -381,11 +384,13 @@ export class GameServer {
     if (y <= 0 || x < 0 || z < 0 || x >= this.options.world.size || z >= this.options.world.size || y >= this.options.world.height) return;
     if (this.world.get(x, y, z) === value) return;
     this.world.set(x, y, z, value);
-    this.edits.set(`${x},${y},${z}`, [x, y, z, value]);
+    const size = this.options.world.size;
+    this.edits.set(x + size * (z + size * y), [x, y, z, value]);
   }
 
   private flushWorld(): void {
     if (!this.edits.size) return;
+    this.baseline = null;
     const edits = [...this.edits.values()];
     this.edits.clear();
     for (let offset = 0; offset < edits.length; offset += WORLD_BATCH) {
@@ -716,7 +721,22 @@ export class GameServer {
       scores: this.scores,
       remaining: this.options.roundSeconds ? Math.max(0, this.options.roundSeconds - (this.tick - this.roundStart) * DT) : null,
     };
-    if (only) this.send(only, snapshot, true); else this.broadcast(snapshot);
+    if (this.nextSnapshot > 0xffffffff) {
+      this.nextSnapshot = 1;
+      for (const connection of this.connections) connection.snapshot = null;
+    }
+    const frame = captureSnapshot(snapshot, this.nextSnapshot++);
+    const encoded = new Map<SnapshotFrame | null, Uint8Array>();
+    for (const connection of only ? [only] : this.connections) {
+      if (!connection.player || connection.initial || connection.closed) continue;
+      let data = encoded.get(connection.snapshot);
+      if (!data) {
+        data = encodeSnapshot(frame, connection.snapshot);
+        encoded.set(connection.snapshot, data);
+      }
+      // A skipped snapshot releases its reference; the next accepted frame repairs the stream in full.
+      connection.snapshot = this.send(connection, data, true) ? frame : null;
+    }
   }
 
   resetRound(): void {
@@ -730,6 +750,7 @@ export class GameServer {
     this.shots.length = 0;
     this.scores = [0, 0];
     for (const connection of this.connections) {
+      connection.snapshot = null;
       connection.queue = [];
       connection.input = null;
       connection.highestSeq = 0;

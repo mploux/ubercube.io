@@ -9,17 +9,47 @@ const welcome: ServerMessage = { type: 'welcome', id: 1, roundId: 1, world, maxP
 const baseline: ServerMessage = { type: 'world', roundId: 1, revision: 0, edits: [], initial: true, complete: true };
 const options = (port: number, name: string, seconds = 2) => parseLoadtestArgs([
   `--url=ws://127.0.0.1:${port}/ws`, '--players=2', `--seconds=${seconds}`, '--ramp-ms=0',
-  '--warmup-seconds=2', '--sample-seconds=1', `--output=.runtime/loadtest-tests/${name}.json`,
+  '--warmup-seconds=2', '--sample-seconds=1', '--max-server-rss-mib=0', `--output=.runtime/loadtest-tests/${name}.json`,
 ]);
 
 describe('loadtest qualification', () => {
   test('CLI rejects silent clamps, duplicates, credentials and unknown options, and accepts eight hours', () => {
     for (const args of [['--players=NaN'], ['--players=100.5'], ['--players=0'], ['--seconds=28801'],
       ['--seconds=-1'], ['--players=2', '--players=3'], ['--unused=1'], ['--seconds'], ['--seconds='],
-      ['--url=ws://user:secret@example.com/ws'], ['--url=https://example.com/ws'], ['--output=outside.json']]) {
+      ['--url=ws://user:secret@example.com/ws'], ['--url=https://example.com/ws'], ['--output=outside.json'],
+      ['--max-server-rss-mib=-1'], ['--max-server-rss-mib=NaN'], ['--max-server-rss-mib=1.5'], ['--max-server-rss-mib=1048577']]) {
       expect(() => parseLoadtestArgs(args)).toThrow();
     }
     expect(parseLoadtestArgs(['--seconds=28800']).seconds).toBe(28800);
+    expect(parseLoadtestArgs([]).maxServerRssMiB).toBe(1024);
+    expect(parseLoadtestArgs(['--max-server-rss-mib=0']).maxServerRssMiB).toBe(0);
+    expect(parseLoadtestArgs(['--max-server-rss-mib=2048']).maxServerRssMiB).toBe(2048);
+  });
+
+  test('rejects a server over its RSS budget before admitting players and persists the failed criterion', async () => {
+    const rss = 1024 * 1024 * 1024 + 1;
+    let requests = 0;
+    const server = Bun.serve({ hostname: '127.0.0.1', port: 0, fetch(request) {
+      requests++;
+      expect(new URL(request.url).pathname).toBe('/api/status');
+      return Response.json({ players: 0, roundId: 1, pendingInput: 0, lateTicks: 0, droppedInputs: 0,
+        projectiles: 0, tickWork: { p99: 0 }, rss });
+    } });
+    try {
+      const configured = { ...options(server.port!, 'memory-budget'), maxServerRssMiB: 1024 }, result = await runLoadtest(configured);
+      expect(result.ok).toBe(false);
+      expect(result.phase).toBe('failed');
+      expect(result.failure).toContain('Server RSS exceeded 1024 MiB budget');
+      expect(result.criteria.noServerMemoryBudgetExceeded).toBe(false);
+      expect(result.maxSampledServerRss).toBe(rss);
+      expect(result.server?.rss).toBe(rss);
+      expect(result.measuredSeconds).toBe(0);
+      expect(result.finished && result.cleanupComplete).toBe(true);
+      expect(requests).toBe(1);
+      const saved = await Bun.file(configured.output).json();
+      expect(saved.criteria.noServerMemoryBudgetExceeded).toBe(false);
+      expect(saved.server.rss).toBe(rss);
+    } finally { server.stop(true); }
   });
 
   test('rejects missing deltas, stale rounds and an initial restart on a live world', () => {

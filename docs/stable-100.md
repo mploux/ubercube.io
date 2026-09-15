@@ -26,9 +26,11 @@ Les positions des joueurs sont encore diffusées globalement : ce jalon ne réso
 
 ## Contrat réseau
 
-Le code local utilise **protocole 4 / format binaire 2**. Les snapshots, mutations terrain et événements fréquents sont binaires ; les événements de mort, hello côté client, welcome, reset, erreur et pong restent JSON. Les événements conservent leurs coordonnées Float64 et les snapshots leur précision Float32. Aucune modification des cadences, dégâts ou trajectoires.
+Le code local utilise **protocole 5 / format binaire 3**. Les snapshots, mutations terrain et événements fréquents sont binaires ; les événements de mort, hello côté client, welcome, reset, erreur et pong restent JSON. Les événements conservent leurs coordonnées Float64 et les snapshots leur précision Float32. Aucune modification des cadences, dégâts ou trajectoires.
 
-Les snapshots sont autonomes, avec entiers compacts exacts et omission des flottants `+0`. Un client dont un snapshot a été ignoré peut décoder le suivant sans état de compression à resynchroniser.
+Le premier snapshot est complet. Les suivants transmettent les champs modifiés, les entités ajoutées et les identifiants supprimés ; un état complet est préféré si le différentiel serait plus gros. Pseudos, scores, équipement et mouvement gardent leur valeur côté client tant qu'aucun changement n'est reçu.
+
+Un identifiant de snapshot distinct du tick désigne chaque référence. Le serveur capture une seule représentation immuable par envoi global et partage l'encodage entre les connexions ayant la même référence. Chaque connexion conserve au plus sa dernière référence acceptée par la file ordonnée ; aucune référence n'avance après un abandon. Arrivée, reset et reprise après saturation envoient un état complet. Le décodeur est propre à chaque connexion et reconstruit les états sans modifier ceux déjà utilisés par l'interpolation. Une référence incompatible provoque une erreur explicite et une reconnexion, sans reconstruire un état incomplet.
 
 Une publication devra coordonner client et serveur. Les manifests `ops/` décrivent toujours la dernière production enregistrée, en protocole 3 ; ils ne sont pas actualisés par ces essais locaux.
 
@@ -40,8 +42,16 @@ Chaque client valide l'ordre des manches et révisions. Deux répliques voxel in
 
 Critères : population demandée, activité d'au moins 80 %, au moins 55 intentions par seconde de joueur actif, aucune erreur applicative, aucun input/tick abandonné, p99 serveur échantillonné inférieur à 8 ms, convergence finale et nettoyage des connexions. Le p99 porte sur les fenêtres de 1 024 ticks ; le banc conserve son maximum échantillonné. Les octets applicatifs excluent TCP/TLS/WebSocket.
 
+Le banc impose aussi un budget RSS serveur de **1 024 Mio** par défaut, configurable avec `--max-server-rss-mib` (`0` désactive ce contrôle). Un dépassement enregistré fait échouer l'essai et ferme ses connexions, même si la mémoire redescend ensuite. C'est un critère du banc, pas une politique de redémarrage du jeu. Respecter ce plafond pendant un essai court ne prouve pas l'absence d'une croissance sur plusieurs heures ; comparer aussi les relevés après chaque reset et les statistiques du tas.
+
 La tenue prolongée sur le matériel cible, Internet et des navigateurs reste distincte d'un essai de bots sur une machine locale.
 
 Le runner accepte `--latency-ms=50 --jitter-ms=20` : un proxy TCP Node.js local retarde chaque sens de 50 ms avec une variation de ±20 ms, en conservant l'ordre des octets. Il borne les fragments retardés à 1 Mio par sens, 64 Mio cumulés et 256 connexions ; les buffers de flux ont aussi un seuil de 64 Kio. Cela simule délai et gigue, sans simuler perte de paquets ni débit limité. Node.js 22.19 est utilisé parce qu'une troncature de données retardées après demi-fermeture TCP a été reproduite avec Bun 1.3.11. Cette différence concerne le proxy de test ; elle ne démontre pas une troncature des messages du serveur WebSocket du jeu.
 
 `--cpu-profile` active le profileur du seul processus serveur et écrit `.runtime/stable-100/server-profile.md`. Utiliser une exécution séparée pour le diagnostic : un profil n'est pas la preuve de performance de référence.
+
+`--memory-profile` écrit `<rapport>.memory.jsonl` dans `.runtime/`, avec les statistiques mémoire du seul processus serveur au démarrage, toutes les 60 secondes et à la fin. Les champs ordinaires de `/health` distinguent déjà `rss`, `heapUsed`, `heapTotal`, `external` et `arrayBuffers`, ainsi que les sockets de transport et les octets/messages de la file transitoire. Ce sont des valeurs instantanées ; une file vide au relevé ne prouve pas qu'elle est toujours vide.
+
+Le profil mémoire est un **diagnostic distinct de la qualification d'endurance**, signalé par `diagnostic: true` dans la preuve finale. Aucun appel explicite au GC n'est ajouté. Toutefois, dans [Bun 1.3.11](https://github.com/oven-sh/bun/blob/af24e281ebacd6ac77c0f14b4206599cf4ae1c9f/src/bun.js/modules/BunJSCModule.h#L221-L295), `heapStats()` peut lancer une collecte complète si la taille du tas vaut zéro ; les comptages suivants parcourent le tas et reconstruisent des listes libres de l'allocateur. Certains compteurs reflètent la dernière collecte. Le profil peut donc perturber les temps et l'allocation : un plateau observé avec cette option doit être confirmé sans profilage.
+
+Pour arrêter proprement un essai, créer le fichier `<output>.stop` : avec `--output=.runtime/qualification-100.json`, il s'agit de `.runtime/qualification-100.json.stop`. Le runner le vérifie une fois par seconde, interrompt les bots, ferme les connexions et conserve les rapports avec un résultat d'échec/interruption. Un fichier déjà présent interrompt aussi le prochain essai utilisant ce nom ; le retirer avant une relance volontaire.

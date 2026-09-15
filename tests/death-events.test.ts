@@ -2,11 +2,12 @@ import { expect, test } from 'bun:test';
 import { GameServer, type Connection, type Peer } from '../src/shared/game';
 import { DT, PROTOCOL_VERSION, WEAPONS, type GameEvent, type InputFrame, type Kit, type ServerMessage } from '../src/shared/protocol';
 import { PLAYER_HEIGHT, PLAYER_RADIUS } from '../src/shared/movement';
-import { decodeServerMessage } from '../src/shared/wire';
+import { createServerMessageDecoder } from '../src/shared/wire';
 
 class TestPeer implements Peer {
   messages: ServerMessage[] = [];
-  send(data: string | Uint8Array): number { this.messages.push(decodeServerMessage(data)); return 1; }
+  private readonly decode = createServerMessageDecoder();
+  send(data: string | Uint8Array): number { this.messages.push(this.decode(data)); return 1; }
   close(): void {}
   bufferedAmount(): number { return 0; }
   events(kind: GameEvent['event']): GameEvent[] {

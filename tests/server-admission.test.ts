@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { clientAddress, startServer, type StartOptions } from '../src/server/index.ts';
 import { PROTOCOL_VERSION, type ServerMessage } from '../src/shared/protocol.ts';
-import { decodeServerMessage } from '../src/shared/wire.ts';
+import { createServerMessageDecoder } from '../src/shared/wire.ts';
 
 const running: ReturnType<typeof startServer>[] = [];
 const sockets: WebSocket[] = [];
@@ -26,6 +26,7 @@ async function waitFor(predicate: () => boolean, description: string) {
 }
 
 function connect(host: ReturnType<typeof startServer>, name: string | null = 'Admission') {
+  const decode = createServerMessageDecoder();
   const socket = new WebSocket(`ws://127.0.0.1:${host.server.port}/ws`);
   socket.binaryType = 'arraybuffer';
   sockets.push(socket);
@@ -38,7 +39,7 @@ function connect(host: ReturnType<typeof startServer>, name: string | null = 'Ad
   socket.addEventListener('close', event => { result.closeCode = event.code; });
   socket.addEventListener('message', event => {
     result.receivedBytes += typeof event.data === 'string' ? Buffer.byteLength(event.data) : event.data.byteLength;
-    result.messages.push(decodeServerMessage(event.data));
+    result.messages.push(decode(event.data));
   });
   return result;
 }

@@ -5,7 +5,7 @@ import { particleColor } from '../src/client/particle-material';
 import { GameServer, type Peer } from '../src/server/game';
 import { PROTOCOL_VERSION, type GameEvent, type InputFrame, type ServerMessage, type WeaponId } from '../src/shared/protocol';
 import { packBlock } from '../src/shared/voxel';
-import { decodeServerMessage } from '../src/shared/wire';
+import { createServerMessageDecoder } from '../src/shared/wire';
 import { parseWeaponModel } from '../src/client/weapon-model';
 
 const grenadeOBJ = await Bun.file('public/assets/weapons/grenade/GRENADE.obj').text();
@@ -13,10 +13,11 @@ const grenadeMTL = await Bun.file('public/assets/weapons/grenade/GRENADE.mtl').t
 const grenadeLoader = async () => parseWeaponModel(grenadeOBJ, grenadeMTL);
 
 function shotFixture(weapon: WeaponId, rgb: number, health = 1) {
+  const decode = createServerMessageDecoder();
   const game = new GameServer({ world: { seed: 12345, size: 64, height: 64 } });
   const messages: ServerMessage[] = [];
   const peer: Peer = {
-    send(data) { messages.push(decodeServerMessage(data)); return typeof data === 'string' ? data.length : data.byteLength; },
+    send(data) { messages.push(decode(data)); return typeof data === 'string' ? data.length : data.byteLength; },
     bufferedAmount: () => 0,
     close() {},
   };

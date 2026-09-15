@@ -1,6 +1,6 @@
 import { strict as assert } from 'node:assert';
 import { PROTOCOL_VERSION, type InputFrame, type ServerMessage } from '../src/shared/protocol';
-import { decodeServerMessage } from '../src/shared/wire';
+import { createServerMessageDecoder } from '../src/shared/wire';
 
 const Socket = WebSocket as unknown as new (url: string, options: Bun.WebSocketOptions) => WebSocket;
 type Welcome = Extract<ServerMessage, { type: 'welcome' }>;
@@ -36,6 +36,7 @@ export async function smoke(server: string, frontend: string) {
     return body;
   };
   const connect = (name: string, version = PROTOCOL_VERSION) => {
+    const decode = createServerMessageDecoder();
     const socket = new Socket(ws.href, { headers: { Origin: origin } });
     socket.binaryType = 'arraybuffer';
     const peer: typeof peers[number] = { socket, complete: false, closing: false, messages: [] };
@@ -45,7 +46,7 @@ export async function smoke(server: string, frontend: string) {
     socket.onclose = () => { if (!peer.closing && version === PROTOCOL_VERSION) peer.failure = 'Unexpected disconnection'; };
     socket.onmessage = event => {
       try {
-        const message = decodeServerMessage(event.data);
+        const message = decode(event.data);
         if (message.type === 'welcome') peer.welcome = message;
         else if (message.type === 'world' && message.complete) peer.complete = true;
         else if (message.type === 'snapshot') peer.snapshot = message;
