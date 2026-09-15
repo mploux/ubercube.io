@@ -2,7 +2,28 @@
 
 Le jeu est publié sur Vercel et Hetzner. Cette page distingue les vérifications locales et celles de production ; la parité des sensations avec le Java, la tenue prolongée sur Internet et les grandes distances d'affichage ne sont pas encore entièrement validées.
 
-## Candidat 100 joueurs — 15 septembre 2026
+## Snapshots différentiels — 15 septembre 2026
+
+Travail **local, non publié**, protocole 5 / binaire 3, code `b7a00d5`. Les snapshots transmettent les champs modifiés, ajouts et suppressions, avec état complet à l'arrivée, au reset et après saturation. La simulation reste à 60 Hz, les snapshots à 20 Hz et les précisions numériques sont conservées. `bun run check` passe : TypeScript, **504 tests / 35 945 assertions**, puis 11 sorties de build. Les nouvelles régressions couvrent références exactes, snapshots du même tick, états anciens d'interpolation, champs remis à zéro, décodage hostile et reprise après abandon. Preuves : `.runtime/stable-100/delta-check.log` et `delta-targeted.log`.
+
+L'essai sans profileur passe **720 secondes à 100 joueurs actifs**, sur le même poste et avec délai 50 ±20 ms par sens, TDM carte 256, reset 300 s et reconnexion 60 s. Il accomplit 10 reconnexions et 2 resets ; activité moyenne 98,16 %, à 59,95 intentions/s/joueur actif. Aucune erreur applicative, aucun input ni tick abandonné. Les terrains témoin et serveur ont le même SHA256 après drainage ; zéro connexion côté serveur et proxy, zéro octet en attente et aucun dépassement du proxy. La RSS serveur échantillonnée culmine à **268,04 Mio**. Preuves : `.runtime/stable-100/delta-hundred.*`.
+
+| Mesure | Avant, essai de 360 s | Différentiel, essai de 720 s |
+|---|---:|---:|
+| Trafic descendant agrégé | 146,21 Mbit/s | **108,46 Mbit/s** |
+| Trafic des snapshots | 88,42 Mbit/s | **50,45 Mbit/s** |
+| Taille moyenne d'un snapshot | 5 499 octets | **3 137 octets** |
+| Maximum des p99 serveur échantillonnés | 5,56 ms | **5,69 ms** |
+
+La réduction observée vaut **25,8 % du débit total et 42,9 % du débit des snapshots**. Les réglages de jeu, délai et gigue sont identiques, mais la durée et les actions effectives diffèrent : ce n'est pas un replay déterministe. Les octets excluent TCP/TLS/WebSocket. La moyenne descendante par joueur vaut environ 1,08 Mbit/s (136 ko/s) ; les tirs, impacts et mutations du terrain expliquent l'essentiel du débit restant.
+
+L'essai concentré passe aussi **120 secondes à 100 joueurs**, FFA carte 64, quatre resets et deux reconnexions, sans délai ajouté. Débit agrégé **93,28 Mbit/s**, maximum des p99 échantillonnés **4,14 ms**, RSS maximale **222,45 Mio**. Aucune erreur ni abandon d'input/tick ; terrain autoritaire identique après drainage et fermeture complète. Preuves : `.runtime/stable-100/delta-concentrated.*`.
+
+Deux vrais clients du navigateur intégré passent pseudo → équipement → apparition en Assault et Sniper, puis reset et réapparition. Le serveur confirme deux joueurs en protocole 5, successivement dans les manches 2 et 3 ; HUD, arme, terrain et minicarte sont visibles, sans avertissement ni erreur console capturés. Après fermeture des onglets, zéro joueur et zéro socket de transport sont vérifiés, puis le serveur temporaire est arrêté. La capture du pointeur est refusée par le navigateur intégré : les sensations en contrôle libre restent hors validation. Preuves serveur : `.runtime/stable-100/delta-browser-health.json`, `delta-browser-after-reset.json`, `delta-browser-cleanup.json`.
+
+La tenue mémoire sur huit heures reste à qualifier sans `--memory-profile`, avec le budget RSS de 1 024 Mio. L'ancien essai interrompu pour croissance mémoire est décrit ci-dessous ; ce succès de douze minutes ne suffit pas à fermer ce point. Ces essais locaux ne qualifient ni le serveur de production à deux vCPU, ni Internet, ni le rendu de 100 navigateurs.
+
+## Premiers essais du candidat 100 joueurs — 15 septembre 2026
 
 Travail **local, non publié**, protocole 4 / binaire 2. `bun run check` passe : TypeScript, **466 tests / 35 592 assertions**, puis 11 sorties de build. Les protections couvrent admission, horloges, mutations pendant arrivée tardive, retour au terrain généré, reset, saturation, limites de files, isolation d'une connexion et décodage hostile. Voir [les budgets et limites](stable-100.md).
 
@@ -31,6 +52,14 @@ La première tentative longue s'arrête à 193 secondes : la troisième reconnex
 Cause reproduite : un lot initial de 512 éditions par tick demande plus de 256 ticks au-delà de 131 072 éditions. Les mutations continues remplissent alors le budget de 256 messages avant que le rattrapage puisse commencer. Le transfert initial envoie désormais jusqu'à huit lots par tick, en conservant le lot immédiat au hello, les contrôles de buffer et tous les plafonds mémoire/délais. Des tests avec 200 000 et 524 288 éditions vérifient la convergence sous mutations et les retours aux valeurs générées. Après correction, `bun run check` passe **469 tests / 35 614 assertions**, TypeScript et le build ; preuve `check-initial-pacing.log`.
 
 La qualification corrigée passe **360 secondes à 100 joueurs**, TDM carte 256, délai 50 ±20 ms par sens, reset après 300 secondes et quatre reconnexions pendant les mutations. Maximum des p99 échantillonnés : **5,56 ms** ; trafic descendant agrégé : **146,21 Mbit/s** ; activité moyenne : 98,18 %, à 59,95 intentions/s/joueur actif. Aucune erreur, aucun input ni tick abandonné. Les terrains client et serveur ont exactement le même SHA256 après drainage ; serveur et proxy terminent sans connexion restante, le proxy sans octet en attente ni dépassement. Preuves : `.runtime/stable-100/hundred-dirty-world.json`, `.qualification.json` et `.proxy.log`. Ce succès de six minutes permet de relancer l'endurance de huit heures, qui reste à valider.
+
+### Endurance interrompue pour croissance mémoire
+
+La seconde tentative de huit heures, sur `2be3c95`, a été arrêtée après **3 809 secondes mesurées**. Elle avait accompli 62 reconnexions et 12 resets sans erreur applicative ni abandon d'input/tick, avec un maximum des p99 échantillonnés à 7,83 ms. Toutefois, la RSS serveur avait atteint **2 149 072 896 octets (2 049,52 Mio)** et augmentait d'une manche à l'autre malgré les resets. Cette tentative ne qualifie donc pas la stabilité. Les fichiers `.runtime/stable-100/soak-memory-growth*` conservent le contexte, les mesures et la raison de l'arrêt.
+
+Les diagnostics ont distingué la RSS, le tas JavaScript, les buffers externes et les files de transport. Les files relevées étaient vides ; les essais isolés n'ont pas identifié de référence persistante expliquant à elle seule cette croissance. Un essai de 720 secondes de l'ancien code instrumenté avec `heapStats()` est resté sous 289 Mio, mais ce profileur peut intervenir sur la collecte et l'allocateur de Bun : ce résultat ne valide pas l'endurance sans instrumentation. Aucun GC forcé ni redémarrage périodique n'est introduit dans le jeu.
+
+Le lot suivant réduit deux allocations/rétentions identifiées : clés numériques pour les mutations terrain en attente, et libération de la baseline terrain globale devenue périmée après une mutation. Les transferts en cours gardent leur propre référence. Cela ne démontre pas que la cause de la croissance précédente est entièrement corrigée ; la nouvelle endurance doit le vérifier sans profilage mémoire, avec un budget RSS explicite.
 
 ## Ragdolls — 14 septembre 2026
 
