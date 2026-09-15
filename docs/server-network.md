@@ -2,6 +2,12 @@
 
 Statut : cadrage initial issu d'une lecture statique du Java le 11 septembre 2026. Certains mécanismes décrits ici restent prévus. L'implémentation livrée et ses mesures sont décrites dans le [README](../README.md) et la [validation](validation.md). Le Java est une référence de comportement, pas une architecture à porter.
 
+## Protocole compact local — 15 septembre 2026
+
+Le protocole 4 et le format binaire 2 sont préparés localement, sans publication. Les mutations terrain et événements fréquents rejoignent les snapshots binaires. Les morts restent JSON. Les événements conservent les Float64 ; les snapshots gardent leurs Float32 et leurs entiers exacts, avec entiers de longueur variable et omission des seuls flottants `+0`. Un snapshot reste autonome : aucune dépendance à un précédent paquet, à un dictionnaire de pseudos ou à une baseline par destinataire.
+
+Le décodeur contrôle longueurs, compteurs, enums, flags, valeurs finies, encodages d'entiers canoniques et dépassements. Un snapshot synthétique de 100 joueurs actifs passe de 6 722 à 4 722 octets. Les gains réels dépendent des actions, noms et statistiques ; client et serveur doivent être publiés ensemble. Les [budgets de stabilité et essais](stable-100.md) décrivent le reste du chantier.
+
 ## Correction du retard entre joueurs — 12 septembre 2026
 
 Le client envoie désormais les intentions générées pendant chaque image, sans lot minimum de trois. Le serveur élimine uniquement les commandes en tête de file dont les boutons, l'arme et l'annulation sont identiques à l'état déjà appliqué et à la commande suivante. Les axes et l'orientation les plus récents remplacent ainsi les intentions de mouvement périmées ; le premier appui/relâchement/changement conserve sa séquence. Ce regroupement reste désactivé avant le premier input et après le délai de neutralisation. Déplacement, cadences, charge et actions sont évalués une seule fois par tick. Une pointe réseau ne laisse plus un nombre constant de commandes en retard lorsque l'envoi retrouve sa cadence normale.
