@@ -22,6 +22,7 @@ export interface GameOptions {
 
 type WorldMessage = Extract<ServerMessage, { type: 'world' }>;
 interface InitialWorld {
+  startedAt: number;
   edits: VoxelEdit[];
   offset: number;
   revision: number;
@@ -33,11 +34,12 @@ export interface Connection {
   player: PlayerState | null;
   closed: boolean;
   connectedAt: number;
-  rateTick: number;
+  rateStartedAt: number;
   messages: number;
   frames: number;
   invalid: number;
   lastMessage: number;
+  lobbySince: number;
   queue: InputFrame[];
   input: InputFrame | null;
   highestSeq: number;
@@ -60,6 +62,12 @@ const WORLD_BATCH = 512;
 const MAX_BUFFER = 512 * 1024;
 const STREAM_BUFFER = 64 * 1024;
 const MAX_INPUT_QUEUE = 12;
+const MAX_INITIAL_EDITS = 524288;
+const MAX_RETAINED_BASELINE_EDITS = 1048576;
+const MAX_INITIAL_DELTA_EDITS = 32768;
+const MAX_INITIAL_DELTA_MESSAGES = 256;
+const INITIAL_TIMEOUT_MS = 30000;
+const MAX_INITIAL_TRANSFERS = 16;
 
 function record(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -110,7 +118,10 @@ export class GameServer {
   private edits = new Map<string, VoxelEdit>();
   private baseline: { revision: number; edits: VoxelEdit[] } | null = null;
 
-  constructor(options: Partial<GameOptions> = {}, private readonly publish?: (data: string | Uint8Array) => void) {
+  // Hosts inject monotonic milliseconds; the default keeps solo and deterministic tests tick-driven.
+  constructor(options: Partial<GameOptions> = {}, private readonly publish?: (data: string | Uint8Array) => void,
+    private readonly now: () => number = () => this.tick * 1000 / TICK_RATE,
+    private readonly combatRandom: () => number = () => this.random()) {
     this.options = { mode: 'tdm', maxPlayers: 100, world: { seed: 12345, size: 256, height: 64 }, roundSeconds: 0, ...options };
     const { mode, maxPlayers, world, roundSeconds } = this.options;
     if (!['tdm', 'ffa'].includes(mode) || !Number.isInteger(maxPlayers) || maxPlayers < 1 || maxPlayers > 1000
@@ -130,9 +141,10 @@ export class GameServer {
       peer.close(1013, 'Server full');
       return null;
     }
+    const now = this.now();
     const connection: Connection = {
-      peer, player: null, closed: false, connectedAt: this.tick, rateTick: this.tick, messages: 0, frames: 0,
-      invalid: 0, lastMessage: this.tick, queue: [], input: null, highestSeq: 0, lastInputTick: this.tick,
+      peer, player: null, closed: false, connectedAt: now, rateStartedAt: now, messages: 0, frames: 0,
+      invalid: 0, lastMessage: now, lobbySince: now, queue: [], input: null, highestSeq: 0, lastInputTick: this.tick,
       previousFire: false, previousAlt: false, weaponPoses: new Map(), weaponMotion: { x: 0, y: 0, z: 0 },
       magazines: { ak47: 30, awp: 5 }, initial: null,
     };
@@ -156,7 +168,7 @@ export class GameServer {
     connection.invalid++;
     fatal ||= connection.invalid >= 8;
     this.send(connection, { type: 'error', message, fatal });
-    if (fatal) {
+    if (fatal && !connection.closed) {
       this.disconnect(connection);
       connection.peer.close(1008, message);
     }
@@ -188,7 +200,7 @@ export class GameServer {
 
   private broadcast(message: ServerMessage): void {
     const encoded = encodeServerMessage(message);
-    if (this.publish) { this.publish(encoded); return; }
+    if (this.publish && message.type !== 'snapshot') { this.publish(encoded); return; }
     for (const connection of this.connections) {
       if (connection.player && !connection.initial) this.send(connection, encoded, message.type === 'snapshot');
     }
@@ -196,8 +208,9 @@ export class GameServer {
 
   receive(connection: Connection, text: string): void {
     if (connection.closed) return;
-    if (this.tick - connection.rateTick >= TICK_RATE) {
-      connection.rateTick = this.tick;
+    const now = this.now();
+    if (now - connection.rateStartedAt >= 1000) {
+      connection.rateStartedAt = now;
       connection.messages = 0;
       connection.frames = 0;
     }
@@ -208,7 +221,7 @@ export class GameServer {
     let message: unknown;
     try { message = JSON.parse(text); } catch { this.fail(connection, 'Message invalide.'); return; }
     if (!record(message)) { this.fail(connection, 'Message invalide.'); return; }
-    connection.lastMessage = this.tick;
+    connection.lastMessage = now;
     if (message.type === 'hello') {
       if (connection.player || !keys(message, ['type', 'version', 'name']) || message.version !== PROTOCOL_VERSION
         || typeof message.name !== 'string' || message.name.trim().length < 1 || message.name.trim().length > 24
@@ -229,6 +242,7 @@ export class GameServer {
         health: 100, alive: false, aiming: false, kills: 0, deaths: 0, ammo: 30, grenades: 10, lastSeq: 0,
       };
       connection.player = player;
+      connection.lobbySince = now;
       this.players.set(player.id, player);
       this.flushWorld();
       this.send(connection, { type: 'welcome', id: player.id, roundId: this.roundId, mode: this.options.mode,
@@ -302,18 +316,40 @@ export class GameServer {
   }
 
   private startInitial(connection: Connection): void {
+    if (connection.closed) return;
     connection.peer.setBroadcast?.(false);
+    let transfers = 0;
+    for (const active of this.connections) if (active !== connection && active.initial) transfers++;
+    if (this.world.editCount && transfers >= MAX_INITIAL_TRANSFERS) {
+      this.fail(connection, 'Synchronisation occupée. Réessayez dans quelques instants.', true);
+      return;
+    }
     if (!this.baseline || this.baseline.revision !== this.revision) {
+      if (this.world.editCount > MAX_INITIAL_EDITS) {
+        this.fail(connection, 'Terrain trop volumineux pour la synchronisation.', true);
+        return;
+      }
+      const retained = new Set<VoxelEdit[]>();
+      for (const active of this.connections) if (active.initial) retained.add(active.initial.edits);
+      let retainedEdits = this.world.editCount;
+      for (const edits of retained) retainedEdits += edits.length;
+      if (retainedEdits > MAX_RETAINED_BASELINE_EDITS) {
+        this.fail(connection, 'Synchronisation occupée. Réessayez dans quelques instants.', true);
+        return;
+      }
       this.baseline = { revision: this.revision, edits: this.world.getEdits() };
     }
-    connection.initial = { ...this.baseline, offset: 0, deltas: [], deltaEdits: 0 };
+    connection.initial = { ...this.baseline, startedAt: this.now(), offset: 0, deltas: [], deltaEdits: 0 };
   }
 
   private streamInitial(connection: Connection): void {
     const initial = connection.initial;
-    if (!initial || connection.peer.bufferedAmount() > STREAM_BUFFER) return;
-    if (initial.deltaEdits > 32768) this.startInitial(connection);
-    if (connection.initial !== initial) return;
+    if (!initial) return;
+    if (this.now() - initial.startedAt >= INITIAL_TIMEOUT_MS) {
+      this.fail(connection, 'Synchronisation trop lente. Reconnectez-vous.', true);
+      return;
+    }
+    if (connection.peer.bufferedAmount() > STREAM_BUFFER) return;
     if (initial.offset < initial.edits.length) {
       const edits = initial.edits.slice(initial.offset, initial.offset + WORLD_BATCH);
       if (this.send(connection, { type: 'world', roundId: this.roundId, revision: initial.revision, initial: true, complete: false, edits })) {
@@ -321,15 +357,17 @@ export class GameServer {
       }
       return;
     }
-    const delta = initial.deltas[0];
-    if (delta) {
-      if (this.send(connection, { ...delta, initial: true, complete: false })) {
-        initial.deltas.shift();
-        initial.deltaEdits -= delta.edits.length;
-        initial.revision = delta.revision;
-      }
-      return;
+    // Catch up faster than the normal one-delta-per-tick stream, with bounded work per connection.
+    for (let batches = 0; batches < 4; batches++) {
+      const delta = initial.deltas[0];
+      if (!delta) break;
+      if (connection.peer.bufferedAmount() > STREAM_BUFFER) return;
+      if (!this.send(connection, { ...delta, initial: true, complete: false })) return;
+      initial.deltas.shift();
+      initial.deltaEdits -= delta.edits.length;
+      initial.revision = delta.revision;
     }
+    if (initial.deltas.length || connection.peer.bufferedAmount() > STREAM_BUFFER) return;
     if (!this.send(connection, { type: 'world', roundId: this.roundId, revision: initial.revision, initial: true, complete: true, edits: [] })) return;
     connection.initial = null;
     connection.peer.setBroadcast?.(true);
@@ -353,6 +391,11 @@ export class GameServer {
       for (const connection of this.connections) {
         if (!connection.player) continue;
         if (connection.initial) {
+          if (connection.initial.deltaEdits + message.edits.length > MAX_INITIAL_DELTA_EDITS
+            || connection.initial.deltas.length >= MAX_INITIAL_DELTA_MESSAGES) {
+            this.fail(connection, 'Synchronisation dépassée. Reconnectez-vous.', true);
+            continue;
+          }
           connection.initial.deltas.push(message);
           connection.initial.deltaEdits += message.edits.length;
         } else if (!this.publish) this.send(connection, encoded);
@@ -434,6 +477,7 @@ export class GameServer {
     if (player.team === 2) this.scores[0]++;
     for (const connection of this.connections) {
       if (connection.player === player) {
+        connection.lobbySince = this.now();
         connection.queue = [];
         connection.input = null;
         for (const pose of connection.weaponPoses.values()) { pose.charge = 0; pose.fireHeld = false; pose.altHeld = false; }
@@ -458,7 +502,7 @@ export class GameServer {
     stepWeaponMotion(connection.weaponMotion, frame.cancelActions ? { moveX: 0, moveZ: 0, sprint: false } : frame);
     const actions = stepWeaponPose(pose, { fire: frame.fire, alt: frame.alt, sprint: frame.sprint,
       localVelocity: connection.weaponMotion, lookDeltaYaw: Math.atan2(Math.sin(player.yaw - previousYaw), Math.cos(player.yaw - previousYaw)),
-      lookDeltaPitch: player.pitch - previousPitch, grenades: player.grenades, cancelActions: frame.cancelActions }, () => this.random());
+      lookDeltaPitch: player.pitch - previousPitch, grenades: player.grenades, cancelActions: frame.cancelActions }, this.combatRandom);
     connection.previousFire = frame.fire && !frame.cancelActions;
     connection.previousAlt = frame.alt && !frame.cancelActions;
     player.aiming = pose.altHeld && (player.weapon === 'ak47' || player.weapon === 'awp');
@@ -613,9 +657,10 @@ export class GameServer {
   }
   step(): void {
     this.tick++;
+    const now = this.now();
     if (this.options.roundSeconds > 0 && this.tick - this.roundStart >= this.options.roundSeconds * TICK_RATE) this.resetRound();
     for (const connection of this.connections) {
-      if ((!connection.player && this.tick - connection.connectedAt > 5 * TICK_RATE) || this.tick - connection.lastMessage > 30 * TICK_RATE) {
+      if ((!connection.player && now - connection.connectedAt > 5000) || now - connection.lastMessage > 30000) {
         this.fail(connection, 'Connexion expirée.', true);
         continue;
       }
@@ -626,6 +671,10 @@ export class GameServer {
       }
       if (connection.initial) { this.streamInitial(connection); continue; }
       const player = connection.player;
+      if (player && !player.alive && now - connection.lobbySince > 120000) {
+        this.fail(connection, 'Équipement inactif : reconnectez-vous pour jouer.', true);
+        continue;
+      }
       if (!player?.alive) continue;
       // Recover from delivery jitter without consuming button edges or extra simulation ticks.
       if (connection.input && this.tick - connection.lastInputTick <= 15) {
@@ -685,6 +734,7 @@ export class GameServer {
       connection.previousFire = false;
       connection.previousAlt = false;
       if (!connection.player) continue;
+      connection.lobbySince = this.now();
       Object.assign(connection.player, { alive: false, aiming: false, health: 100, kills: 0, deaths: 0, lastSeq: 0, grenades: 10 });
       this.send(connection, { type: 'reset', roundId: this.roundId, world: this.options.world });
       this.startInitial(connection);

@@ -45,6 +45,7 @@ export class VoxelWorld {
   }
 
   get config(): WorldConfig { return this.configuration; }
+  get editCount(): number { return this.edits.size; }
 
   private validate(config: WorldConfig): WorldConfig {
     if (!Number.isInteger(config.size) || config.size < 16 || !Number.isInteger(config.height)
