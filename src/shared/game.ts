@@ -2,7 +2,7 @@ import { DT, KITS, PROTOCOL_VERSION, TICK_RATE, WEAPONS } from './protocol.ts';
 import type { GameEvent, InputFrame, Kit, Mode, PlayerState, ProjectileState, RemotePlayerState, ServerMessage, Vec3, VoxelEdit, WeaponId, WorldConfig } from './protocol.ts';
 import { aimDirection, EYE_HEIGHT, movePlayer, playerCollides, PLAYER_HEIGHT, PLAYER_RADIUS } from './movement.ts';
 import { damageBlock, packBlock, raycast, VoxelWorld } from './voxel.ts';
-import { captureOwnerState, captureSnapshot, encodeRecipientSnapshot, encodeServerMessage, encodeSnapshot, type OwnerState, type SnapshotFrame } from './wire.ts';
+import { captureOwnerState, captureSnapshot, encodeCombinedSnapshot, encodeRecipientSnapshot, encodeServerMessage, encodeSnapshot, selectSnapshotPlayers, type OwnerState, type SnapshotFrame } from './wire.ts';
 import { createWeaponPose, getWeaponMuzzle, hideWeaponPose, stepWeaponMotion, stepWeaponPose, type WeaponPoseState } from './weapon-pose.ts';
 import { grenadeLaunch, stepGrenade, type GrenadeFlight } from './grenade.ts';
 
@@ -52,6 +52,8 @@ export interface Connection {
   initial: InitialWorld | null;
   snapshot: SnapshotFrame | null;
   ownerSnapshot: OwnerState | null;
+  snapshotPhase: number;
+  relevance: ({ id: number; interval: 3 | 6 | 12; pending: 3 | 6 | 12; since: number } | undefined)[];
   roster: ReadonlyMap<number, { id: number; name: string; team: PlayerState['team'] }>;
 }
 interface Projectile extends ProjectileState, GrenadeFlight { damage: number; expires: number }
@@ -150,7 +152,7 @@ export class GameServer {
       peer, player: null, closed: false, connectedAt: now, rateStartedAt: now, messages: 0, frames: 0,
       invalid: 0, lastMessage: now, lobbySince: now, queue: [], input: null, highestSeq: 0, lastInputTick: this.tick,
       previousFire: false, previousAlt: false, weaponPoses: new Map(), weaponMotion: { x: 0, y: 0, z: 0 },
-      magazines: { ak47: 30, awp: 5 }, initial: null, snapshot: null, ownerSnapshot: null, roster: new Map(),
+      magazines: { ak47: 30, awp: 5 }, initial: null, snapshot: null, ownerSnapshot: null, snapshotPhase: 0, relevance: [], roster: new Map(),
     };
     this.connections.add(connection);
     return connection;
@@ -166,6 +168,7 @@ export class GameServer {
     connection.initial = null;
     connection.snapshot = null;
     connection.ownerSnapshot = null;
+    connection.relevance.length = 0;
     connection.roster = new Map();
     connection.input = null;
   }
@@ -258,6 +261,9 @@ export class GameServer {
         position: { x: 0, y: 0, z: 0 }, velocity: { x: 0, y: 0, z: 0 }, grounded: false, yaw: 0, pitch: 0,
         health: 100, alive: false, aiming: false, kills: 0, deaths: 0, ammo: 30, grenades: 10, lastSeq: 0,
       };
+      const phaseCounts = [0, 0, 0];
+      for (const other of this.connections) if (other.player) phaseCounts[other.snapshotPhase]++;
+      connection.snapshotPhase = phaseCounts.indexOf(Math.min(...phaseCounts));
       connection.player = player;
       connection.lobbySince = now;
       this.players.set(player.id, player);
@@ -726,15 +732,20 @@ export class GameServer {
     this.resolveShots();
     this.updateProjectiles();
     this.flushWorld();
-    if (this.tick % 3 === 0) this.sendSnapshot();
+    this.sendSnapshot(undefined, this.tick % 3);
   }
 
-  sendSnapshot(only?: Connection): void {
+  sendSnapshot(only?: Connection, phase?: number): void {
+    // Spread recipient encoding across ticks while each connection keeps its 20 Hz cadence.
+    const recipients = (only ? [only] : [...this.connections]).filter(connection => connection.player && !connection.initial
+      && !connection.closed && (phase === undefined || connection.snapshotPhase === phase));
+    if (!recipients.length) return;
     const roster = new Map([...this.players.values()].map(({ id, name, team }) => [id, { id, name, team }]));
     const players: RemotePlayerState[] = [...this.players.values()].map(player => ({
       id: player.id, name: player.name, team: player.team, weapon: player.weapon, alive: player.alive,
       aiming: player.aiming, kills: player.kills, deaths: player.deaths, hasGrenades: player.grenades > 0,
       position: player.position, velocity: { x: player.velocity.x, z: player.velocity.z }, yaw: player.yaw, pitch: player.pitch,
+      sampleTick: this.tick, sampleInterval: 3,
     }));
     const velocities = new Map<number, { id: number; velocity: Vec3 }[]>();
     for (const projectile of this.projectiles.values()) {
@@ -752,27 +763,69 @@ export class GameServer {
       this.nextSnapshot = 1;
       for (const connection of this.connections) { connection.snapshot = null; connection.ownerSnapshot = null; }
     }
-    const frame = captureSnapshot(snapshot, this.nextSnapshot++);
+    const current = captureSnapshot(snapshot, this.nextSnapshot++);
     const encoded = new Map<SnapshotFrame | null, Uint8Array>();
-    for (const connection of only ? [only] : this.connections) {
+    const rosterChanges = new Map<Connection['roster'], { upserts: Pick<RemotePlayerState, 'id' | 'name' | 'team'>[]; removed: number[] }>();
+    for (const connection of recipients) {
       if (!connection.player || connection.initial || connection.closed) continue;
-      const upserts = [...roster.values()].filter(player => {
-        const known = connection.roster.get(player.id);
-        return !known || known.name !== player.name || known.team !== player.team;
-      });
-      const removed = [...connection.roster.keys()].filter(id => !roster.has(id));
+      let rosterChange = rosterChanges.get(connection.roster);
+      if (!rosterChange) {
+        const upserts = [...roster.values()].filter(player => {
+          const known = connection.roster.get(player.id);
+          return !known || known.name !== player.name || known.team !== player.team;
+        });
+        const removed = [...connection.roster.keys()].filter(id => !roster.has(id));
+        rosterChange = { upserts, removed }; rosterChanges.set(connection.roster, rosterChange);
+      }
+      const { upserts, removed } = rosterChange;
       if (upserts.length || removed.length) {
         if (!this.send(connection, { type: 'roster', upserts, removed })) continue;
-        connection.roster = roster;
       }
-      let data = encoded.get(connection.snapshot);
-      if (!data) {
-        data = encodeSnapshot(frame, connection.snapshot);
-        encoded.set(connection.snapshot, data);
+      connection.roster = roster;
+      if (!connection.snapshot) connection.relevance.length = 0;
+      else if (upserts.length || removed.length) {
+        const priorities = new Map<number, NonNullable<Connection['relevance'][number]>>();
+        for (const priority of connection.relevance) if (priority) priorities.set(priority.id, priority);
+        connection.relevance = players.map(player => priorities.get(player.id));
       }
-      // A skipped snapshot releases its reference; the next accepted frame repairs the stream in full.
+      const observer = connection.player, forward = aimDirection(observer.yaw, observer.pitch);
+      const frame = selectSnapshotPlayers(current, connection.snapshot, (id, index) => {
+        const player = players[index];
+        const dx = player.position.x - observer.position.x, dy = player.position.y - observer.position.y,
+          dz = player.position.z - observer.position.z, distanceSquared = dx * dx + dy * dy + dz * dz;
+        let desired: 3 | 6 | 12 = 3;
+        if (player.id !== observer.id && observer.alive && distanceSquared > 25) {
+          // Keep a 15-degree margin behind the camera plane, also covering the unscoped AWP view.
+          const behind = dx * forward.x + dy * forward.y + dz * forward.z < -0.2588190451 * Math.sqrt(distanceSquared);
+          desired = behind ? 12 : observer.weapon === 'awp' || distanceSquared <= 2500 ? 3 : 6;
+        }
+        let priority = connection.relevance[index];
+        if (priority?.id !== id) priority = undefined;
+        const promoted = !priority || desired < priority.interval;
+        if (!priority) {
+          priority = { id, interval: desired, pending: desired, since: this.tick };
+          connection.relevance[index] = priority;
+        } else if (desired <= priority.interval) {
+          priority.interval = desired; priority.pending = desired; priority.since = this.tick;
+        } else {
+          if (priority.pending !== desired) { priority.pending = desired; priority.since = this.tick; }
+          if (this.tick - priority.since >= 12) priority.interval = desired;
+        }
+        // Stagger lower-priority players across snapshots instead of sending every one in the same burst.
+        if (promoted || (Math.floor(this.tick / 3) + player.id) % (priority.interval / 3) === 0) {
+          return priority.interval;
+        }
+        return undefined;
+      });
       const owner = captureOwnerState(connection.player, velocities.get(connection.player.id) ?? [], frame);
-      const accepted = this.send(connection, encodeRecipientSnapshot(data, owner, connection.ownerSnapshot), true);
+      let packet: Uint8Array;
+      if (frame === current) {
+        let data = encoded.get(connection.snapshot);
+        if (!data) { data = encodeSnapshot(frame, connection.snapshot); encoded.set(connection.snapshot, data); }
+        packet = encodeRecipientSnapshot(data, owner, connection.ownerSnapshot);
+      } else packet = encodeCombinedSnapshot(frame, owner, connection.snapshot, connection.ownerSnapshot);
+      // A skipped snapshot releases its reference; the next accepted frame repairs the stream in full.
+      const accepted = this.send(connection, packet, true);
       connection.snapshot = accepted ? frame : null;
       connection.ownerSnapshot = accepted ? owner : null;
     }
@@ -791,6 +844,7 @@ export class GameServer {
     for (const connection of this.connections) {
       connection.snapshot = null;
       connection.ownerSnapshot = null;
+      connection.relevance.length = 0;
       connection.queue = [];
       connection.input = null;
       connection.highestSeq = 0;
@@ -800,6 +854,10 @@ export class GameServer {
       if (!connection.player) continue;
       connection.lobbySince = this.now();
       Object.assign(connection.player, { alive: false, aiming: false, health: 100, kills: 0, deaths: 0, lastSeq: 0, grenades: 10 });
+    }
+    // Initial snapshots must see every player in the new round, including later connections.
+    for (const connection of this.connections) {
+      if (!connection.player) continue;
       this.send(connection, { type: 'reset', roundId: this.roundId, world: this.options.world });
       this.startInitial(connection);
       this.streamInitial(connection);

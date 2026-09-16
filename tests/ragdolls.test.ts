@@ -19,6 +19,7 @@ const advance = (ragdolls: Ragdolls, seconds: number, start = 0) => {
 
 function movingSkeleton(): RagdollPart[] {
   const player: RemotePlayerState = {
+    sampleTick: 0, sampleInterval: 3,
     id: 1, name: 'Ragdoll', team: 1, weapon: 'ak47', aiming: true,
     position: { x: 16, y: 10, z: 16 }, velocity: { x: 6, z: 0 }, yaw: .8, pitch: .6,
     alive: true, kills: 0, deaths: 0, hasGrenades: true,

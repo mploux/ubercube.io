@@ -6,6 +6,7 @@ import { parseWeaponModel, WEAPON_MODEL_FILES } from '../src/client/weapon-model
 import type { RemotePlayerState, WeaponId } from '../src/shared/protocol';
 
 const player = (overrides: Partial<RemotePlayerState> = {}): RemotePlayerState => ({
+  sampleTick: 0, sampleInterval: 3,
   id: 1, name: 'Reference', team: 1, weapon: 'ak47', aiming: false,
   position: { x: 0, y: 0, z: 0 }, velocity: { x: 0, z: 0 }, yaw: 0, pitch: 0,
   alive: true, kills: 0, deaths: 0, hasGrenades: true, ...overrides,

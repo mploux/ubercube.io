@@ -26,11 +26,32 @@ Les positions des joueurs sont encore diffusées globalement : ce jalon ne réso
 
 ## Contrat réseau
 
-Le code local utilise **protocole 6 / format binaire 4**. Les snapshots, mutations terrain et événements fréquents sont binaires ; les événements de mort, le registre des joueurs (`roster`), hello côté client, welcome, reset, erreur et pong restent JSON. Les événements conservent leurs coordonnées Float64 et les snapshots leur précision Float32. Aucune modification des cadences, dégâts ou trajectoires.
+Le code local utilise **protocole 7 / format binaire 5**. Les snapshots, mutations terrain et événements fréquents sont binaires ; les événements de mort, le registre des joueurs (`roster`), hello côté client, welcome, reset, erreur et pong restent JSON. Les événements conservent leurs coordonnées Float64 et les snapshots leur précision Float32. Les cadences des armes, dégâts et trajectoires sont inchangés.
 
 Le registre fiable transmet identifiant, pseudo et équipe à l'arrivée, puis leurs changements et les départs. Il est borné aux joueurs actifs et conservé entre les manches ; une nouvelle connexion repart d'un registre vide. Il précède les snapshots qui utilisent ces identités, sans répéter les pseudos dans chaque mise à jour du mouvement.
 
-Les snapshots publics restent à **20 Hz**. Le premier état est complet ; les suivants transmettent les champs modifiés, les entités ajoutées et les identifiants supprimés, avec retour à un état complet si celui-ci est plus petit. Les autres joueurs exposent position, vitesse horizontale, orientation, arme visible, visée, état vivant, scores et présence de grenades (`hasGrenades`). Santé, kit, munitions, nombre de grenades, acquittement d'input, état au sol et vitesse verticale restent dans l'état privé `owner`, destiné à la seule connexion concernée.
+Les enveloppes de snapshots restent à **20 Hz par connexion**. Les destinataires sont répartis entre trois phases du serveur à 60 Hz, choisies au hello selon le groupe le moins peuplé. Cela étale l'encodage sans ajouter de file ni différer les événements ; une phase vide ne construit aucun snapshot. Les arrivées, apparitions et resets conservent leur état immédiat. Le premier état est complet ; les suivants transmettent les champs modifiés, les entités ajoutées et les identifiants supprimés, avec retour à un état complet si celui-ci est plus petit. Les autres joueurs exposent position, vitesse horizontale, orientation, arme visible, visée, état vivant, scores et présence de grenades (`hasGrenades`). Santé, kit, munitions, nombre de grenades, acquittement d'input, état au sol et vitesse verticale restent dans l'état privé `owner`, destiné à la seule connexion concernée.
+
+### Priorité des mouvements par destinataire
+
+Le serveur calcule la cadence d'après les positions et orientations autoritaires. Les distances sont en unités du monde voxel ; elles ne définissent pas une nouvelle échelle physique du jeu.
+
+| Situation de la cible | Cadence de mouvement |
+|---|---:|
+| Joueur local, ou observateur mort dont la caméra est détachée | 20 Hz |
+| Distance au plus 5 unités, toutes directions | 20 Hz |
+| Derrière la caméra au-delà de 5 unités | 5 Hz |
+| Zone avant, distance au plus 50 unités | 20 Hz |
+| Zone avant, au-delà de 50 unités | 10 Hz |
+| Zone avant avec AWP équipée, même sans zoom et sans limite de distance | 20 Hz |
+
+La zone avant conserve une marge de 15 degrés derrière le plan de la caméra, en tenant compte du yaw et du pitch. Elle est volontairement plus large que la lunette : une cible lointaine reste prioritaire pendant un déplacement du viseur. Une hausse de priorité force une mise à jour au prochain snapshot ; une baisse doit rester demandée pendant 12 ticks (200 ms). Les cadences réduites sont réparties entre les snapshots selon l'identifiant de la cible afin d'éviter un envoi groupé de tous les joueurs lents.
+
+Chaque état public porte `sampleTick` (date réelle de sa capture) et `sampleInterval` (3, 6 ou 12 ticks). Un état non actualisé reste présent dans la référence avec sa date précédente ; il n'est ni supprimé ni présenté comme une nouvelle observation. Les changements d'arme, visée, vie, présence de grenades et scores forcent une capture fraîche sans attendre l'échéance de mouvement. Les corrections privées du propriétaire et les positions des projectiles restent à 20 Hz ; les événements et mutations terrain conservent leur diffusion actuelle.
+
+Le client interpole séparément chaque personnage avec un historique borné à 40 échantillons et le tampon correspondant à sa cadence (50, 100 ou 200 ms, plus la gigue). L'horloge réseau utilise les ticks des 40 dernières enveloppes, pas l'âge des personnages retardés. Une promotion réduit progressivement le délai de présentation, avec une vitesse de lecture plafonnée à deux fois le temps réel : le passage de 5 à 20 Hz rattrape ainsi 150 ms de retard en environ 150 ms. Une baisse de fréquence peut brièvement tenir la pose pendant la constitution du tampon plus long. Mort, nouvelle génération de vie, téléportation, reset et départ ne sont pas interpolés avec l'ancien état. Le délai réseau reste observable lors d'un demi-tour brusque : la priorité ne peut pas fournir un état qui n'est pas encore arrivé.
+
+Cette priorité de fréquence n'est pas un filtrage anti-wallhack : toutes les identités et les positions restent connues, à des cadences différentes. Elle ne filtre pas encore les tirs, sons, impacts ou explosions. À 100 joueurs regroupés dans la zone prioritaire, la réduction de trafic attendue est faible.
 
 Les positions des grenades restent publiques. Leurs corrections de vitesse dans `projectileVelocities` ne sont envoyées qu'à leur propriétaire ; l'événement de lancement conserve sa vitesse initiale ponctuelle. La séquence d'input des événements de tir est également réservée au tireur. Une mort transmet seulement l'état nécessaire au corps visuel, le point d'impact et l'impulsion : aucune santé, aucun kit, aucune réserve de munitions ni séquence privée.
 
@@ -39,7 +60,8 @@ L'échéance de manche est un tick fixe `roundEndTick` (ou `null`), à partir du
 | Champs | Transmission en fonctionnement normal | Destinataires |
 |---|---|---|
 | `id`, `name`, `team` du registre | Découverte, changement ou départ ; `id` sert ensuite de référence | Tous |
-| `position`, `velocity.x/z`, `yaw`, `pitch` | Champs modifiés, au plus 20 Hz | Tous |
+| `position`, `velocity.x/z`, `yaw`, `pitch` | Champs modifiés à 5, 10 ou 20 Hz selon priorité ; capture forcée lors d'une transition publique critique | Tous, sélection par destinataire |
+| `sampleTick`, `sampleInterval` | Date de capture et cadence du mouvement ; conservées quand la cible n'est pas actualisée | Tous, sélection par destinataire |
 | `weapon`, `aiming`, `alive`, `hasGrenades` | Transition, dans le prochain snapshot | Tous |
 | `kills`, `deaths` | Changement/reset, dans le prochain snapshot ; `deaths` identifie aussi la génération de vie | Tous |
 | `lastSeq`, `velocity.y` du joueur | Champs modifiés avec la correction à 20 Hz | Propriétaire |
@@ -51,13 +73,15 @@ L'échéance de manche est un tick fixe `roundEndTick` (ou `null`), à partir du
 
 Les événements de mort restent immédiats et indépendants du snapshot suivant. Les états complets d'arrivée ou de réparation retransmettent les valeurs publiques et privées nécessaires, même inchangées ; ils réutilisent les identités du registre. Aucun canal supplémentaire à cadence différente n'est ajouté pour les transitions : les masques différentiels évitent de répéter les valeurs constantes dans le flux existant.
 
-Un identifiant de snapshot distinct du tick désigne chaque référence. Le serveur capture une représentation publique immuable et partage son encodage entre les connexions ayant la même référence ; il ajoute séparément l'état privé de chaque destinataire. Chaque connexion conserve ses dernières références publique et privée acceptées par la file ordonnée ; aucune référence n'avance après un abandon. Arrivée, reset et reprise après saturation envoient un état complet. Le reset invalide les références de snapshots et conserve le registre fiable. Le décodeur est propre à chaque connexion et reconstruit les états sans modifier ceux déjà utilisés par l'interpolation. Une référence incompatible provoque une erreur explicite et une reconnexion.
+Un identifiant de snapshot distinct du tick désigne chaque référence. Le serveur capture une représentation publique immuable puis sélectionne les états actualisés par destinataire ; le cas entièrement prioritaire partage encore son encodage entre les connexions ayant la même référence. L'état privé est ajouté séparément. Chaque connexion conserve ses dernières références publique et privée acceptées par la file ordonnée ; aucune référence n'avance après un abandon. Arrivée, reset et reprise après saturation envoient un état complet frais. Le reset invalide les références et priorités, conserve le registre fiable et réinitialise tous les joueurs avant d'envoyer le premier état de la nouvelle manche. Le décodeur est propre à chaque connexion et reconstruit les états sans modifier ceux déjà utilisés par l'interpolation. Une référence incompatible provoque une erreur explicite et une reconnexion.
+
+Un état complet n'est encodé qu'au besoin ; sa taille exacte, calculée lors de la validation des champs, suffit pour comparer le coût du delta. Les destinataires partagent les identifiants et leur index ; seuls les tableaux de références aux champs sélectionnés diffèrent. Les octets des changements publics, identifiant compris, sont partagés par couple d'échantillons immuables du même joueur, dans un cache propre à chaque capture et limité à 100 entrées par joueur. Ces entrées ne contiennent aucune ancienne frame. Les octets des projectiles sont partagés par couple de références. Le paquet personnalisé assemble directement les sections publique et privée dans un seul buffer ; les données privées restent propres au destinataire. Au plus trois variantes de cadence partagent une capture ; les autres caches utilisent des clés faibles.
 
 Une publication devra coordonner client et serveur. Les manifests `ops/` décrivent toujours la dernière production enregistrée, en protocole 3 ; ils ne sont pas actualisés par ces essais locaux.
 
 ## Qualification
 
-Les mesures précédentes en protocole 5 sont historiques. Son essai d'endurance a été interrompu volontairement pour ce changement après **2 606,233 secondes mesurées**, soit environ **43,4 minutes**. L'arrêt et le nettoyage ont été confirmés (`clean: true`, zéro connexion restante dans le proxy). Cet essai ne valide ni huit heures d'endurance ni le protocole 6. Les nouveaux résultats du protocole 6, leurs preuves et leurs limites sont suivis dans [validation.md](validation.md) ; un essai court réussi ne remplace pas la qualification d'endurance.
+Les mesures des protocoles précédents sont historiques. L'essai d'endurance du protocole 5 a été interrompu volontairement pour une évolution du contrat après **2 606,233 secondes mesurées**, soit environ **43,4 minutes**. L'arrêt et le nettoyage ont été confirmés (`clean: true`, zéro connexion restante dans le proxy). Cet essai ne valide ni huit heures d'endurance ni les protocoles suivants. Les résultats datés, leurs preuves et leurs limites sont suivis dans [validation.md](validation.md) ; un essai court réussi ne remplace pas la qualification d'endurance du protocole 7.
 
 `bun run qualify:local` lance le serveur dans un processus Bun séparé, écoute uniquement sur `127.0.0.1` et utilise une exception d'admission explicite pour les bots locaux. Le parent inspecte le terrain autoritaire par IPC privé après drainage ; aucun endpoint de debug n'est ajouté au jeu.
 

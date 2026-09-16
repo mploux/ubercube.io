@@ -5,6 +5,7 @@ import { Ragdolls } from '../src/client/ragdolls';
 import type { GameEvent, RemotePlayerState } from '../src/shared/protocol';
 
 const player = (overrides: Partial<RemotePlayerState> = {}): RemotePlayerState => ({
+  sampleTick: 0, sampleInterval: 3,
   id: 1, name: '', team: 1, weapon: 'ak47', aiming: true,
   position: { x: 20, y: 1, z: 20 }, velocity: { x: 0, z: 0 }, yaw: .7, pitch: .3,
   alive: true, kills: 0, deaths: 0, hasGrenades: true, ...overrides,

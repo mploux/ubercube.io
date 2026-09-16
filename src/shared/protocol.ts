@@ -1,4 +1,4 @@
-export const PROTOCOL_VERSION = 6;
+export const PROTOCOL_VERSION = 7;
 export const TICK_RATE = 60;
 export const DT = 1 / TICK_RATE;
 export type Mode = 'tdm' | 'ffa';
@@ -20,6 +20,7 @@ export interface RemotePlayerState {
   id: number; name: string; team: Team; weapon: WeaponId;
   alive: boolean; aiming: boolean; kills: number; deaths: number; hasGrenades: boolean;
   position: Vec3; velocity: Pick<Vec3, 'x' | 'z'>; yaw: number; pitch: number;
+  sampleTick: number; sampleInterval: 3 | 6 | 12;
 }
 export type DeathPlayerState = Pick<PlayerState, 'id' | 'weapon' | 'alive' | 'aiming' | 'deaths' | 'position' | 'velocity' | 'yaw' | 'pitch'>;
 export interface InputFrame {

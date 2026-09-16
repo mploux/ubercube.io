@@ -40,6 +40,7 @@ export async function checkRagdolls(renderer: THREE.WebGLRenderer): Promise<stri
   for (const sign of [-1, 1]) {
     visuals.clear();
     const player: RemotePlayerState = {
+      sampleTick: 0, sampleInterval: 3,
       id: 1, name: '', team: 1, weapon: 'ak47', aiming: false,
       position: { x: 20, y: 1, z: 20 }, velocity: { x: 0, z: 0 }, yaw: 0, pitch: 0,
       alive: true, kills: 0, deaths: 0, hasGrenades: true,

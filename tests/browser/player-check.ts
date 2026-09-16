@@ -28,6 +28,7 @@ export async function checkPlayers(renderer: THREE.WebGLRenderer): Promise<strin
     figure.append(canvas, caption); gallery.append(figure);
   };
   const player: RemotePlayerState = {
+    sampleTick: 0, sampleInterval: 3,
     id: 1, name: '', team: 1, weapon: 'ak47', aiming: false,
     position: { x: 0, y: 0, z: 0 }, velocity: { x: 0, z: 0 }, yaw: 0, pitch: 0,
     alive: true, kills: 0, deaths: 0, hasGrenades: true,

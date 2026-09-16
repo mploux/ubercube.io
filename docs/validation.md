@@ -1,6 +1,34 @@
-# Validation du 11 au 15 septembre 2026
+# Validation du 11 au 16 septembre 2026
 
 Le jeu est publié sur Vercel et Hetzner. Cette page distingue les vérifications locales et celles de production ; la parité des sensations avec le Java, la tenue prolongée sur Internet et les grandes distances d'affichage ne sont pas encore entièrement validées.
+
+## Priorité de mouvement par destinataire — 16 septembre 2026
+
+Travail **local, non publié**, protocole 7 / binaire 5. Les [règles de priorité](stable-100.md#priorité-des-mouvements-par-destinataire) sélectionnent les mouvements à 5, 10 ou 20 Hz selon la vue et la distance autoritaires ; l'AWP conserve 20 Hz dans toute la zone avant. Chaque personnage conserve la date réelle de son échantillon. Le client interpole les historiques séparément et rattrape progressivement le retard lors d'une promotion. La simulation, les corrections privées, les événements et le terrain conservent leurs cadences.
+
+Les tests ciblés couvrent cadences, marge angulaire, pitch, AWP sans zoom, promotion immédiate, démotion retardée, états publics critiques, destinataires opposés, réparation après saturation, départs décalant l'ordre des joueurs et reset. Ce dernier réinitialise désormais tous les joueurs avant d'envoyer les états de la nouvelle manche. Les tests d'interpolation couvrent 30, 60 et 144 images/s, gigue, arrêt/reprise, changements de cadence et cycles de vie. Ils ne valident pas les sensations du sniper en contrôle humain.
+
+La première implémentation réduit le trafic mais échoue au budget CPU : le maximum des p99 serveur échantillonnés atteint 20,04 ms sur 60 secondes à 100 bots. Le profilage séparé et les comparaisons isolées conduisent à différer l'encodage complet, partager les octets immuables, assembler directement public et privé et remplacer les recherches répétées par des tableaux alignés sur les identifiants. Les connexions sont aussi réparties entre trois phases pour étaler l'encodage sans réduire leur cadence. Les tests vérifient 20 snapshots/s pour chacun des 100 clients et au plus 34 destinataires par phase, même après départs sélectifs et reconnexions. Les essais de diagnostic et les variantes non retenues restent dans `.runtime/stable-100/` ; ils ne constituent pas une qualification. Le seuil de 8 ms n'est pas modifié.
+
+TypeScript, **533 tests / 48 088 assertions dans 45 fichiers**, puis le build de 11 fichiers passent. Preuves : `.runtime/stable-100/relevancy-final-typecheck.log`, `relevancy-game-check.log`, `relevancy-build.log`. L'exécution élevée de `bun run check` a été refusée par la revue automatique parce que les tests de publication exécutent Git dans des dépôts temporaires ; `release-prepare.test.ts` et `release-vercel.test.ts` restent exclus tant que leur autorisation explicite est absente. Les validations ci-dessus ne doivent donc pas être présentées comme un succès du check complet.
+
+Le test de **600,020 s à 100 bots actifs**, TDM carte 256 × 256 × 64, manches de 300 s et délai de 50 ±20 ms par sens, termine sans erreur applicative, input abandonné ni tick abandonné. Les 100 connexions restent présentes à chaque relevé ; activité de 98,07 %, 59,94 intentions/s/joueur actif, deux resets reçus par tous. Le terrain final correspond exactement au SHA256 autoritaire ; serveur et proxy sont fermés proprement, sans connexion ni octet restant en file. Les empreintes SHA256 des sources vérifiées avant/après sont identiques. **La qualification échoue néanmoins au critère CPU : maximum des p99 échantillonnés de 8,417 ms, pour un seuil strict de 8 ms.** Tous les autres critères du banc passent. RSS maximale : 287,55 Mio, de 228,55 Mio au début à 239,38 Mio en fin de fenêtre mesurée. Aucune qualification de production ou d'endurance n'en découle.
+
+| Trafic applicatif serveur, moyenne sur dix minutes | Avant, protocole 6 | Relevancy, protocole 7 |
+|---|---:|---:|
+| Sortie totale vers les 100 clients | 93,74 Mbit/s | **82,23 Mbit/s (−12,3 %)** |
+| Snapshots | 39,48 Mbit/s | **27,57 Mbit/s (−30,2 %)** |
+| Événements | 41,93 Mbit/s | 42,19 Mbit/s |
+| Terrain | 12,29 Mbit/s | 12,44 Mbit/s |
+| Entrée totale depuis les clients | 8,48 Mbit/s | 8,47 Mbit/s |
+
+La moyenne descendante par client vaut **102,8 ko/s**. Les tirs, impacts et mutations restent diffusés avec leur portée actuelle ; les événements représentent désormais environ la moitié du trafic sortant. Les deux runs utilisent les mêmes réglages et la même carte, sans replay déterministe des combats. Le calcul utilise les différences des compteurs serveur entre les premier et dernier relevés `running`, divisées par leurs 599,382 s réelles ; il exclut arrivée initiale et drainage, ainsi que WebSocket/TCP/TLS et retransmissions. Le maximum des débits moyens d'intervalle est de 200,8 Mbit/s. Preuves, rapport, CSV et graphes avant/après : `.runtime/stable-100/relevancy-100-10min-20260916*` ; référence `.runtime/stable-100/network-100-10min-20260916*`.
+
+Le témoin court conservant le codec final mais regroupant les destinataires à 20 Hz échoue également au seuil CPU (8,245 ms sur 60 s, `.runtime/stable-100/relevancy-control-lazy20.*`). Le coût restant n'est donc pas résolu par ce seul changement d'ordonnancement. La marge CPU demeure un point ouvert avant de qualifier ce candidat à 100 joueurs.
+
+Le scénario concentré **passe 120 s à 100 bots**, FFA carte 64, sans délai ajouté, avec quatre resets et **trois reconnexions réellement effectuées**. Maximum des p99 : **6,890 ms**, sortie moyenne 67,57 Mbit/s, snapshots 25,05 Mbit/s, RSS maximale 247,07 Mio. Aucune erreur, aucun input/tick abandonné ; terrain identique au serveur et fermeture complète. Preuves : `.runtime/stable-100/relevancy-concentrated-rejoins-20260916.*`. Paramètres spécifiques : `--warmup-seconds=15 --reconnect-seconds=30`. Le premier essai concentré (`relevancy-concentrated-20260916.*`) passe aussi, mais n'effectue aucune reconnexion : avec 120 s de durée et 60 s de réserve de synchronisation par défaut, la première échéance à 60 s est trop tardive. Il ne doit pas être cité comme validation des arrivées tardives.
+
+L'endurance précédente du protocole 6 a échoué après **12 835,875 s**, environ **3 h 34 min** : RSS de **1 026,13 Mio**, au-delà du budget de 1 024 Mio. Les 42 changements de manche et 210 reconnexions n'ont produit ni erreur applicative, ni abandon d'input/tick ; maximum des p99 échantillonnés de 7,74 ms. Preuves : `.runtime/stable-100/soak-scoped-8h.*`, Bun 1.3.11, sans profilage. La cause de cette croissance mémoire reste ouverte ; la présente optimisation de débit ne constitue pas sa correction et un essai de dix minutes ne qualifie pas l'endurance.
 
 ## Réplication publique et propriétaire — 15 septembre 2026
 
