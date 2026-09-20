@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { PLAYER_HEIGHT } from '../shared/movement';
-import type { GameEvent, PlayerState, VoxelEdit, WeaponId } from '../shared/protocol';
+import type { GameEvent, PlayerState, Vec3, VoxelEdit, WeaponId } from '../shared/protocol';
 import type { VoxelWorld } from '../shared/voxel';
 import { loadWeaponModel } from './weapon-model';
 import { Ragdolls } from './ragdolls';
@@ -40,6 +40,7 @@ export class PlayerVisuals {
   private readonly aliveIds = new Set<number>();
   private readonly lastPoses = new Map<number, { matrices: THREE.Matrix4[]; position: THREE.Vector3; yaw: number; deaths: number }>();
   private readonly deathCounts = new Map<number, number>();
+  private readonly corpseShots = new Map<number, number>();
   private ragdolls: Ragdolls | null = null;
   private lastTime: number | null = null;
   private readonly transform = new THREE.Object3D();
@@ -169,6 +170,17 @@ export class PlayerVisuals {
 
   applyEdits(edits: readonly VoxelEdit[]): void { this.ragdolls?.applyEdits(edits); }
 
+  shot(event: GameEvent, time: number): Vec3 | null {
+    const id = event.projectileId;
+    if (!this.ragdolls || event.event !== 'shot' || (event.weapon !== 'ak47' && event.weapon !== 'awp')
+      || !event.endPosition || !Number.isFinite(time) || typeof id !== 'number' || !Number.isInteger(id) || id < 0
+      || this.corpseShots.has(id)) return null;
+    this.corpseShots.set(id, time + 8);
+    if (this.corpseShots.size > 2048) this.corpseShots.delete(this.corpseShots.keys().next().value!);
+    // Corpses remain cosmetic; the confirmed endpoint stops this reaction at terrain or a living player.
+    return this.ragdolls.hit(event.position, event.endPosition, event.weapon === 'awp' ? 80 : 48, time);
+  }
+
   death(event: GameEvent, fallback: PlayerState | undefined, time: number): void {
     const player = event.death?.player ?? fallback;
     if (!this.ragdolls || event.event !== 'death' || !player || player.id !== event.targetId) return;
@@ -190,6 +202,7 @@ export class PlayerVisuals {
   }
 
   update(players: PlayerState[], localId: number, time: number, camera: THREE.Camera): void {
+    for (const [id, until] of this.corpseShots) if (time >= until) this.corpseShots.delete(id);
     this.ragdolls?.update(this.lastTime === null ? 0 : Math.max(0, Math.min(.1, time - this.lastTime)), time);
     this.lastTime = time;
     const present = new Set(players.map(player => player.id));
@@ -292,6 +305,7 @@ export class PlayerVisuals {
     this.ragdolls?.clear();
     this.lastPoses.clear();
     this.deathCounts.clear();
+    this.corpseShots.clear();
     this.lastTime = null;
     this.body.count = 0;
     for (const meshes of this.weapons.values()) for (const mesh of meshes) mesh.count = 0;

@@ -1,10 +1,12 @@
 import * as THREE from 'three';
 import type { GameEvent } from '../shared/protocol';
 
-export function particleColor(event: GameEvent, random: number): THREE.Color | null {
+export type ParticleEvent = Pick<GameEvent, 'blockColor' | 'targetId'> & { event: GameEvent['event'] | 'blood' };
+
+export function particleColor(event: ParticleEvent, random: number): THREE.Color | null {
   let r: number, g: number, b: number;
   const rgb = event.blockColor;
-  if (event.event === 'death' || (event.event === 'impact' && event.targetId !== undefined)) {
+  if (event.event === 'blood' || event.event === 'death' || (event.event === 'impact' && event.targetId !== undefined)) {
     r = .8; g = 0; b = 0;
   } else if (event.event === 'explosion') {
     r = g = b = .5;

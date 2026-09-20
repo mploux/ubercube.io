@@ -108,3 +108,31 @@ test('invalid or missing block palettes never become arbitrary debris colors, an
   const mesh = scene.getObjectByName('UBERCUBE impact particles') as THREE.InstancedMesh;
   expect(mesh.count).toBe(384);
 });
+
+test('corpse blood reuses living-hit particles at the contact without creating gameplay events or traces', () => {
+  const scene = new THREE.Scene(), effects = new Effects(scene, 160, grenadeLoader);
+  const point = { x: 12, y: 1.4, z: 18 };
+  const livingHit: GameEvent = { type: 'event', event: 'impact', roundId: 1, position: point, targetId: 1 };
+  for (const random of [0, .5, 1]) {
+    expect(particleColor({ event: 'blood' }, random)).toEqual(particleColor(livingHit, random));
+  }
+  effects.blood(point);
+  effects.update(0, 0);
+  const mesh = scene.getObjectByName('UBERCUBE impact particles') as THREE.InstancedMesh;
+  const matrix = new THREE.Matrix4(), color = new THREE.Color();
+  expect(mesh.count).toBe(8);
+  for (let i = 0; i < mesh.count; i++) {
+    mesh.getMatrixAt(i, matrix); mesh.getColorAt(i, color);
+    expect(new THREE.Vector3().setFromMatrixPosition(matrix).distanceTo(new THREE.Vector3(point.x, point.y, point.z))).toBeLessThan(.000001);
+    expect(color.r - color.g).toBeCloseTo(.8, 6);
+    expect(color.g).toBeCloseTo(color.b, 6);
+  }
+  expect((scene.getObjectByName('UBERCUBE bullets') as THREE.InstancedMesh).count).toBe(0);
+  effects.update(1, 1);
+  expect(mesh.count).toBe(0);
+  for (let i = 0; i < 100; i++) effects.blood(point);
+  effects.update(0, 1);
+  expect(mesh.count).toBe(384);
+  effects.clear();
+  expect(mesh.count).toBe(0);
+});

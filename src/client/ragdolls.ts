@@ -120,6 +120,47 @@ export class Ragdolls {
     this.terrain.update(this.bodies);
   }
 
+  hit(origin: Vec3, end: Vec3, strength: number, now: number): Vec3 | null {
+    if (!this.corpses.length || strength <= 0
+      || ![origin.x, origin.y, origin.z, end.x, end.y, end.z, strength, now].every(Number.isFinite)) return null;
+    const start = new THREE.Vector3(origin.x, origin.y, origin.z);
+    const direction = new THREE.Vector3(end.x, end.y, end.z).sub(start);
+    const length = direction.length();
+    if (!Number.isFinite(length) || length === 0) return null;
+    const ray = new THREE.Ray(start, direction.divideScalar(length)), localRay = new THREE.Ray();
+    const inverse = new THREE.Matrix4(), bounds = new THREE.Box3();
+    const localPoint = new THREE.Vector3(), worldPoint = new THREE.Vector3();
+    const offset = new PhysicsVector();
+    let closest = Infinity, struck: Body | undefined, corpse: Corpse | undefined, hit: Vec3 | null = null;
+    for (let c = 0; c < this.corpses.length; c++) {
+      const candidate = this.corpses[c];
+      if (now >= candidate.expiresAt) continue;
+      for (let i = 0; i < candidate.bodies.length; i++) {
+        const body = candidate.bodies[i], pose = this.corpsePoses[c][i];
+        const half = (body.shapes[0] as Box).halfExtents;
+        bounds.min.set(-half.x, 0, -half.z);
+        bounds.max.set(half.x, half.y * 2, half.z);
+        localRay.copy(ray).applyMatrix4(inverse.copy(pose).invert());
+        if (bounds.containsPoint(localRay.origin)) localPoint.copy(localRay.origin);
+        else if (!localRay.intersectBox(bounds, localPoint)) continue;
+        worldPoint.copy(localPoint).applyMatrix4(pose);
+        const distance = worldPoint.distanceTo(start);
+        if (distance > length || distance >= closest) continue;
+        closest = distance;
+        struck = body;
+        corpse = candidate;
+        hit = { x: worldPoint.x, y: worldPoint.y, z: worldPoint.z };
+        offset.set(localPoint.x, localPoint.y - half.y, localPoint.z);
+      }
+    }
+    if (!struck || !corpse) return null;
+    for (const body of corpse.bodies) body.wakeUp();
+    // The rendered pose trails physics slightly; preserve the contact's location on the moving limb.
+    struck.vectorToWorldFrame(offset, offset);
+    struck.applyImpulse(new PhysicsVector(direction.x * strength, direction.y * strength, direction.z * strength), offset);
+    return hit;
+  }
+
   update(dt: number, now: number): void {
     for (let i = this.corpses.length - 1; i >= 0; i--) {
       const corpse = this.corpses[i];

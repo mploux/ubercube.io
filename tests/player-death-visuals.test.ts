@@ -1,6 +1,7 @@
-import { expect, test } from 'bun:test';
+import { expect, spyOn, test } from 'bun:test';
 import * as THREE from 'three';
 import { PlayerVisuals } from '../src/client/player-visuals';
+import { Ragdolls } from '../src/client/ragdolls';
 import type { GameEvent, PlayerState } from '../src/shared/protocol';
 
 const player = (overrides: Partial<PlayerState> = {}): PlayerState => ({
@@ -104,5 +105,48 @@ test('older death events still produce a falling corpse from the available playe
   visuals.death(event, victim, 1);
   visuals.update([victim], -1, 1, camera);
   expect(mesh.count).toBe(10);
+  visuals.clear();
+});
+
+test.each(['ak47', 'awp'] as const)('%s subsequent shots use the reviewed fourfold impulse while the fatal hit stays fourfold', weapon => {
+  const { visuals } = setup();
+  const event = death(player({ yaw: 0, pitch: 0 }));
+  event.death!.impulse = { x: weapon === 'awp' ? 80 : 48, y: 0, z: 0 };
+  const shot: GameEvent = { type: 'event', event: 'shot', roundId: 1, tick: 61, projectileId: 2,
+    weapon, position: { x: 20, y: 2.8, z: 24 }, endPosition: { x: 20, y: 2.8, z: 16 } };
+  const original = structuredClone(shot);
+  const spawn = spyOn(Ragdolls.prototype, 'spawn'), hit = spyOn(Ragdolls.prototype, 'hit');
+  try {
+    expect(visuals.shot({ ...shot, projectileId: 1 }, 1)).toBeNull();
+    visuals.death(event, undefined, 1);
+    expect(spawn.mock.calls[0][3]).toEqual(event.death!.impulse);
+    // Replaying the fatal shot after the death must not add a second impulse.
+    expect(visuals.shot({ ...shot, projectileId: 1 }, 1)).toBeNull();
+    const point = visuals.shot(shot, 1);
+    expect(point).not.toBeNull();
+    expect(point!.z).toBeGreaterThan(20);
+    expect(point!.y).toBeCloseTo(2.8);
+    expect(hit.mock.calls.at(-1)![2]).toBe(weapon === 'awp' ? 80 : 48);
+    expect(visuals.shot(shot, 1)).toBeNull();
+    expect(hit).toHaveBeenCalledTimes(2);
+    expect(shot).toEqual(original);
+    visuals.setWorld(ground);
+    visuals.death({ ...event, roundId: 2 }, undefined, 2);
+    expect(visuals.shot({ ...shot, roundId: 2 }, 2)).not.toBeNull();
+  } finally { spawn.mockRestore(); hit.mockRestore(); visuals.clear(); }
+});
+
+test('corpse reactions require a confirmed firearm segment and stop at its endpoint', () => {
+  const { visuals } = setup();
+  visuals.death(death(player({ yaw: 0, pitch: 0 })), undefined, 1);
+  const shot: GameEvent = { type: 'event', event: 'shot', roundId: 1, tick: 61, projectileId: 1,
+    weapon: 'ak47', position: { x: 20, y: 2.8, z: 24 }, endPosition: { x: 20, y: 2.8, z: 16 } };
+  for (const change of [{ event: 'impact' }, { event: 'death' }, { weapon: 'shovel' }, { weapon: 'grenade' },
+    { endPosition: undefined }, { projectileId: undefined }] as Partial<GameEvent>[]) {
+    expect(visuals.shot({ ...shot, ...change }, 1)).toBeNull();
+  }
+  expect(visuals.shot({ ...shot, projectileId: 2, endPosition: { x: 20, y: 2.8, z: 21 } }, 1)).toBeNull();
+  expect(visuals.shot(shot, 1)).not.toBeNull();
+  expect(visuals.shot({ ...shot, projectileId: 3 }, 13)).toBeNull();
   visuals.clear();
 });

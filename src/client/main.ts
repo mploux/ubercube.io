@@ -466,7 +466,10 @@ function applyLocalState(state: PlayerState): void {
 }
 
 function handleEvent(event: GameEvent): void {
-  effects.event(event, performance.now() / 1000);
+  const time = performance.now() / 1000;
+  effects.event(event, time);
+  const corpseHit = avatars.shot(event, time);
+  if (corpseHit) effects.blood(corpseHit);
   const listener = predicted ? { ...predicted.position, y: predicted.position.y + EYE_HEIGHT } : camera.position;
   const own = event.shooterId === localId;
   if (event.event === 'shot') {
@@ -484,7 +487,7 @@ function handleEvent(event: GameEvent): void {
   if (event.event === 'death') {
     const shooter = players.find((player) => player.id === event.shooterId);
     const victim = players.find((player) => player.id === event.targetId);
-    avatars.death(event, victim, performance.now() / 1000);
+    avatars.death(event, victim, time);
     const row = document.createElement('div');
     row.textContent = event.targetId === localId
       ? `${event.headshot ? 'Headshooted by' : 'You died by'} ${shooter?.name ?? 'World'} !`

@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { GameEvent, PlayerState, ProjectileState, Vec3 } from '../shared/protocol';
 import type { GrenadeFlight } from '../shared/grenade';
 import type { VoxelWorld } from '../shared/voxel';
-import { createParticleMaterial, particleColor } from './particle-material';
+import { createParticleMaterial, particleColor, type ParticleEvent } from './particle-material';
 import { BulletVisuals } from './bullet-visuals';
 import { GrenadeVisuals } from './grenade-visuals';
 
@@ -50,6 +50,12 @@ export class Effects {
   event(event: GameEvent, now: number): void {
     this.bullets.event(event, now);
     this.grenades.event(event, now);
+    this.emitParticles(event);
+  }
+
+  blood(position: Vec3): void { this.emitParticles({ event: 'blood', position }); }
+
+  private emitParticles(event: ParticleEvent & { position: Vec3 }): void {
     const count = event.event === 'explosion' ? 65 : event.event === 'death' ? 16 : 8;
     for (let i = 0; i < count && this.particles.length < 384; i++) {
       const force = event.event === 'explosion' ? 11 : 4;
