@@ -4,6 +4,16 @@
 
 Le client statique peut être servi par Vercel et permet de jouer seul sans hébergement supplémentaire. Pour le multijoueur, la simulation reste dans un processus Bun permanent, sur une seule instance pour la première version. Le serveur conserve le monde en mémoire : son redémarrage termine les sessions et réinitialise le terrain. Les connexions et instances temporaires des Vercel Functions ne conviennent pas au monde partagé actuel.
 
+## Publication des impacts sur cadavres ×4 — 20 septembre 2026
+
+Le client issu du commit `d263001834db692f48a17181cce7b9f9ed12a78b`, poussé sur `main`, est publié par l'intégration Git Vercel : `dpl_wAyRUfhz8UQWQn7AnJ4LSYADZBbz`. Les trois domaines `www.ubercube.io`, `ubercube.io` et `ubercube-io.vercel.app` servent ce commit ; 51 ressources publiques correspondent au build figé de la release `20260920-224939`, vérifiées à 20:51 UTC. Ce changement ajoute les réactions aux tirs AK/AWP sur les cadavres, impulsions 48/80 choisies par Marc, avec sang au point touché.
+
+La publication contient uniquement les cinq fichiers client nécessaires. Le portage conserve les types du protocole 3 ; les évolutions réseau stable-100 restent sur `work/stable-100-corpse-impacts`. Les treize fichiers serveur/partagés actifs correspondent aux empreintes figées, sans redémarrage du service : PID 79486, démarré le 15 septembre à 15:11:32 UTC, release serveur `20260915-170315` conservée.
+
+Validation : TypeScript, 361 tests / 14 902 assertions, build de 11 sorties, contrôle GPU ×4 et sang réussis. Le smoke Internet vérifie deux identités, monde commun, apparitions autoritaires, commandes acquittées, visée/annulation, départ, protocole et CORS. Le navigateur public passe pseudo → lobby → Assault → jeu → déconnexion, avec arme, terrain et HUD visibles et sans erreur console. Retour à zéro joueur confirmé. La capture de souris est refusée par le navigateur intégré : la prise en main libre n'est pas qualifiée par ce parcours.
+
+Preuves locales dans `.runtime/corpse-x4-release/.runtime/releases/20260920-224939/` depuis le dépôt principal : `release.json`, `changes.json`, `verification.json`, `smoke.json`, `server-verification.txt` et `server-after.txt`. Le commit documentaire de ces preuves peut déclencher un second build identique ; son SHA et ses ressources sont contrôlés séparément après le push.
+
 ## Serveur de partie
 
 Installer les dépendances puis lancer `bun run start`, ou construire le `Dockerfile` fourni. L'image ne contient que le serveur et le code partagé ; elle ne sert pas l'interface du jeu. Exposer le port 3000 derrière un proxy HTTPS qui transmet les connexions WebSocket `/ws`. Conserver l'en-tête `Host` public. Exécuter une seule instance avec redémarrage automatique.

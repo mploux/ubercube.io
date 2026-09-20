@@ -8,6 +8,8 @@ Marc a choisi ×4 après le comparatif de huit prises : AK puis AWP, chacune en 
 
 La publication est préparée sur la base de production `e596fef`, avec les seuls changements ragdoll issus de `9a6816c` et `8df15b6`, adaptés aux types existants. Le serveur et le code partagé sont inchangés : protocole 3 conservé, sans les évolutions réseau stable-100.
 
+Publication vérifiée le 20 septembre à 20:51 UTC : commit `d263001`, trois domaines et 51 ressources publics conformes, smoke Internet à deux joueurs réussi et parcours navigateur jusqu'à l'apparition puis la déconnexion. Aucun redémarrage serveur. Voir [la preuve de publication](deployment.md#publication-des-impacts-sur-cadavres-4--20-septembre-2026).
+
 Sur ce portage, `bun run check` passe avec Bun 1.3.11 : TypeScript, **361 tests / 14 902 assertions dans 36 fichiers**, puis 11 sorties client. Le contrôle GPU affiche **RÉSULTAT : SUCCÈS**, sans avertissement ni erreur console : déplacements AK/AWP de 0,525 / 1,321 blocs à 0,2 s, huit particules au contact et sang rouge confirmé dans le framebuffer. Les tirs manqués ou arrêtés avant le corps restent exclus. Le journal est dans `.runtime/corpse-x4-release/.runtime/corpse-x4-release-check.log` depuis le dépôt principal. Ces contrôles automatisés complètent le choix visuel de Marc ; ils ne qualifient pas les performances sur téléphone physique.
 
 ## Ragdolls — 14 septembre 2026

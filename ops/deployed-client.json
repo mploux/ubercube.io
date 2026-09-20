@@ -261,8 +261,8 @@
   },
   {
     "file": "src/client/main.ts",
-    "sha": "f767e38013c57df093789c8f2defa114c4ab6f95",
-    "size": 40245
+    "sha": "85893766553bfa6e254b260a88d3ac94186a249c",
+    "size": 40336
   },
   {
     "file": "src/client/minimap.ts",
@@ -271,18 +271,18 @@
   },
   {
     "file": "src/client/particle-material.ts",
-    "sha": "a5946551dc71a441bcd1c9fc59e2210935b56e5b",
-    "size": 1844
+    "sha": "f4683078caf587235328ff5f741e68f340efd0f4",
+    "size": 1990
   },
   {
     "file": "src/client/player-visuals.ts",
-    "sha": "8f7bf47d3f84a64fafc9860811494f541abdfce5",
-    "size": 16239
+    "sha": "62351fda0f0dcf4dbf4322ac5bb5c8f3fabb61d8",
+    "size": 17145
   },
   {
     "file": "src/client/presentation.ts",
-    "sha": "b7db6bebcf1e97457f689886b25f5b7b986b2f09",
-    "size": 6678
+    "sha": "387208677a1244b9f68d1ec18e40cbae2fcab701",
+    "size": 6894
   },
   {
     "file": "src/client/ragdoll-terrain.ts",
@@ -291,8 +291,8 @@
   },
   {
     "file": "src/client/ragdolls.ts",
-    "sha": "ddb86439f3e23c1aa3280413ef03508fc2f4254f",
-    "size": 8130
+    "sha": "d135cf5579bd237795ce6befb716be2c8cdad533",
+    "size": 10449
   },
   {
     "file": "src/client/remote-players.ts",
