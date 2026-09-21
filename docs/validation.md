@@ -4,7 +4,9 @@ Le jeu est publié sur Vercel et Hetzner. Cette page distingue les vérification
 
 ## RPG relevé au repos en première personne — 21 septembre 2026
 
-Réglage local après publication, non déployé : à la demande de Marc, la coordonnée verticale du repos FPS passe de −0,18 à 0 bloc, après un premier essai à −0,10. L'origine de tir suit la pose partagée ; modèle, visée et poses distantes sont conservés. La capture `.runtime/rpg-idle-raised/final.png` a été inspectée face à `before.png` et `intermediate.png`. Les PNG de visée FPS, repos TP et visée TP sont identiques aux captures précédentes. `bun run check` passe : **410 tests / 20 472 assertions**, TypeScript et build client. Journal : `.runtime/rpg-idle-raised/check-final.log`.
+Réglage publié après validation de Marc : la coordonnée verticale du repos FPS passe de −0,18 à 0 bloc, après un premier essai à −0,10. L'origine de tir suit la pose partagée ; modèle, visée et poses distantes sont conservés. La capture `.runtime/rpg-idle-raised/final.png` a été inspectée face à `before.png` et `intermediate.png`. Les PNG de visée FPS, repos TP et visée TP sont identiques aux captures précédentes. `bun run check` passe : **410 tests / 20 472 assertions**, TypeScript et build client. Journal : `.runtime/rpg-idle-raised/check-final.log`.
+
+La release `20260921-212035`, commit applicatif `5ea1639`, passe **148 tests / 3 270 assertions** sur Linux avant activation. Treize empreintes serveur, trois domaines et 54 ressources client vérifiés ; smoke Internet réussi et parcours public jusqu'à l'apparition puis déconnexion sans diagnostic console. Retour à zéro joueur confirmé. [Preuve de publication](deployment.md#publication-du-cadrage-rpg-relevé--21-septembre-2026).
 
 ## Publication du RPG validé — 21 septembre 2026
 

@@ -4,6 +4,16 @@
 
 Le client statique peut être servi par Vercel et permet de jouer seul sans hébergement supplémentaire. Pour le multijoueur, la simulation reste dans un processus Bun permanent, sur une seule instance pour la première version. Le serveur conserve le monde en mémoire : son redémarrage termine les sessions et réinitialise le terrain. Les connexions et instances temporaires des Vercel Functions ne conviennent pas au monde partagé actuel.
 
+## Publication du cadrage RPG relevé — 21 septembre 2026
+
+Le cadrage approuvé par Marc relève le repos FPS de −0,18 à 0 bloc sur Y, avec le départ de la roquette toujours aligné sur le modèle. La visée et les deux poses distantes sont inchangées, captures identiques à l'appui. Le commit applicatif `5ea1639128ba74b3b34e56ba9ec54b67948837fd`, poussé sur `codex/rpg-idle-height`, est figé dans la release `20260921-212035`. Le seul fichier applicatif modifié est `src/shared/weapon-pose.ts` ; le protocole reste 4.
+
+Le serveur est activé à **19:21:57 UTC**, PID 180600, service actif et treize empreintes serveur/partagées conformes. Un joueur était connecté avant la bascule. Le build Git Vercel `dpl_8iqTEzoQVaqNubPqxgHezpHmM1of` est promu après activation ; les trois domaines et **54 ressources publiques** correspondent au SHA et au build figé, vérifiés à 19:22:30 UTC. La version précédente est conservée dans `/opt/ubercube/releases/20260921-212035/previous-src`.
+
+Validation : **410 tests / 20 472 assertions** et build local réussis avant publication, puis **148 tests / 3 270 assertions** sur Linux avant activation. Le smoke Internet à deux joueurs passe. Le navigateur public rejoint le lobby, apparaît en Assault à 100 PV et 30 munitions, puis se déconnecte sans diagnostic console ; retour à zéro joueur confirmé. La capture de souris est refusée par le navigateur intégré : aucun ressenti en partie humaine n'est revendiqué. Le cadrage est couvert par les captures approuvées et les ressources servies conformes.
+
+Preuves : `.runtime/releases/20260921-212035/`, notamment `verification.json`, `smoke.json`, `server-stage.log`, `server-activation.log`, `server-verification.txt` et `server-after.json`. Les empreintes datées de `ops/` décrivent cette publication applicative. La synchronisation de `main` avec le commit de preuves déclenche un build Git identique, à vérifier séparément sans redémarrage supplémentaire du serveur.
+
 ## Publication du bazooka assaut — 21 septembre 2026
 
 Marc a validé le modèle, l'ogive détachable, la visée à travers la lunette et les quatre poses avant de demander la publication. Le commit applicatif `c159cd58885f7fe4488bc51cc488d5c92c2b3cec` contient le RPG du kit assaut, ses dégâts de 80 PV, son vol à 60 blocs/s et le tri des particules transparentes. Le médic garde son kit. Le client et le serveur utilisent désormais le **protocole 4** ; une page déjà ouverte doit être rechargée.
