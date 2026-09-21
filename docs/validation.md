@@ -2,6 +2,10 @@
 
 Le jeu est publié sur Vercel et Hetzner. Cette page distingue les vérifications locales et celles de production ; la parité des sensations avec le Java, la tenue prolongée sur Internet et les grandes distances d'affichage ne sont pas encore entièrement validées.
 
+## RPG relevé au repos en première personne — 21 septembre 2026
+
+Réglage local après publication, non déployé : la coordonnée verticale du repos FPS passe de −0,18 à −0,10 bloc. L'origine de tir suit la pose partagée ; modèle, visée et poses distantes sont conservés. La capture `.runtime/rpg-idle-raised/after.png` a été inspectée face à `before.png`. Les PNG de visée FPS, repos TP et visée TP sont identiques aux captures précédentes. `bun run check` passe : **410 tests / 20 474 assertions**, TypeScript et build client. Journal : `.runtime/rpg-idle-raised/check.log`.
+
 ## Publication du RPG validé — 21 septembre 2026
 
 Après validation visuelle de Marc, la version applicative `c159cd5` est poussée sur `main` et publiée côté client et serveur en protocole 4. **`bun run check` passe : 410 tests / 20 478 assertions**, TypeScript et 11 sorties de build. L'archive de staging inclut les tests RPG et RPG réseau ; **148 tests / 3 270 assertions** passent sur Linux avant activation. Les vérifications de préparation d'archive et de génération des assets repassent après les seuls ajustements d'emballage et de fin de fichier.
