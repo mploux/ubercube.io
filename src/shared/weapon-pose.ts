@@ -11,7 +11,7 @@ export const WEAPON_POSES: Record<WeaponId, WeaponPreset> = {
   shovel: { scale: { x: .3, y: .3, z: .3 }, idle: { x: .1, y: -.2, z: .2 }, zoom: { x: .1, y: -.2, z: .2 }, hide: { x: .1, y: -1.2, z: .2 }, zoomAmount: 0 },
   grenade: { scale: { x: 1, y: 1, z: 1 }, idle: { x: .4, y: -.3, z: 1 }, zoom: { x: .4, y: -.3, z: 1 }, hide: { x: .3, y: -1.05, z: 0 }, zoomAmount: 0 },
   medic: { scale: { x: 3, y: 3, z: 3 }, idle: { x: .09, y: -.4, z: .85 }, zoom: { x: 0, y: 0, z: 0 }, hide: { x: 0, y: 0, z: 0 }, zoomAmount: 0 },
-  rpg: { scale: { x: 2, y: 2, z: -2 }, idle: { x: .3, y: -.10, z: -1.1 }, zoom: { x: .09, y: .055, z: -1 }, hide: { x: .3, y: -1.18, z: -1.1 }, muzzle: { x: 0, y: -1.6, z: -24 }, zoomAmount: 150 },
+  rpg: { scale: { x: 2, y: 2, z: -2 }, idle: { x: .3, y: 0, z: -1.1 }, zoom: { x: .09, y: .055, z: -1 }, hide: { x: .3, y: -1.18, z: -1.1 }, muzzle: { x: 0, y: -1.6, z: -24 }, zoomAmount: 150 },
 };
 
 export interface WeaponPoseState {

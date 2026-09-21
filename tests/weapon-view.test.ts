@@ -214,7 +214,7 @@ test('all six first-person models keep their original vertices and exact raw tra
     ak47: { scale: [-.35, .35, .35], idle: [.2, -.05, -.3] }, awp: { scale: [.65, .65, .65], idle: [.2, 0, -.3] },
     shovel: { scale: [.3, .3, .3], idle: [.1, -.2, .2] }, grenade: { scale: [1, 1, 1], idle: [.4, -.3, 1] },
     medic: { scale: [3, 3, 3], idle: [.09, -.4, .85] },
-    rpg: { scale: [2, 2, -2], idle: [.3, -.10, -1.1] },
+    rpg: { scale: [2, 2, -2], idle: [.3, 0, -1.1] },
   };
   try {
     for (const weapon of Object.keys(expected) as WeaponId[]) {

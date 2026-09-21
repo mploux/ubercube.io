@@ -4,7 +4,7 @@ Le jeu est publié sur Vercel et Hetzner. Cette page distingue les vérification
 
 ## RPG relevé au repos en première personne — 21 septembre 2026
 
-Réglage local après publication, non déployé : la coordonnée verticale du repos FPS passe de −0,18 à −0,10 bloc. L'origine de tir suit la pose partagée ; modèle, visée et poses distantes sont conservés. La capture `.runtime/rpg-idle-raised/after.png` a été inspectée face à `before.png`. Les PNG de visée FPS, repos TP et visée TP sont identiques aux captures précédentes. `bun run check` passe : **410 tests / 20 474 assertions**, TypeScript et build client. Journal : `.runtime/rpg-idle-raised/check.log`.
+Réglage local après publication, non déployé : à la demande de Marc, la coordonnée verticale du repos FPS passe de −0,18 à 0 bloc, après un premier essai à −0,10. L'origine de tir suit la pose partagée ; modèle, visée et poses distantes sont conservés. La capture `.runtime/rpg-idle-raised/final.png` a été inspectée face à `before.png` et `intermediate.png`. Les PNG de visée FPS, repos TP et visée TP sont identiques aux captures précédentes. `bun run check` passe : **410 tests / 20 472 assertions**, TypeScript et build client. Journal : `.runtime/rpg-idle-raised/check-final.log`.
 
 ## Publication du RPG validé — 21 septembre 2026
 
