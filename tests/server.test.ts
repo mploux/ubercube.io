@@ -291,7 +291,8 @@ describe('authoritative simulation', () => {
   test('cadence and magazine rollover remain server-controlled and input timeout stops firing', () => {
     const game = new GameServer();
     const { connection, player, peer } = join(game);
-    player.position = { x: 120, y: 40, z: 120 };
+    player.position = { x: 120.5, y: 40, z: 120.5 };
+    game.world.set(120, 39, 120, packBlock(90, 90, 90));
     for (let tick = 0; tick < 241; tick++) { input(game, connection, { fire: true, pitch: 1.5 }); game.step(); }
     const shots = peer.messages.filter(message => message.type === 'event').filter(message => message.event === 'shot');
     expect(shots).toHaveLength(31);

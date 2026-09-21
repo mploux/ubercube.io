@@ -97,6 +97,68 @@ test('world reset clears the corpse and death deduplication before the next roun
   expect(mesh.count).toBe(0);
 });
 
+test('corpse camera focus follows the rendered torso while the dead player snapshot stays still', () => {
+  const { visuals, camera, mesh } = setup();
+  const victim = player({ position: { x: 20, y: 10, z: 20 }, velocity: { x: 3, y: 0, z: 0 } });
+  const event = death(victim);
+  try {
+    expect(visuals.corpsePosition(victim.id)).toBeNull();
+    visuals.death(event, undefined, 1);
+    const initial = visuals.corpsePosition(victim.id)!;
+    expect(initial).not.toBeNull();
+    visuals.update([event.death!.player], victim.id, 1, camera);
+    for (let tick = 1; tick <= 20; tick++) visuals.update([event.death!.player], victim.id, 1 + tick / 60, camera);
+    const current = visuals.corpsePosition(victim.id)!;
+    expect(current.x).toBeGreaterThan(initial.x + .5);
+    expect(current.y).toBeLessThan(initial.y);
+    const rendered = new THREE.Matrix4();
+    mesh.getMatrixAt(0, rendered);
+    const torso = new THREE.Vector3().setFromMatrixPosition(rendered);
+    expect(current.x).toBeCloseTo(torso.x, 5);
+    expect(current.y).toBeCloseTo(torso.y, 5);
+    expect(current.z).toBeCloseTo(torso.z, 5);
+    current.x = -100;
+    expect(visuals.corpsePosition(victim.id)!.x).toBeCloseTo(torso.x, 5);
+    expect(victim.position).toEqual({ x: 20, y: 10, z: 20 });
+  } finally { visuals.clear(); }
+});
+
+test('corpse focus selects the latest death for the owner and disappears after expiration or reset', () => {
+  const { visuals, camera } = setup();
+  const first = player(), second = player({ deaths: 1, position: { x: 30, y: 1, z: 20 } });
+  try {
+    visuals.death(death(first), undefined, 1);
+    expect(visuals.corpsePosition(first.id)!.x).toBe(20);
+    visuals.death(death(second), undefined, 2);
+    expect(visuals.corpsePosition(first.id)!.x).toBe(30);
+    expect(visuals.corpsePosition(999)).toBeNull();
+    visuals.update([], -1, 14, camera);
+    expect(visuals.corpsePosition(first.id)).toBeNull();
+    visuals.death({ ...death(first), roundId: 2 }, undefined, 15);
+    expect(visuals.corpsePosition(first.id)).not.toBeNull();
+    visuals.setWorld(ground);
+    expect(visuals.corpsePosition(first.id)).toBeNull();
+    visuals.death({ ...death(first), roundId: 3 }, undefined, 16);
+    expect(visuals.corpsePosition(first.id)).not.toBeNull();
+    visuals.clear();
+    expect(visuals.corpsePosition(first.id)).toBeNull();
+  } finally { visuals.clear(); }
+});
+
+test('the corpse budget evicts the old camera focus without confusing surviving owners', () => {
+  const { visuals } = setup();
+  try {
+    for (let id = 1; id <= 16; id++) visuals.death(death(player({ id })), undefined, 1);
+    expect(visuals.corpsePosition(1)).not.toBeNull();
+    expect(visuals.corpsePosition(16)).not.toBeNull();
+    visuals.death(death(player({ id: 17, position: { x: 30, y: 1, z: 20 } })), undefined, 1);
+    expect(visuals.corpsePosition(1)).toBeNull();
+    expect(visuals.corpsePosition(2)!.x).toBe(20);
+    expect(visuals.corpsePosition(16)!.x).toBe(20);
+    expect(visuals.corpsePosition(17)!.x).toBe(30);
+  } finally { visuals.clear(); }
+});
+
 test('older death events still produce a falling corpse from the available player state', () => {
   const { visuals, camera, mesh } = setup();
   const victim = player();

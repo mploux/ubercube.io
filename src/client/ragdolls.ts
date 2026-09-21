@@ -12,6 +12,7 @@ export interface RagdollPart {
 }
 
 interface Corpse {
+  ownerId?: number;
   bodies: Body[];
   joints: ConeTwistConstraint[];
   heights: number[];
@@ -47,7 +48,7 @@ export class Ragdolls {
     this.terrain = new RagdollTerrain(this.physics, world);
   }
 
-  spawn(parts: readonly RagdollPart[], velocity: Vec3, hitPoint: Vec3, impulse: Vec3, now: number): void {
+  spawn(parts: readonly RagdollPart[], velocity: Vec3, hitPoint: Vec3, impulse: Vec3, now: number, ownerId?: number): void {
     if (!parts.length || this.maxBodies <= 0) return;
     if (![now, ...Object.values(velocity), ...Object.values(hitPoint), ...Object.values(impulse)].every(Number.isFinite)
       || parts.some(part => !part.matrix.elements.every(Number.isFinite) || part.size.some(size => !Number.isFinite(size) || size <= 0))) return;
@@ -114,7 +115,7 @@ export class Ragdolls {
       closestPoint.copy(contact);
     }
     struck.applyImpulse(new PhysicsVector(impulse.x, impulse.y, impulse.z), closestPoint.vsub(struck.position));
-    this.corpses.push({ bodies, joints, heights: parts.map(part => part.size[1]), expiresAt: now + LIFETIME });
+    this.corpses.push({ ownerId, bodies, joints, heights: parts.map(part => part.size[1]), expiresAt: now + LIFETIME });
     this.bodies.push(...bodies);
     this.corpsePoses.push(parts.map(part => part.matrix.clone()));
     this.terrain.update(this.bodies);
@@ -198,6 +199,15 @@ export class Ragdolls {
   }
 
   applyEdits(edits: readonly VoxelEdit[]): void { this.terrain.applyEdits(edits); }
+
+  positionOf(ownerId: number): Vec3 | null {
+    for (let i = this.corpses.length - 1; i >= 0; i--) {
+      if (this.corpses[i].ownerId !== ownerId) continue;
+      const matrix = this.corpsePoses[i][0].elements;
+      return { x: matrix[12], y: matrix[13], z: matrix[14] };
+    }
+    return null;
+  }
 
   private remove(index: number): void {
     const corpse = this.corpses[index];

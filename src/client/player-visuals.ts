@@ -252,8 +252,10 @@ export class PlayerVisuals {
     }
     this.ragdolls.spawn(BONES.map((spec, i) => ({ parent: spec.parent, size: spec.size,
       matrix: useCached ? cached.matrices[i] : this.bones[i].matrixWorld })), player.velocity, point,
-      event.death?.impulse ?? { x: 0, y: 0, z: 0 }, time);
+      event.death?.impulse ?? { x: 0, y: 0, z: 0 }, time, player.id);
   }
+
+  corpsePosition(id: number): Vec3 | null { return this.ragdolls?.positionOf(id) ?? null; }
 
   update(players: PlayerState[], localId: number, time: number, camera: THREE.Camera): void {
     for (const [id, until] of this.corpseShots) if (time >= until) this.corpseShots.delete(id);

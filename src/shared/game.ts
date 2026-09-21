@@ -46,6 +46,7 @@ export interface Connection {
   previousAlt: boolean;
   weaponPoses: Map<WeaponId, WeaponPoseState>;
   weaponMotion: Vec3;
+  fallPeakY: number | null;
   magazines: { ak47: number; awp: number; rpg: number };
   initial: InitialWorld | null;
 }
@@ -60,6 +61,8 @@ const WORLD_BATCH = 512;
 const MAX_BUFFER = 512 * 1024;
 const STREAM_BUFFER = 64 * 1024;
 const MAX_INPUT_QUEUE = 12;
+const SAFE_FALL_HEIGHT = 6;
+const FATAL_FALL_HEIGHT = 20;
 
 function record(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -77,8 +80,8 @@ function kit(value: unknown): value is Kit {
   return typeof value === 'string' && Object.hasOwn(KITS, value);
 }
 function inputFrame(value: unknown): value is InputFrame {
-  return record(value) && keys(value, Object.hasOwn(value, 'cancelActions') ? [...INPUT_KEYS, 'cancelActions'] : INPUT_KEYS)
-    && (!Object.hasOwn(value, 'cancelActions') || typeof value.cancelActions === 'boolean')
+  return record(value) && keys(value, [...INPUT_KEYS, ...['cancelActions', 'sneak'].filter(key => Object.hasOwn(value, key))])
+    && ['cancelActions', 'sneak'].every(key => !Object.hasOwn(value, key) || typeof value[key] === 'boolean')
     && number(value.seq, 1, Number.MAX_SAFE_INTEGER) && Number.isSafeInteger(value.seq)
     && number(value.roundId, 1, Number.MAX_SAFE_INTEGER) && Number.isSafeInteger(value.roundId)
     && number(value.moveX, -1, 1) && number(value.moveZ, -1, 1)
@@ -88,7 +91,7 @@ function inputFrame(value: unknown): value is InputFrame {
 
 function sameActionState(a: InputFrame, b: InputFrame): boolean {
   return a.weapon === b.weapon && a.fire === b.fire && a.alt === b.alt && a.jump === b.jump
-    && !!a.cancelActions === !!b.cancelActions;
+    && !!a.cancelActions === !!b.cancelActions && !!a.sneak === !!b.sneak;
 }
 
 export class GameServer {
@@ -134,7 +137,7 @@ export class GameServer {
       peer, player: null, closed: false, connectedAt: this.tick, rateTick: this.tick, messages: 0, frames: 0,
       invalid: 0, lastMessage: this.tick, queue: [], input: null, highestSeq: 0, lastInputTick: this.tick,
       previousFire: false, previousAlt: false, weaponPoses: new Map(), weaponMotion: { x: 0, y: 0, z: 0 },
-      magazines: { ak47: 30, awp: 5, rpg: 30 }, initial: null,
+      magazines: { ak47: 30, awp: 5, rpg: 30 }, initial: null, fallPeakY: null,
     };
     this.connections.add(connection);
     return connection;
@@ -274,6 +277,7 @@ export class GameServer {
       hideWeaponPose(pose);
       connection.weaponPoses.set(player.weapon, pose);
       connection.weaponMotion = { x: 0, y: 0, z: 0 };
+      connection.fallPeakY = null;
       this.sendSnapshot(connection);
       return;
     }
@@ -425,10 +429,11 @@ export class GameServer {
     if (player.health > 0) return;
     player.alive = false;
     player.deaths++;
+    const shooter = this.players.get(owner);
     const death = { player: { ...player, position: { ...player.position }, velocity: { ...player.velocity } },
+      killer: shooter && shooter !== player ? { ...shooter, position: { ...shooter.position }, velocity: { ...shooter.velocity } } : undefined,
       hitPoint: { ...(hit?.point ?? player.position) }, impulse: { ...(hit?.impulse ?? { x: 0, y: 0, z: 0 }) } };
     player.aiming = false;
-    const shooter = this.players.get(owner);
     if (shooter && shooter !== player) shooter.kills++;
     if (player.team === 1) this.scores[1]++;
     if (player.team === 2) this.scores[0]++;
@@ -436,6 +441,7 @@ export class GameServer {
       if (connection.player === player) {
         connection.queue = [];
         connection.input = null;
+        connection.fallPeakY = null;
         for (const pose of connection.weaponPoses.values()) { pose.charge = 0; pose.fireHeld = false; pose.altHeld = false; }
       }
     }
@@ -456,7 +462,7 @@ export class GameServer {
     }
     const throwMuzzle = player.weapon === 'grenade' ? getWeaponMuzzle(pose) : null;
     stepWeaponMotion(connection.weaponMotion, frame.cancelActions ? { moveX: 0, moveZ: 0, sprint: false } : frame);
-    const actions = stepWeaponPose(pose, { fire: frame.fire, alt: frame.alt, sprint: frame.sprint,
+    const actions = stepWeaponPose(pose, { fire: frame.fire, alt: frame.alt, sprint: frame.sprint, sneak: frame.sneak,
       localVelocity: connection.weaponMotion, lookDeltaYaw: Math.atan2(Math.sin(player.yaw - previousYaw), Math.cos(player.yaw - previousYaw)),
       lookDeltaPitch: player.pitch - previousPitch, grenades: player.grenades, cancelActions: frame.cancelActions }, () => this.random());
     connection.previousFire = frame.fire && !frame.cancelActions;
@@ -488,6 +494,10 @@ export class GameServer {
       connection.magazines[player.weapon]--;
       if (connection.magazines[player.weapon] < 0) connection.magazines[player.weapon] = WEAPONS[player.weapon].magazine;
       player.ammo = connection.magazines[player.weapon];
+    }
+    if (actions.selfHeal) {
+      player.health = Math.min(100, player.health + 10);
+      this.event('heal', eye, { shooterId: player.id, targetId: player.id, weapon: 'medic' });
     }
     if (!actions.melee && !actions.heal && !actions.build) return;
     const block = raycast(this.world, eye, aim, 5);
@@ -699,8 +709,17 @@ export class GameServer {
           jump: false, sprint: false, fire: false, alt: false, weapon: player.weapon, cancelActions: true };
       }
       const previousYaw = player.yaw, previousPitch = player.pitch;
+      connection.fallPeakY = player.grounded ? player.position.y : Math.max(connection.fallPeakY ?? player.position.y, player.position.y);
       movePlayer(player, frame, this.world, DT);
-      this.action(connection, frame, previousYaw, previousPitch);
+      connection.fallPeakY = Math.max(connection.fallPeakY, player.position.y);
+      if (player.grounded) {
+        const distance = connection.fallPeakY - player.position.y;
+        // Ignore ordinary jumps; the small tolerance accounts for the collision contact solver.
+        if (distance > SAFE_FALL_HEIGHT) this.hurt(player,
+          Math.floor((distance - SAFE_FALL_HEIGHT) * 100 / (FATAL_FALL_HEIGHT - SAFE_FALL_HEIGHT) + .01), player.id);
+        connection.fallPeakY = null;
+      }
+      if (player.alive) this.action(connection, frame, previousYaw, previousPitch);
       if (player.position.y < -10) this.hurt(player, 100, player.id);
     }
     // Every accepted shot uses this tick's completed movement, including a shooter's fatal return shot.
@@ -737,6 +756,7 @@ export class GameServer {
       connection.weaponPoses.clear();
       connection.previousFire = false;
       connection.previousAlt = false;
+      connection.fallPeakY = null;
       if (!connection.player) continue;
       Object.assign(connection.player, { alive: false, aiming: false, health: 100, kills: 0, deaths: 0, lastSeq: 0, grenades: 10 });
       this.send(connection, { type: 'reset', roundId: this.roundId, world: this.options.world });

@@ -10,7 +10,7 @@ export interface TouchControlsCallbacks {
   cancel(): void;
 }
 
-type TouchAction = 'move' | 'look' | 'fire' | 'alt' | 'jump' | 'previous' | 'next' | 'pause' | 'scores';
+type TouchAction = 'move' | 'look' | 'fire' | 'alt' | 'jump' | 'sneak' | 'previous' | 'next' | 'pause' | 'scores';
 interface TouchTap { x: number; y: number; time: number }
 interface TouchPointer { element: HTMLElement; x: number; y: number; firing: boolean; tap?: TouchTap }
 
@@ -19,6 +19,7 @@ export class TouchControls {
   moveZ = 0;
   jump = false;
   sprint = false;
+  sneak = false;
   private enabled = false;
   private weapon: WeaponId = 'ak47';
   private aiming = false;
@@ -29,18 +30,21 @@ export class TouchControls {
   private readonly moveElement: HTMLElement;
   private readonly fireElement: HTMLElement;
   private readonly altElement: HTMLElement;
+  private readonly sneakElement: HTMLElement;
 
   constructor(private readonly root: HTMLElement, private readonly callbacks: TouchControlsCallbacks) {
     this.stick = root.querySelector<HTMLElement>('#touch-stick')!;
     this.moveElement = root.querySelector<HTMLElement>('#touch-move')!;
     this.fireElement = root.querySelector<HTMLElement>('#touch-fire')!;
     this.altElement = root.querySelector<HTMLElement>('#touch-alt')!;
+    this.sneakElement = root.querySelector<HTMLElement>('#touch-sneak')!;
     this.bind(this.moveElement, 'move');
     this.bind(root.querySelector<HTMLElement>('#touch-look')!, 'look');
     for (const element of root.querySelectorAll<HTMLElement>('[data-touch-action]')) {
       this.bind(element, element.dataset.touchAction as TouchAction);
     }
     this.updateAltVisual();
+    this.updateSneakVisual();
     root.hidden = true;
   }
 
@@ -72,7 +76,7 @@ export class TouchControls {
     const pointers = [...this.pointers];
     this.pointers.clear();
     this.moveX = this.moveZ = 0;
-    this.jump = this.sprint = false;
+    this.jump = this.sprint = this.sneak = false;
     this.aiming = this.firing = false;
     this.lastTap = undefined;
     this.stick.style.transform = '';
@@ -82,13 +86,15 @@ export class TouchControls {
     }
     this.fireElement.classList.remove('active');
     this.updateAltVisual();
+    this.updateSneakVisual();
   }
 
   private bind(element: HTMLElement, action: TouchAction): void {
     element.addEventListener('pointerdown', event => {
       if (!this.enabled || element.matches(':disabled') || event.button !== 0 || this.pointers.has(event.pointerId)
         || [...this.pointers.values()].some(pointer => pointer.element === element)) return;
-      if (action === 'alt' && this.weapon !== 'ak47' && this.weapon !== 'awp' && this.weapon !== 'rpg' && this.weapon !== 'shovel') return;
+      if (action === 'alt' && this.weapon !== 'ak47' && this.weapon !== 'awp' && this.weapon !== 'rpg'
+        && this.weapon !== 'shovel' && this.weapon !== 'medic') return;
       event.preventDefault();
       if (action !== 'move' && action !== 'look') {
         this.lastTap = undefined;
@@ -108,7 +114,7 @@ export class TouchControls {
       if (action === 'move') this.move(element, event.clientX, event.clientY);
       else if (action === 'fire' || action === 'look') this.updateFire();
       else if (action === 'alt') {
-        if (this.weapon === 'shovel') this.callbacks.alt(true);
+        if (this.weapon === 'shovel' || this.weapon === 'medic') this.callbacks.alt(true);
         else {
           this.aiming = !this.aiming;
           this.callbacks.alt(this.aiming);
@@ -116,6 +122,10 @@ export class TouchControls {
         this.updateAltVisual();
       }
       else if (action === 'jump') this.jump = true;
+      else if (action === 'sneak') {
+        this.sneak = !this.sneak;
+        this.updateSneakVisual();
+      }
       else if (action === 'scores') this.callbacks.scores(true);
       else if (action === 'previous' || action === 'next') this.callbacks.weapon(action === 'next' ? 1 : -1);
       else if (action === 'pause') this.callbacks.pause();
@@ -152,10 +162,11 @@ export class TouchControls {
         this.stick.style.transform = '';
       } else if (action === 'fire' || action === 'look') this.updateFire();
       else if (action === 'alt') {
-        if (this.weapon === 'shovel') this.callbacks.alt(false);
+        if (this.weapon === 'shovel' || this.weapon === 'medic') this.callbacks.alt(false);
         this.updateAltVisual();
       }
       else if (action === 'jump') this.jump = false;
+      else if (action === 'sneak') this.updateSneakVisual();
       else if (action === 'scores') this.callbacks.scores(false);
     });
     const cancel = (event: PointerEvent) => {
@@ -182,6 +193,11 @@ export class TouchControls {
     else this.altElement.removeAttribute('aria-pressed');
     this.altElement.classList.toggle('active', this.aiming
       || [...this.pointers.values()].some(pointer => pointer.element === this.altElement));
+  }
+
+  private updateSneakVisual(): void {
+    this.sneakElement.setAttribute('aria-pressed', String(this.sneak));
+    this.sneakElement.classList.toggle('active', this.sneak);
   }
 
   private move(element: HTMLElement, x: number, y: number): void {

@@ -35,6 +35,7 @@ export interface WeaponPoseInput {
   fire: boolean;
   alt: boolean;
   sprint: boolean;
+  sneak?: boolean;
   localVelocity: Vec3;
   lookDeltaYaw: number;
   lookDeltaPitch: number;
@@ -44,7 +45,7 @@ export interface WeaponPoseInput {
   cancelActions?: boolean;
 }
 
-export interface WeaponPoseActions { fired: boolean; thrown: boolean; force: number; melee: boolean; heal: boolean; build: boolean }
+export interface WeaponPoseActions { fired: boolean; thrown: boolean; force: number; melee: boolean; heal: boolean; selfHeal: boolean; build: boolean }
 
 export function createWeaponPose(weapon: WeaponId): WeaponPoseState {
   const state: WeaponPoseState = {
@@ -62,8 +63,8 @@ export function hideWeaponPose(state: WeaponPoseState): void {
   Object.assign(state.quaternion, { x: 0, y: 0, z: 0, w: 1 });
 }
 
-export function stepWeaponMotion(velocity: Vec3, input: { moveX: number; moveZ: number; sprint: boolean }): void {
-  const speed = input.sprint ? .015 : .01;
+export function stepWeaponMotion(velocity: Vec3, input: { moveX: number; moveZ: number; sprint: boolean; sneak?: boolean }): void {
+  const speed = input.sneak ? .005 : input.sprint ? .015 : .01;
   // ECKeyMovement's local visual velocity differs from collision-resolved player velocity.
   velocity.x = velocity.x * .9 - input.moveX * speed;
   velocity.z = velocity.z * .9 + input.moveZ * speed;
@@ -92,9 +93,11 @@ export function stepWeaponPose(state: WeaponPoseState, input: WeaponPoseInput, r
   const preset = WEAPON_POSES[state.weapon];
   const gun = state.weapon === 'ak47' || state.weapon === 'awp' || state.weapon === 'rpg';
   const fire = input.fire && !input.cancelActions, alt = input.alt && !input.cancelActions;
+  const sprint = input.sprint && !input.sneak;
   const pressed = fire && !state.fireHeld, released = !fire && state.fireHeld;
   const actions: WeaponPoseActions = { fired: gun && fire && !state.shot, thrown: false, force: 0,
-    melee: state.weapon === 'shovel' && pressed, heal: state.weapon === 'medic' && pressed,
+    melee: state.weapon === 'shovel' && pressed, heal: state.weapon === 'medic' && pressed && !alt,
+    selfHeal: state.weapon === 'medic' && alt && !state.altHeld,
     build: state.weapon === 'shovel' && alt && !state.altHeld };
   if (input.cancelActions) {
     state.charge = 0; state.attacking = false; state.attackTime = 0;
@@ -131,11 +134,11 @@ export function stepWeaponPose(state: WeaponPoseState, input: WeaponPoseInput, r
     const velocity = input.localVelocity;
     const speed = Math.hypot(velocity.x, velocity.z);
     state.bobTime++;
-    const factor = input.sprint ? (gun ? .2 : .4) : .15;
-    const bob = Math.sin(state.bobTime * (input.sprint ? .3 : .2) * .5) * factor * speed;
+    const factor = sprint ? (gun ? .2 : .4) : .15;
+    const bob = Math.sin(state.bobTime * (sprint ? .3 : .2) * .5) * factor * speed;
     if (bob * state.bobSide > 0) state.bobSide = -state.bobSide;
     state.rotationFactor.x += bob * state.bobSide; state.rotationFactor.y += bob;
-    if (input.sprint) {
+    if (sprint) {
       state.rotationFactor.x += gun ? .1 : -.05;
       state.rotationFactor.y += gun ? -.2 : 0;
       state.rotationFactor.z += gun ? 0 : -.05;

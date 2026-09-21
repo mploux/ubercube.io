@@ -91,6 +91,14 @@ main { position: relative; width: 100%; height: 100%; z-index: 3; pointer-events
 #kill-feed > div { display: flex; gap: 7px; background: none; text-shadow: 0 1px rgb(0 0 0 / 50%); }
 #kill-feed b { font-weight: 400; }
 
+#death-screen { pointer-events: none; text-align: center; text-shadow: 2px 3px rgb(0 0 0 / 65%); }
+.death-heading { position: absolute; inset: 0 0 auto; padding: max(20px, var(--safe-top)) 16px 18px; background: linear-gradient(rgb(0 0 0 / 65%), transparent); }
+#death-title { font-size: clamp(24px, 4vw, 38px); }
+#death-killer { margin-top: 5px; font-size: 20px; }
+.death-footer { position: absolute; inset: auto 0 0; padding: 18px 16px max(20px, var(--safe-bottom)); font-size: 18px; background: linear-gradient(transparent, rgb(0 0 0 / 65%)); }
+#death-countdown { display: inline-block; margin-left: 12px; }
+body[data-screen="killcam"] #game-hud > :not(#crosshair):not(#scope):not(.vignette) { display: none; }
+
 #pause-screen { background: rgb(0 0 0 / 50%); z-index: 5; pointer-events: auto; }
 .pause-menu { position: absolute; left: 50px; top: 50px; width: 150px; display: flex; flex-direction: column; gap: 10px; }
 .pause-menu .gui-button { width: 150px; }
@@ -174,6 +182,7 @@ main { position: relative; width: 100%; height: 100%; z-index: 3; pointer-events
 .touch-button.pressed, .touch-button.active, .touch-button[aria-pressed="true"] { background: rgb(255 255 255 / 45%); }
 .touch-menu { position: absolute; top: var(--safe-top); left: var(--safe-left); display: flex; gap: 8px; }
 .touch-menu .touch-button { min-height: 44px; min-width: 52px; font-size: 16px; }
+#touch-sneak { position: absolute; left: var(--safe-left); bottom: calc(var(--touch-bottom) + clamp(112px, 27dvh, 144px) + 12px); min-height: 42px; font-size: 16px; }
 .touch-actions { position: absolute; right: calc(var(--safe-right) + min(2vw, 20px)); bottom: calc(var(--touch-bottom) + min(4dvh, 20px)); width: 180px; height: 166px; }
 .touch-actions .touch-button {
   position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;

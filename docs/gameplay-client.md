@@ -4,6 +4,23 @@ Ajout du 21 septembre 2026 : [le bazooka RPG](bazooka.md) reprend le maniement d
 
 État du 11 septembre 2026. Inspection statique ciblée du Java dans `C:\Users\Marc\Documents\Dev\ubercube`. Aucun lancement du jeu, aucune compilation, aucune modification Java. Les chemins actifs ci-dessous constituent une référence à vérifier en jeu ; une présence dans le code ne prouve pas une expérience fonctionnelle sans défaut.
 
+## Ajouts locaux du 21 septembre 2026
+
+Non publiés. Protocole 6 côté client, serveur et worker solo ; codec binaire inchangé. Ces décisions étendent volontairement la référence Java historique décrite plus bas.
+
+- Maj maintenu active le sneak à 3 blocs/s. Ctrl conserve la course à 9 blocs/s. Le support sous les pieds est vérifié pendant les déplacements horizontaux au sol, y compris en diagonale et avec de l'élan ; le saut et la destruction du support permettent toujours de tomber. Pas de nouvelle hauteur de collision ni de posture accroupie : il s'agit du sneak pour les bords. La prédiction client et le serveur appellent la même simulation.
+- Les chutes sont mesurées depuis le sommet de la trajectoire jusqu'au premier atterrissage. Aucun dégât jusqu'à 6 blocs ; progression linéaire vers 100 PV à 20 blocs, arrondie vers le bas au PV entier, avec tolérance du solveur de contact. Une chute de 13 blocs retire 50 PV. Le suivi est effacé à la mort, à l'apparition et au reset ; le client ne transmet ni distance de chute ni dégâts.
+- Sac médic sélectionné : clic droit, +10 PV sur soi-même plafonnés à 100, une fois par appui. Le clic droit a priorité si les deux boutons sont pressés. Clic gauche et portée des soins sur autrui sont conservés. Annulation, pause et changement d'arme ne créent pas de soin supplémentaire.
+- Chaque arme et outil affiche un réticule. L'AWP et le RPG remplacent le réticule normal par celui de la lunette en visée.
+
+À la mort, le client suit son ragdoll pendant 3 s, avec caméra décalée et rapprochée devant les voxels qui l'obstruent. Il rejoue ensuite 3 s depuis les yeux du tueur : 2,7 s d'action à vitesse réelle, puis 0,3 s pour voir l'impact fatal. Positions, visées, projectiles, tirs et impacts sont reconstruits depuis les messages reçus. Le serveur ajoute seulement une copie de la pose du tueur à l'événement de mort existant ; aucun enregistrement vidéo ni historique serveur. Les tirs rejoués déclenchent uniquement rendu et audio, sans envoyer de commandes ni appliquer de dégâts.
+
+L'historique conserve au plus 100 snapshots sur 4 s, 100 joueurs et 512 projectiles par snapshot, 4 096 événements. Les snapshots déjà copiés sont partagés en lecture avec le clip figé. La lecture est nettoyée sur fin, reset, nouvelle apparition et déconnexion. Après une chute, un suicide ou sans pose du tueur exploitable, les 3 s de death cam mènent directement au lobby.
+
+Limites : la kill cam est une reconstruction des états autoritaires reçus, pas la capture exacte de l'écran adverse. Le terrain reste dans son état courant, les animations et le recul sont cosmétiques, et un historique trop court conserve la première pose disponible. Elle n'ajoute aucune compensation de latence au combat. Au-delà de 100 joueurs, l'historique complet de tous les joueurs n'est pas garanti.
+
+Sur mobile, Sneak se bascule par appui pour conserver les deux pouces disponibles pour déplacement et regard. Le secondaire du sac affiche « Se soigner ». Les actions sont désactivées pendant les deux caméras.
+
 ## Reprise du maniement implémentée
 
 `src/shared/weapon-pose.ts` reprend les updates à 60 Hz de `Weapon`, `FireWeapon`, `MeleeWeapon`, `WeaponGrenade` et `WeaponMedicBag`. La vue FPS et le serveur utilisent ces mêmes poses et compteurs. Les positions, échelles et pivots des armes historiques restent définis à partir des OBJ bruts. Les points de sortie sont mesurés au centre des extrémités de canon OBJ ; le même facteur 1/16 et la même échelle de pose s'appliquent au modèle et à ces coordonnées. Le RPG garde l'échelle `(2 ; 2 ; -2)` pour une longueur de 2,375 blocs. Sa pose de repos est `(0,3 ; 0 ; -1,1)` et sa visée `(0,09 ; 0,055 ; -1)` aligne la lentille avec la caméra ; le point de tir local stabilisé devient `(0,09 ; -0,145 ; 2)`, toujours à la pointe du modèle. Le repos FPS a été relevé de 0,18 bloc puis publié le 21 septembre après validation de Marc, sans changer la visée ni le port à la troisième personne. Ce réglage partagé conserve le départ de la roquette à la pointe du modèle. Les gestes n'avancent pas pendant le rendu. L'arme inactive conserve sa pose et sa cadence.

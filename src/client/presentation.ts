@@ -72,9 +72,9 @@ export class Effects {
     }
   }
 
-  update(dt: number, time: number, camera?: THREE.Camera): void {
+  update(dt: number, time: number, camera?: THREE.Camera, replay = false): void {
     this.bullets.update(time);
-    this.grenades.update(time);
+    this.grenades.update(time, !replay);
     this.rockets.update(time, camera);
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const particle = this.particles[i];

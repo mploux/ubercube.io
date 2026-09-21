@@ -14,8 +14,8 @@ for (const entry of localSources ? [] : manifest) {
 const replacements = new Map([
   ["const active = !paused && !document.hidden && !cancelActions && (touchMode || (document.pointerLockElement === canvas && document.hasFocus()));", "const active = !paused && !document.hidden && !cancelActions && (qaVideoDriving || touchMode || (document.pointerLockElement === canvas && document.hasFocus()));"],
   ['  camera.updateProjectionMatrix();\n  if (world &&', '  if (qaVideoCamera) { camera.position.set(...qaVideoCamera.position); camera.lookAt(...qaVideoCamera.target); camera.fov = 55; }\n  camera.updateProjectionMatrix();\n  if (world &&'],
-  ["  } else if (screen === 'game' && local?.alive) {\n    weaponView.render", "  } else if (screen === 'game' && local?.alive && !qaVideoCamera) {\n    weaponView.render"],
-  ['avatars.update(remotePlayers.sample(now), localId, now / 1000, camera);', 'avatars.update(remotePlayers.sample(now), qaVideoCamera?.showLocal ? -1 : localId, now / 1000, camera);'],
+  ["  } else if ((screen === 'game' && local?.alive) || replayFrame) {\n    weaponView.render", "  } else if (((screen === 'game' && local?.alive) || replayFrame) && !qaVideoCamera) {\n    weaponView.render"],
+  ['avatars.update(replayFrame?.players ?? remotePlayers.sample(now), replayFrame?.killer.id ?? localId, now / 1000, camera);', 'avatars.update(replayFrame?.players ?? remotePlayers.sample(now), qaVideoCamera?.showLocal ? -1 : replayFrame?.killer.id ?? localId, now / 1000, camera);'],
   ['function handleEvent(event: GameEvent): void {', 'function handleEvent(event: GameEvent): void {\n  qaVideoEvents.push({ ...event, receivedAt: performance.now() });'],
 ]);
 const build = await Bun.build({

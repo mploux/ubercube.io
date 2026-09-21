@@ -32,7 +32,7 @@ export function movePlayer(state: MotionState, input: InputFrame, world: Pick<Vo
   state.yaw = input.yaw;
   state.pitch = Math.max(-1.54, Math.min(1.54, input.pitch));
   const length = Math.max(1, Math.hypot(input.moveX, input.moveZ));
-  const speed = input.sprint ? 9 : 6;
+  const speed = input.sneak ? 3 : input.sprint ? 9 : 6;
   const x = input.moveX / length;
   const z = input.moveZ / length;
   const targetX = (Math.cos(state.yaw) * x - Math.sin(state.yaw) * z) * speed;
@@ -65,6 +65,17 @@ export function movePlayer(state: MotionState, input: InputFrame, world: Pick<Vo
         state.position[axis] = previous;
         state.velocity[axis] = 0;
         break;
+      }
+      if (input.sneak && wasGrounded && !input.jump) {
+        const oldY = state.position.y;
+        state.position.y -= .05;
+        const supported = playerCollides(world, state.position);
+        state.position.y = oldY;
+        if (!supported) {
+          state.position[axis] = previous;
+          state.velocity[axis] = 0;
+          break;
+        }
       }
     }
   }

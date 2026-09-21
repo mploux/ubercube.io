@@ -19,6 +19,8 @@ import { serverEndpoints } from './server-endpoints';
 import { SoloConnection } from './solo-connection';
 import { TouchControls } from './touch-controls';
 import { RemotePlayers } from './remote-players';
+import { DeathReplay, DEATH_REPLAY_SECONDS } from './death-replay';
+import { deathCamera } from './death-camera';
 
 const endpoints = serverEndpoints(location.href, process.env.PUBLIC_GAME_SERVER_URL);
 const touchQuery = matchMedia('(pointer: coarse)');
@@ -99,7 +101,7 @@ const target = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeome
 target.visible = false;
 scene.add(target);
 
-type Screen = 'entry' | 'lobby' | 'game' | 'disconnected';
+type Screen = 'entry' | 'lobby' | 'game' | 'death' | 'killcam' | 'disconnected';
 let screen: Screen = 'entry';
 let socket: WebSocket | SoloConnection | null = null;
 let serverAvailable = endpoints !== null;
@@ -119,6 +121,8 @@ let predicted: MotionState | null = null;
 const correctionOffset = new THREE.Vector3();
 let players: PlayerState[] = [];
 const remotePlayers = new RemotePlayers();
+const deathReplay = new DeathReplay();
+let deathView: { started: number; victim: PlayerState; replay: boolean; weaponTick: number } | null = null;
 let pending: InputFrame[] = [];
 let unsent: InputFrame[] = [];
 let sequence = 0;
@@ -215,12 +219,14 @@ function clearActions(): void {
 function showScreen(next: Screen): void {
   screen = next;
   document.body.dataset.screen = next;
-  document.body.classList.toggle('playing', next === 'game');
+  document.body.classList.toggle('playing', next === 'game' || next === 'death' || next === 'killcam');
   element('entry-screen').hidden = next !== 'entry';
   element('lobby-screen').hidden = next !== 'lobby';
   element('lobby-background').hidden = next !== 'lobby';
   element('lobby-map').hidden = next !== 'lobby';
-  element('game-hud').hidden = next !== 'game';
+  element('game-hud').hidden = next !== 'game' && next !== 'killcam';
+  element('death-screen').hidden = next !== 'death' && next !== 'killcam';
+  element('scope').hidden = true; element('crosshair').hidden = true;
   element('disconnect-screen').hidden = next !== 'disconnected';
   element('pause-screen').hidden = true;
   element('options-panel').hidden = true;
@@ -229,7 +235,7 @@ function showScreen(next: Screen): void {
   clearInput();
   updateTouchControls();
   if (next !== 'game' && document.pointerLockElement === canvas) document.exitPointerLock?.();
-  audio.setEnabled(next === 'game' && document.hasFocus() && !muted);
+  audio.setEnabled((next === 'game' || next === 'death' || next === 'killcam') && document.hasFocus() && !muted);
   if (next === 'lobby') weaponView.setWeapon(KITS[selectedKit][0]);
 }
 
@@ -264,6 +270,7 @@ function send(message: ClientMessage): boolean {
 
 function resetPrediction(): void {
   predicted = null; pending = []; unsent = []; remotePlayers.clear();
+  deathReplay.clear(); deathView = null;
   correctionOffset.set(0, 0, 0);
   damageOpacity = 0; headshotUntil = 0;
   sequence = 0; accumulator = 0;
@@ -415,7 +422,8 @@ function receive(message: ServerMessage): void {
   if (message.type === 'snapshot') {
     players = message.players;
     const now = performance.now();
-    effects.snapshot(message.projectiles, message.tick, now / 1000);
+    deathReplay.recordSnapshot(message);
+    if (screen !== 'killcam') effects.snapshot(message.projectiles, message.tick, now / 1000);
     remotePlayers.snapshot(message.tick, message.players, now);
     const authoritative = players.find((player) => player.id === localId);
     if (authoritative) applyLocalState(authoritative);
@@ -451,6 +459,7 @@ function applyLocalState(state: PlayerState): void {
     damageOpacity = Math.min(0.75, damageOpacity + 0.25);
   }
   if (state.alive && !wasAlive) {
+    deathReplay.resetPlayback(); deathView = null;
     spawning = false; window.clearTimeout(spawnTimer); clearInput();
     selectedKit = state.kit; selectedWeapon = state.weapon;
     yaw = state.yaw; pitch = state.pitch;
@@ -461,34 +470,54 @@ function applyLocalState(state: PlayerState): void {
     else audio.setEnabled(!muted);
   } else if (!state.alive && wasAlive) {
     pending = []; unsent = []; accumulator = 0;
-    showScreen('lobby'); refreshKitButtons();
+    if (!deathView) {
+      const death: GameEvent = { type: 'event', roundId, event: 'death', targetId: state.id,
+        position: { ...state.position }, death: { player: state, hitPoint: { ...state.position }, impulse: { x: 0, y: 0, z: 0 } } };
+      avatars.death(death, state, performance.now() / 1000);
+      beginDeath(death);
+    }
   }
 }
 
-function handleEvent(event: GameEvent): void {
-  const time = performance.now() / 1000;
+function beginDeath(event: GameEvent): void {
+  const victim = event.death?.player ?? local;
+  if (!victim || deathView) return;
+  deathView = { started: performance.now() / 1000, victim, replay: deathReplay.start(event, localId), weaponTick: -1 };
+  pending = []; unsent = []; accumulator = 0;
+  const killer = event.death?.killer ?? players.find(player => player.id === event.shooterId);
+  element('death-killer').textContent = killer && killer.id !== localId ? `Éliminé par ${killer.name}` : 'Vous êtes mort';
+  showScreen('death');
+}
+
+function presentEvent(event: GameEvent, time: number, replaying = false): void {
   effects.event(event, time, event.weapon === 'rpg'
     ? avatars.getRpgMuzzle(event.shooterId ?? -1) ?? undefined : undefined);
   const corpseHit = avatars.shot(event, time);
   if (corpseHit) effects.blood(corpseHit);
-  const listener = predicted ? { ...predicted.position, y: predicted.position.y + EYE_HEIGHT } : camera.position;
+  const listener = screen === 'game' && predicted ? { ...predicted.position, y: predicted.position.y + EYE_HEIGHT } : camera.position;
   const own = event.shooterId === localId;
   if (event.event === 'shot') {
     const file = event.weapon === 'awp' ? 'AWPShoot' : event.weapon === 'ak47' || event.weapon === 'rpg' ? 'AK47Shoot' : event.weapon === 'shovel' ? 'dig' : '';
     // The local weapon already responded to the trigger; confirmation must not play it twice.
-    if (file && !own) audio.play(file, event.position, listener, yaw, 0.5);
+    if (file && (!own || replaying)) audio.play(file, event.position, listener, camera.rotation.y, 0.5);
   }
   if (event.event === 'explosion') audio.play('waterexplode', event.position, listener, yaw, 0.55);
   if (event.event === 'build') audio.play('place', event.position, listener, yaw, 0.4);
   if (event.event === 'impact' && event.weapon === 'shovel') audio.play('dig', event.position, listener, yaw, 0.3);
-  if ((event.event === 'impact' || event.event === 'death') && own && event.targetId !== undefined) {
+  if (!replaying && (event.event === 'impact' || event.event === 'death') && own && event.targetId !== undefined) {
     audio.play('playerhit', undefined, undefined, 0, 0.4);
     if (event.headshot) headshotUntil = performance.now() + 3000;
   }
+  if (event.event === 'death') avatars.death(event, players.find(player => player.id === event.targetId), time);
+}
+
+function handleEvent(event: GameEvent): void {
+  deathReplay.recordEvent(event);
+  if (screen !== 'killcam') presentEvent(event, performance.now() / 1000);
   if (event.event === 'death') {
     const shooter = players.find((player) => player.id === event.shooterId);
     const victim = players.find((player) => player.id === event.targetId);
-    avatars.death(event, victim, time);
+    if (event.targetId === localId && screen === 'game') beginDeath(event);
     const row = document.createElement('div');
     row.textContent = event.targetId === localId
       ? `${event.headshot ? 'Headshooted by' : 'You died by'} ${shooter?.name ?? 'World'} !`
@@ -546,14 +575,17 @@ function simulate(): void {
     seq: ++sequence, roundId,
     moveX: active ? Math.max(-1, Math.min(1, Number(keys.has('KeyD')) - Number(keys.has('KeyA')) + touchControls.moveX)) : 0,
     moveZ: active ? Math.max(-1, Math.min(1, Number(keys.has('KeyW')) - Number(keys.has('KeyS')) + touchControls.moveZ)) : 0,
-    yaw, pitch, jump: active && (keys.has('Space') || touchControls.jump), sprint: active && (keys.has('ShiftLeft') || keys.has('ShiftRight') || touchControls.sprint),
+    yaw, pitch, jump: active && (keys.has('Space') || touchControls.jump),
+    sneak: active && (keys.has('ShiftLeft') || keys.has('ShiftRight') || touchControls.sneak),
+    sprint: active && !(keys.has('ShiftLeft') || keys.has('ShiftRight') || touchControls.sneak)
+      && (keys.has('ControlLeft') || keys.has('ControlRight') || touchControls.sprint),
     fire: active && fireButton.sample(), alt: active && altButton.sample(), weapon: selectedWeapon,
     cancelActions: !active,
   };
   const groundedBefore = predicted.grounded;
   const throwMuzzle = selectedWeapon === 'grenade' ? getWeaponMuzzle(weaponView.pose) : null;
   const actions = weaponView.tick({
-    moveX: frame.moveX, moveZ: frame.moveZ, sprint: frame.sprint, fire: frame.fire, alt: frame.alt,
+    moveX: frame.moveX, moveZ: frame.moveZ, sprint: frame.sprint, sneak: frame.sneak, fire: frame.fire, alt: frame.alt,
     lookDeltaYaw: Math.atan2(Math.sin(yaw - weaponLookYaw), Math.cos(yaw - weaponLookYaw)),
     lookDeltaPitch: pitch - weaponLookPitch,
     mouseDX: weaponMouseDX, mouseDY: weaponMouseDY, grenades: effects.availableGrenades(local), cancelActions: !active,
@@ -569,13 +601,13 @@ function simulate(): void {
 
 function updateUI(): void {
   if (touchMode) touchControls.setWeapon(selectedWeapon);
-  element('crosshair').dataset.weapon = selectedWeapon;
+  if (screen !== 'killcam') element('crosshair').dataset.weapon = selectedWeapon;
   element('touch-weapon-label').textContent = WEAPONS[selectedWeapon].name;
   element('touch-fire-label').textContent = selectedWeapon === 'grenade' ? 'Lancer' : selectedWeapon === 'shovel' ? 'Creuser' : selectedWeapon === 'medic' ? 'Soigner' : 'TIR';
   element('touch-fire').title = selectedWeapon === 'grenade' ? 'Maintenir pour charger, glisser pour orienter, relâcher pour lancer' : 'Maintenir et glisser pour agir tout en regardant';
-  element('touch-alt-label').textContent = selectedWeapon === 'shovel' ? 'Bâtir' : 'Visée';
-  element('touch-alt').title = selectedWeapon === 'shovel' ? 'Maintenir pour bâtir' : 'Appuyer pour activer ou désactiver la visée';
-  element<HTMLButtonElement>('touch-alt').disabled = selectedWeapon === 'grenade' || selectedWeapon === 'medic';
+  element('touch-alt-label').textContent = selectedWeapon === 'shovel' ? 'Bâtir' : selectedWeapon === 'medic' ? 'Se soigner' : 'Visée';
+  element('touch-alt').title = selectedWeapon === 'shovel' ? 'Maintenir pour bâtir' : selectedWeapon === 'medic' ? 'Appuyer pour se soigner' : 'Appuyer pour activer ou désactiver la visée';
+  element<HTMLButtonElement>('touch-alt').disabled = selectedWeapon === 'grenade';
   if (local) {
     element('health-value').textContent = String(Math.max(0, local.health));
     element('health-fill').style.width = `${Math.max(0, local.health)}%`;
@@ -635,13 +667,38 @@ function frame(now: number): void {
   while (accumulator >= DT) { simulate(); accumulator -= DT; }
   if (unsent.length) send({ type: 'input', frames: unsent.splice(0, 8) });
   correctionOffset.multiplyScalar(Math.exp(-25 * dt));
+  let replayFrame: ReturnType<DeathReplay['sample']> = null;
+  if (deathView) {
+    const elapsed = now / 1000 - deathView.started;
+    if (screen === 'death' && elapsed >= 3) {
+      if (deathView.replay) {
+        avatars.clear(); effects.clear(); weaponView.reset();
+        showScreen('killcam');
+      } else {
+        deathView = null; deathReplay.resetPlayback();
+        showScreen('lobby'); refreshKitButtons();
+      }
+    }
+    if (screen === 'killcam') {
+      replayFrame = deathReplay.sample(elapsed - 3);
+      if (!replayFrame) {
+        deathView = null; deathReplay.resetPlayback(); avatars.clear(); effects.clear();
+        showScreen('lobby'); refreshKitButtons();
+      }
+    }
+    if (deathView) {
+      element('death-title').textContent = screen === 'death' ? 'DEATH CAM' : 'KILL CAM';
+      element('death-next').textContent = screen === 'death' && deathView.replay ? 'Kill cam dans' : 'Retour à l’équipement';
+      element('death-countdown').textContent = `${Math.max(1, Math.ceil((screen === 'death' ? 3 : 3 + DEATH_REPLAY_SECONDS) - elapsed))} s`;
+    }
+  }
   if (screen === 'game' && predicted) {
     camera.position.set(predicted.position.x, predicted.position.y + EYE_HEIGHT, predicted.position.z).add(correctionOffset);
     camera.rotation.set(pitch, yaw, 0, 'YXZ');
     const zoom = weaponView.pose.altHeld && (selectedWeapon === 'awp' || selectedWeapon === 'rpg' || selectedWeapon === 'ak47');
     camera.fov = weaponView.fov;
     element('scope').hidden = !(zoom && (selectedWeapon === 'awp' || selectedWeapon === 'rpg'));
-    element('crosshair').hidden = selectedWeapon === 'ak47' || selectedWeapon === 'awp' || (selectedWeapon === 'rpg' && zoom);
+    element('crosshair').hidden = zoom && (selectedWeapon === 'awp' || selectedWeapon === 'rpg');
     if (selectedWeapon === 'shovel' && world && !paused) {
       const hit = raycast(world, { ...predicted.position, y: predicted.position.y + EYE_HEIGHT }, aimDirection(yaw, pitch), 5);
       target.visible = !!hit;
@@ -652,6 +709,25 @@ function frame(now: number): void {
       footsteps += dt * speed;
       if (footsteps > 2.2) { footsteps = 0; audio.play(Math.random() > 0.5 ? 'footstep1' : 'footstep2', undefined, undefined, 0, 0.11); }
     } else footsteps = 0;
+  } else if (world && screen === 'death' && deathView) {
+    const view = deathCamera(world, avatars.corpsePosition(localId) ?? deathView.victim.position, deathView.victim.yaw);
+    camera.position.copy(view.position); camera.lookAt(view.target.x, view.target.y, view.target.z);
+    camera.fov = 76; target.visible = false;
+  } else if (replayFrame && deathView) {
+    const killer = replayFrame.killer;
+    camera.position.set(killer.position.x, killer.position.y + EYE_HEIGHT, killer.position.z);
+    camera.rotation.set(killer.pitch, killer.yaw, 0, 'YXZ');
+    const shot = replayFrame.events.some(event => event.event === 'shot' && event.shooterId === killer.id);
+    const tick = Math.floor(replayFrame.tick);
+    const steps = deathView.weaponTick < 0 ? 30 : Math.max(shot ? 1 : 0, Math.min(6, tick - deathView.weaponTick));
+    for (let i = 0; i < steps; i++) weaponView.replayTick(killer, shot && i === steps - 1);
+    deathView.weaponTick = tick;
+    camera.fov = weaponView.fov; target.visible = false;
+    const scope = killer.aiming && (killer.weapon === 'awp' || killer.weapon === 'rpg');
+    element('scope').hidden = !scope; element('crosshair').hidden = scope;
+    element('crosshair').dataset.weapon = killer.weapon;
+    for (const event of replayFrame.events) presentEvent(event, now / 1000, true);
+    effects.snapshot(replayFrame.projectiles, tick, now / 1000);
   } else if (world && screen === 'entry') {
     const size = world.config.size;
     const angle = now * 0.000012;
@@ -660,14 +736,14 @@ function frame(now: number): void {
     camera.fov = THREE.MathUtils.damp(camera.fov, 69, 5, dt); target.visible = false;
   }
   camera.updateProjectionMatrix();
-  if (world && (screen === 'entry' || screen === 'game')) {
+  if (world && (screen === 'entry' || screen === 'game' || screen === 'death' || screen === 'killcam')) {
     snow.update(dt, camera.position, world, camera.getWorldDirection(cameraForward));
     shadows.update();
   }
   if (screen !== 'lobby') terrain?.update(camera.position);
   if (terrain?.stats.error && !renderErrorShown) { renderErrorShown = true; toast(terrain.stats.error); refreshKitButtons(); if (screen === 'game') { document.exitPointerLock?.(); setPaused(true); } }
-  avatars.update(remotePlayers.sample(now), localId, now / 1000, camera);
-  effects.update(dt, now / 1000, camera);
+  avatars.update(replayFrame?.players ?? remotePlayers.sample(now), replayFrame?.killer.id ?? localId, now / 1000, camera);
+  effects.update(dt, now / 1000, camera, !!replayFrame);
   renderer.setClearAlpha(screen === 'lobby' ? 0 : 1);
   renderer.clear();
   if (screen !== 'lobby') renderer.render(scene, camera);
@@ -675,7 +751,7 @@ function frame(now: number): void {
     for (const preview of document.querySelectorAll<HTMLElement>('[data-preview]')) {
       weaponView.renderKitPreview(renderer, now / 1000, KITS[preview.dataset.preview as Kit][0], preview.getBoundingClientRect());
     }
-  } else if (screen === 'game' && local?.alive) {
+  } else if ((screen === 'game' && local?.alive) || replayFrame) {
     weaponView.render(renderer, camera);
   }
   if (now - lastUI > 160) { lastUI = now; updateUI(); }
@@ -732,7 +808,7 @@ document.addEventListener('keydown', (event) => {
   if (event.code === 'F1') { event.preventDefault(); muted = !muted; audio.setEnabled(!muted && !paused && document.hasFocus()); updateUI(); return; }
   if (event.code === 'Tab') { event.preventDefault(); if (!paused) element('score-screen').hidden = false; return; }
   if (event.code === 'Escape') { clearInput(); if (document.pointerLockElement !== canvas) setPaused(true); return; }
-  if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'Space', 'ShiftLeft', 'ShiftRight'].includes(event.code)) { event.preventDefault(); if (!paused) keys.add(event.code); }
+  if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'Space', 'ShiftLeft', 'ShiftRight', 'ControlLeft', 'ControlRight'].includes(event.code)) { event.preventDefault(); if (!paused) keys.add(event.code); }
 });
 document.addEventListener('keyup', (event) => { keys.delete(event.code); if (event.code === 'Tab') { event.preventDefault(); element('score-screen').hidden = true; } });
 document.addEventListener('mousedown', (event) => {

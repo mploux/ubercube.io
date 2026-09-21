@@ -88,7 +88,7 @@
           <h3>Play in your browser</h3>
           <p>No download, account or payment is required. Play on desktop with a keyboard and mouse, or on mobile with touch controls. If the multiplayer server is unavailable, Play solo lets you explore, shoot and reshape your own world without other players or bots. Each new solo session starts fresh.</p>
           <h3>How to play</h3>
-          <p>Move with WASD or ZQSD, look with the mouse, jump with Space and sprint with Shift. Left-click to fire, right-click to aim, and use the mouse wheel to switch equipment. Hold and release fire to throw a grenade. With the shovel, left-click to dig and right-click to build.</p>
+          <p>Move with WASD or ZQSD, look with the mouse, jump with Space and sprint with Ctrl. Hold Shift to sneak safely along block edges. Left-click to fire, right-click to aim, and use the mouse wheel to switch equipment. Hold and release fire to throw a grenade. With the shovel, left-click to dig and right-click to build. With the medic bag, left-click to heal another player or right-click to heal yourself.</p>
           <p>On mobile, move with the left joystick. Hold and drag the fire button to shoot while looking, or double-tap the right look area and hold the second tap. Tap Aim to toggle your sights. Hold and release to throw a grenade. Jump and change weapons with the on-screen buttons.</p>
           <a class="gui-button entry-play-link" href="#play">Play UBERCUBE</a>
         </article>
@@ -123,9 +123,15 @@
         <div id="kill-feed" aria-live="polite"></div>
       </section>
 
+      <section id="death-screen" class="screen" hidden aria-label="Caméra de mort">
+        <div class="death-heading"><div id="death-title">DEATH CAM</div><div id="death-killer"></div></div>
+        <div class="death-footer"><span id="death-next">Retour à l’équipement</span><span id="death-countdown">3 s</span></div>
+      </section>
+
       <div id="touch-controls" aria-label="Touch controls" hidden>
         <div id="touch-look" aria-hidden="true"></div>
         <div id="touch-move" aria-label="Move joystick"><div id="touch-stick"></div></div>
+        <button id="touch-sneak" class="gui-button touch-button" data-touch-action="sneak" type="button" aria-pressed="false" aria-label="Activer ou désactiver le sneak">Sneak</button>
         <div class="touch-menu">
           <button class="gui-button touch-button" data-touch-action="pause" type="button" aria-label="Pause">Menu</button>
           <button class="gui-button touch-button" data-touch-action="scores" type="button" aria-label="Hold to show scores">Score</button>

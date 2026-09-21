@@ -1,15 +1,20 @@
-import { expect, test } from 'bun:test';
+import { expect, spyOn, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
 import { WeaponView, type WeaponViewInput } from '../src/client/weapon-view';
 import { parseWeaponModel, WEAPON_MODEL_FILES } from '../src/client/weapon-model';
 import { createWeaponPose, getWeaponMuzzle, hideWeaponPose, stepWeaponMotion, stepWeaponPose,
   type WeaponPoseInput } from '../src/shared/weapon-pose';
-import type { WeaponId } from '../src/shared/protocol';
+import type { PlayerState, WeaponId } from '../src/shared/protocol';
 
 const still: WeaponPoseInput = { fire: false, alt: false, sprint: false, localVelocity: { x: 0, y: 0, z: 0 },
   lookDeltaYaw: 0, lookDeltaPitch: 0, mouseDX: 0, mouseDY: 0, grenades: 10 };
 const viewInput: WeaponViewInput = { ...still, moveX: 0, moveZ: 0 };
+const replayPlayer: PlayerState = {
+  id: 2, name: '', team: 1, kit: 'assault', weapon: 'ak47', aiming: false,
+  position: { x: 20, y: 1, z: 20 }, velocity: { x: 0, y: 0, z: 0 }, yaw: 0, pitch: 0,
+  grounded: true, alive: true, health: 100, kills: 0, deaths: 0, ammo: 30, grenades: 10, lastSeq: 0,
+};
 const loader = async (weapon: WeaponId): Promise<THREE.Group> => {
   const path = `public/assets/weapons/${WEAPON_MODEL_FILES[weapon]}`;
   return parseWeaponModel(readFileSync(`${path}.obj`, 'utf8'), readFileSync(`${path}.mtl`, 'utf8'));
@@ -195,6 +200,29 @@ test('medic emits a heal press without invented swing, bobbing or rotation', () 
   expect(pose.zoom).toBe(0);
 });
 
+test('medic self heal uses right-button presses, prioritizes self and cancels with other actions', () => {
+  const pose = createWeaponPose('medic');
+  const first = stepWeaponPose(pose, { ...still, fire: true, alt: true });
+  expect(first.selfHeal).toBe(true);
+  expect(first.heal).toBe(false);
+  expect(stepWeaponPose(pose, { ...still, fire: true, alt: true }).selfHeal).toBe(false);
+  stepWeaponPose(pose, still);
+  const cancelled = stepWeaponPose(pose, { ...still, fire: true, alt: true, cancelActions: true });
+  expect(cancelled.selfHeal).toBe(false);
+  expect(cancelled.heal).toBe(false);
+  expect(stepWeaponPose(pose, { ...still, alt: true }).selfHeal).toBe(true);
+  const gun = createWeaponPose('ak47');
+  expect(stepWeaponPose(gun, { ...still, alt: true }).selfHeal).toBe(false);
+});
+
+test('sneak motion remains shared and suppresses sprint weapon posture', () => {
+  const velocity = { x: 0, y: 0, z: 0 }, pose = createWeaponPose('ak47');
+  stepWeaponMotion(velocity, { moveX: 1, moveZ: 1, sneak: true, sprint: true });
+  expect(velocity).toEqual({ x: -.005, y: 0, z: .005 });
+  stepWeaponPose(pose, { ...still, sneak: true, sprint: true });
+  expect(pose.rotationFactor).toEqual({ x: 0, y: 0, z: 0 });
+});
+
 test('outgoing hide preserves fire cadence and adds the Java hide translation', () => {
   const pose = createWeaponPose('ak47');
   stepWeaponPose(pose, { ...still, fire: true });
@@ -263,6 +291,53 @@ test('weapon changes preserve inactive animation/cadence and rendering cannot ad
     view.reset('awp');
     expect(view.pose.shot).toBe(false);
     expect(view.fov).toBe(70);
+  } finally { view.dispose(); }
+});
+
+test.each(['ak47', 'awp', 'rpg'] as const)('%s replays each confirmed shot even before its local cooldown ends', async weapon => {
+  const view = new WeaponView(async () => new THREE.Group());
+  await view.ready;
+  const tick = spyOn(view, 'tick');
+  const player = { ...replayPlayer, weapon, aiming: true };
+  try {
+    view.replayTick(player, true);
+    expect(tick.mock.results.at(-1)!.value).toMatchObject({ fired: true });
+    expect(view.pose.weapon).toBe(weapon);
+    expect(view.pose.shot).toBe(true);
+    expect(view.pose.shootTimer).toBe(1);
+    view.replayTick(player, false);
+    expect(tick.mock.results.at(-1)!.value).toMatchObject({ fired: false });
+    expect(view.pose.shootTimer).toBe(2);
+    view.replayTick(player, true);
+    expect(tick.mock.results.at(-1)!.value).toMatchObject({ fired: true });
+    expect(view.pose.shootTimer).toBe(1);
+    expect(view.pose.rotationFactor.x).toBeLessThan(0);
+    for (let frame = 0; frame < 65; frame++) view.replayTick(player, false);
+    for (const result of tick.mock.results.slice(3)) expect(result.value).toMatchObject({ fired: false });
+  } finally { tick.mockRestore(); view.dispose(); }
+});
+
+test('weapon replay uses the killer snapshot equipment and ADS while leaving the snapshot untouched', async () => {
+  const view = new WeaponView(loader);
+  await view.ready;
+  const player = { ...replayPlayer, weapon: 'rpg' as const, aiming: true };
+  const original = structuredClone(player);
+  try {
+    view.reset('medic');
+    for (let frame = 0; frame < 120; frame++) view.replayTick(player, false);
+    expect(view.pose.weapon).toBe('rpg');
+    expect(view.pose.altHeld).toBe(true);
+    expect(view.fov).toBeCloseTo(11.655, 7);
+    expect(view.scene.getObjectByName('RPG')).toBeDefined();
+    expect(view.scene.getObjectByName('RPG_sights')!.visible).toBe(false);
+    const unscoped = { ...player, weapon: 'ak47' as const, aiming: false };
+    view.replayTick(unscoped, true);
+    expect(view.pose.weapon).toBe('ak47');
+    expect(view.pose.altHeld).toBe(false);
+    expect(view.pose.shot).toBe(true);
+    expect(view.fov).toBe(70);
+    expect(view.scene.getObjectByName('RPG')).toBeUndefined();
+    expect(player).toEqual(original);
   } finally { view.dispose(); }
 });
 

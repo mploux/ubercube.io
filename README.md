@@ -10,6 +10,8 @@ L'AK-47 et l'AWP utilisent des tirs instantanés autoritaires, avec traces jaune
 
 Publié le 21 septembre 2026 : le bazooka RPG est disponible dans le kit assaut, après l'AK-47 à la molette, avec un modèle polygonal facetté créé dans le style de l'AK-47 et de l'AWP. Sa silhouette et sa palette approuvées sont conservées : l'ogive olive quitte désormais le lanceur au tir, la visée passe par sa lentille transparente avec le zoom AWP, et les autres joueurs le portent sur les avant-bras au repos puis sur l'épaule en visée. Sa roquette vole à 60 blocs/s et explose avec des dégâts légèrement inférieurs à ceux d'une grenade. Le médic conserve son sac de soins. Le client et le serveur sont publiés ensemble avec le protocole 4 ; voir [la preuve de publication](docs/deployment.md#publication-du-bazooka-assaut--21-septembre-2026). [Référence Java, modèle et comportement](docs/bazooka.md).
 
+Travail local du 21 septembre 2026, **non publié** : death cam de 3 s puis kill cam de 3 s, sneak sur Maj, course sur Ctrl, réticules pour toutes les armes, dégâts de chute entre 6 et 20 blocs et auto-soin du médic au clic droit. Les sources utilisent maintenant le protocole **6**, à publier ensemble côté client et serveur. [Règles et limites du replay](docs/gameplay-client.md#ajouts-locaux-du-21-septembre-2026).
+
 ## Reprendre le projet
 
 Nouveau développeur ou agent : lire [AGENTS.md](AGENTS.md), puis le [guide de démarrage](docs/agent-start.md). Il donne les points d'entrée du code, les décisions produit, les vérifications et les accès de publication sans dépendre d'un historique de discussion.
@@ -66,12 +68,13 @@ Les métadonnées de référencement, les aperçus de partage avec le visuel his
 |---|---|---|
 | Déplacement | ZQSD sur AZERTY / WASD sur QWERTY | Joystick gauche |
 | Regarder | Souris | Glisser à droite, ou glisser sur Tirer |
-| Saut / course | Espace / Maj | Saut / pousser le joystick au bord |
+| Saut / course | Espace / Ctrl | Saut / pousser le joystick au bord |
+| Sneak, protection des bords | Maintenir Maj | Bouton Sneak pour activer/désactiver |
 | Tir / visée | Clic gauche / clic droit | Maintenir et glisser sur Tirer, ou double appui maintenu à droite / appuyer sur Viser pour basculer |
 | Changer d'arme ou d'outil | Molette | Flèches autour du nom de l'arme |
 | Pelle : creuser / construire | Clic gauche / clic droit | Creuser / Bâtir |
 | Grenade | Maintenir le clic gauche puis relâcher | Maintenir Lancer puis relâcher |
-| Médecin | Clic gauche sur un autre joueur à portée | Soigner sur un autre joueur à portée |
+| Médecin | Clic gauche : autre joueur à portée ; clic droit : soi-même | Soigner / Se soigner |
 | Scores / menu | Tab / Échap | Maintenir Score / Menu |
 | Couper / rétablir le son | F1 | Menu → options → Audio |
 
@@ -96,7 +99,10 @@ L'accueil conserve le panorama voxel animé. Le lobby utilise le fond original, 
 - Personnages distants repris du renderer Java actif : dix volumes articulés, palette verte et peau, tête, marche/course et poses de visée, armes originales attachées aux mains et pseudos Riffic aux couleurs des équipes. Références et adaptations : [personnages Java](docs/player-reference.md).
 - Grenades avec charge, rebonds et dégâts radiaux ; modèle original visible dès le relâchement pour le tireur, avec prédiction visuelle et correction sur les confirmations serveur. Les grenades des autres joueurs conservent un tampon de 100 ms pour lisser les snapshots 20 Hz. Pelle, construction et résistance des blocs ; les dégâts partiels assombrissent les blocs.
 - Tirs alliés et soins possibles sur l'autre équipe, conformément aux chemins actifs du Java. En TDM, une mort rapporte un point à l'équipe opposée à celle de la victime.
-- Réapparition sur le terrain actuel, choix du kit après la mort, sons, effets, minicarte et tableau des scores.
+- Sneak : marche à 3 blocs/s, priorité sur la course et protection des bords au sol. Sauter quitte volontairement le support ; un bloc détruit sous les pieds ne peut plus retenir le joueur. La hitbox conserve sa hauteur.
+- Chutes : aucun dégât jusqu'à 6 blocs, puis `floor((hauteur − 6) × 100 / 14)` PV à l'atterrissage ; 13 blocs enlèvent 50 PV, 20 blocs ou davantage tue. Règles autoritaires communes avec le solo.
+- Médic : sac sélectionné, clic droit pour récupérer 10 PV par appui, plafond 100. Le maintien ne répète pas les soins. Le clic gauche soigne toujours les autres joueurs à portée.
+- Réapparition sur le terrain actuel : death cam de 3 s sur le corps, puis kill cam de 3 s dans la vue reconstruite du tueur, avant le choix du kit. Chute, suicide ou absence d'historique exploitable : death cam seule. Réticule pour chaque arme, y compris AK/AWP hors lunette ; la lunette garde son réticule spécifique.
 - Réinitialisation du terrain, des projectiles et des scores entre les manches. Les anciens messages sont rejetés par leur identifiant de manche.
 - Relief enneigé du générateur Java, chênes et grands chênes avec leurs branches et couronnes d'origine. Ruines historiques et hangars avec portes, fenêtres et intérieurs, entièrement destructibles. Les apparitions recherchent le sol praticable sous la végétation. Références, adaptations et validation : [génération du terrain](docs/terrain-generation.md).
 

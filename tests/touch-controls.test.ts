@@ -40,11 +40,11 @@ function fixture(weapon: WeaponId = 'ak47') {
   const root = new TouchElement();
   const elements = {
     move: new TouchElement(), look: new TouchElement(), stick: new TouchElement(),
-    fire: new TouchElement(), alt: new TouchElement(), jump: new TouchElement(),
+    fire: new TouchElement(), alt: new TouchElement(), jump: new TouchElement(), sneak: new TouchElement(),
     previous: new TouchElement(), next: new TouchElement(), pause: new TouchElement(), scores: new TouchElement(),
   };
   elements.stick.bounds.width = elements.stick.bounds.height = 40;
-  const actions = ['fire', 'alt', 'jump', 'previous', 'next', 'pause', 'scores'] as const;
+  const actions = ['fire', 'alt', 'jump', 'sneak', 'previous', 'next', 'pause', 'scores'] as const;
   for (const action of actions) elements[action].dataset.touchAction = action;
   Object.assign(root, {
     querySelector: (selector: string) => elements[selector.slice('#touch-'.length) as keyof typeof elements],
@@ -152,6 +152,46 @@ test('a second finger cannot steal a held button or produce a premature release'
   expect(events).toEqual([['fire', true]]);
   pointer(elements.fire, 'pointerup', 1);
   expect(fire.sample()).toBe(false);
+});
+
+test('sneak toggles on before moving and looking with only two simultaneous contacts', () => {
+  const { elements, controls, events } = fixture();
+  controls.setEnabled(true);
+  expect(elements.sneak.attributes.get('aria-pressed')).toBe('false');
+  pointer(elements.move, 'pointerdown', 1, 100, 50);
+  pointer(elements.sneak, 'pointerdown', 2);
+  expect(elements.move.captures.size + elements.sneak.captures.size).toBe(2);
+  pointer(elements.sneak, 'pointerup', 2);
+  expect(elements.sneak.captures.size).toBe(0);
+  expect(elements.sneak.classes.has('active')).toBe(true);
+  expect(elements.sneak.attributes.get('aria-pressed')).toBe('true');
+  pointer(elements.look, 'pointerdown', 2);
+  pointer(elements.look, 'pointermove', 2, 120, 90);
+  expect(controls.sneak).toBe(true);
+  expect(controls.moveZ).toBe(1);
+  expect(Object.values(elements).reduce((total, element) => total + element.captures.size, 0)).toBe(2);
+  pointer(elements.look, 'pointerup', 2);
+  pointer(elements.sneak, 'pointerdown', 2);
+  expect(controls.sneak).toBe(false);
+  expect(elements.sneak.attributes.get('aria-pressed')).toBe('false');
+  pointer(elements.sneak, 'pointerup', 2);
+  pointer(elements.move, 'pointerup', 1);
+  expect(controls.sneak).toBe(false);
+  expect(elements.sneak.classes.has('active')).toBe(false);
+  expect(events).toEqual([['look', 20, -20]]);
+});
+
+test('a second finger cannot toggle a captured sneak button or change it on release', () => {
+  const { elements, controls } = fixture();
+  controls.setEnabled(true);
+  pointer(elements.sneak, 'pointerdown', 1);
+  pointer(elements.sneak, 'pointerdown', 2);
+  pointer(elements.sneak, 'pointerup', 2);
+  expect(controls.sneak).toBe(true);
+  pointer(elements.sneak, 'pointerup', 1);
+  expect(controls.sneak).toBe(true);
+  expect(elements.sneak.classes.has('active')).toBe(true);
+  expect(elements.sneak.attributes.get('aria-pressed')).toBe('true');
 });
 
 for (const cancelledEvent of ['pointercancel', 'lostpointercapture']) {
@@ -277,7 +317,7 @@ for (const scenario of [
   });
 }
 
-for (const action of ['alt', 'fire', 'jump', 'scores', 'previous', 'next', 'pause'] as const) {
+for (const action of ['alt', 'fire', 'jump', 'sneak', 'scores', 'previous', 'next', 'pause'] as const) {
   test(`${action} invalidates a completed first tap and an unfinished candidate`, () => {
     for (const releaseFirst of [true, false]) {
       const { elements, controls, events } = fixture();
@@ -349,16 +389,57 @@ for (const weapon of ['ak47', 'awp', 'rpg'] as const) {
   });
 }
 
-for (const weapon of ['grenade', 'medic'] as const) {
-  test(`${weapon} ignores secondary actions rather than latching an unsupported aim`, () => {
-    const { elements, controls, events } = fixture(weapon);
-    controls.setEnabled(true);
-    pointer(elements.alt, 'pointerdown', 1);
-    pointer(elements.alt, 'pointerup', 1);
-    expect(events).toEqual([]);
-    expect(elements.alt.captures.size).toBe(0);
+test('grenade ignores secondary actions rather than latching an unsupported aim', () => {
+  const { elements, controls, events } = fixture('grenade');
+  controls.setEnabled(true);
+  pointer(elements.alt, 'pointerdown', 1);
+  pointer(elements.alt, 'pointerup', 1);
+  expect(events).toEqual([]);
+  expect(elements.alt.captures.size).toBe(0);
+  expect(elements.alt.classes.has('active')).toBe(false);
+  expect(elements.alt.attributes.has('aria-pressed')).toBe(false);
+});
+
+test('medic self-heal releases after each press and accepts a second click without toggling aim', () => {
+  const { elements, controls, events, alt } = fixture('medic');
+  controls.setEnabled(true);
+  for (let id = 1; id <= 2; id++) {
+    pointer(elements.alt, 'pointerdown', id);
+    expect(elements.alt.classes.has('active')).toBe(true);
+    pointer(elements.alt, 'pointerup', id);
+    expect([alt.sample(), alt.sample(), alt.sample()]).toEqual([true, false, false]);
     expect(elements.alt.classes.has('active')).toBe(false);
     expect(elements.alt.attributes.has('aria-pressed')).toBe(false);
+  }
+  expect(events).toEqual([['alt', true], ['alt', false], ['alt', true], ['alt', false]]);
+});
+
+for (const action of ['clear', 'disable', 'weapon', 'pointercancel', 'lostpointercapture'] as const) {
+  test(`${action} clears latched sneak and discards a held medic action`, () => {
+    const { elements, controls, events, alt } = fixture('medic');
+    controls.setEnabled(true);
+    pointer(elements.move, 'pointerdown', 1, 100, 50);
+    pointer(elements.sneak, 'pointerdown', 2);
+    pointer(elements.sneak, 'pointerup', 2);
+    pointer(elements.alt, 'pointerdown', 2);
+    expect(controls.sneak).toBe(true);
+    expect(alt.sample()).toBe(true);
+    if (action === 'clear') {
+      controls.clear();
+      alt.clear();
+    } else if (action === 'disable') controls.setEnabled(false);
+    else if (action === 'weapon') controls.setWeapon('ak47');
+    else pointer(elements.alt, action, 2);
+    expect(controls.sneak).toBe(false);
+    expect(alt.sample()).toBe(false);
+    expect(elements.sneak.captures.size).toBe(0);
+    expect(elements.sneak.classes.has('active')).toBe(false);
+    expect(elements.sneak.attributes.get('aria-pressed')).toBe('false');
+    expect(elements.alt.captures.size).toBe(0);
+    pointer(elements.sneak, 'pointerup', 2);
+    pointer(elements.alt, 'pointerup', 2);
+    expect(events).toEqual(action === 'clear' ? [['alt', true]] : [['alt', true], ['cancel']]);
+    expect(controls.moveZ).toBe(action === 'weapon' ? 1 : 0);
   });
 }
 

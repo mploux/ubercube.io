@@ -174,10 +174,10 @@ export class GrenadeVisuals {
     } else if (event.event === 'explosion' || event.event === 'projectile-end') this.remove(id!);
   }
 
-  update(now: number): void {
+  update(now: number, buffered = true): void {
     if (this.disposed || !this.mesh || !Number.isFinite(now)) return;
-    // Remote throws retain the interpolation buffer; local throws render on their release timeline.
-    if (this.clockOffset !== null) this.renderTick = Math.min(this.latestTick, Math.max(this.renderTick, (now - this.clockOffset - INTERPOLATION_DELAY) * TICK_RATE));
+    // Replays already interpolate their history; only live remote throws need a network buffer.
+    if (this.clockOffset !== null) this.renderTick = Math.min(this.latestTick, Math.max(this.renderTick, (now - this.clockOffset - (buffered ? INTERPOLATION_DELAY : 0)) * TICK_RATE));
     let count = 0;
     for (const [seq, reservation] of this.reservations) if (now - reservation.started > 1) this.reservations.delete(seq);
     for (const [seq, prediction] of this.predictions) {

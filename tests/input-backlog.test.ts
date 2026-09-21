@@ -41,7 +41,7 @@ test('a resumed backlog uses the newest held movement without extra simulation o
 });
 
 test.each([
-  { fire: true }, { alt: true }, { jump: true }, { cancelActions: true }, { weapon: 'shovel' as WeaponId },
+  { fire: true }, { alt: true }, { jump: true }, { sneak: true }, { cancelActions: true }, { weapon: 'shovel' as WeaponId },
 ])('preserves the first %j transition and its original sequence', change => {
   const { game, player, send } = join();
   send({}); game.step();
@@ -51,13 +51,24 @@ test.each([
   game.step(); expect(player.lastSeq).toBe(5);
 });
 
-test('omitted and explicit false cancellation are equivalent held inputs', () => {
+test('omitted and explicit false cancellation and sneak are equivalent held inputs', () => {
   const { game, connection, player, send } = join();
   send({}); game.step();
-  send({ cancelActions: false }, {}, { cancelActions: false });
+  send({ cancelActions: false, sneak: false }, {}, { cancelActions: false, sneak: false });
   game.step();
   expect(player.lastSeq).toBe(4);
   expect(connection.queue).toHaveLength(0);
+});
+
+test('self healing preserves right-button edges through coalesced inputs', () => {
+  const { game, player, send, events } = join(undefined, 'medic');
+  player.health = 40;
+  send({}); game.step();
+  send({ alt: true }, { alt: true }, { alt: true }, {}, { alt: true }, { alt: true }, { alt: true }, {});
+  for (let tick = 0; tick < 6; tick++) game.step();
+  expect(player.health).toBe(60);
+  expect(events('heal')).toHaveLength(2);
+  expect(events('heal').every(event => event.shooterId === player.id && event.targetId === player.id)).toBe(true);
 });
 
 test('grenade charges once per server tick and throws once using the original release sequence', () => {

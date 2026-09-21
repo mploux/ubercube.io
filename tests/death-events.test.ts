@@ -72,6 +72,10 @@ test.each(['assault', 'sniper'] as const)('%s immediate death carries the review
   expect(victim.player.position.x - shooter.player.position.x).toBeLessThan(0);
   expect(event.death!.player).toEqual({ ...victim.player, aiming: true });
   expect(event.death!.player.deaths).toBe(1);
+  expect(event.death!.killer?.id).toBe(shooter.player.id);
+  expect(event.death!.killer?.position).toEqual(shooter.player.position);
+  expect(event.death!.killer?.yaw).toBe(shooter.player.yaw);
+  expect(event.death!.killer?.pitch).toBe(shooter.player.pitch);
   expect(victim.player.aiming).toBe(false);
   expect(shooter.player.kills).toBe(1);
 
@@ -79,6 +83,7 @@ test.each(['assault', 'sniper'] as const)('%s immediate death carries the review
   shooter.player.position = { x: 80.5, y: 50, z: 80.5 };
   shooter.player.yaw = -2;
   shooter.player.pitch = -.5;
+  shooter.player.velocity.x = 42;
   game.receive(victim.connection, JSON.stringify({ type: 'spawn', roundId: game.roundId, kit: 'sniper' }));
   expect(victim.player.alive).toBe(true);
   victim.player.velocity.x = 100;
@@ -162,6 +167,32 @@ test('environmental death retains its pose with a zero impulse and no weapon cau
   expect(event.death!.hitPoint).toEqual(event.position);
   expect(event.death!.player.aiming).toBe(true);
   expect(event.death!.player.deaths).toBe(1);
+  expect(event.death!.killer).toBeUndefined();
   game.step();
   expect(peer.events('death')).toHaveLength(1);
+});
+
+test('a delayed grenade kill retains the shooter pose even when the shooter is dead', () => {
+  const game = new GameServer();
+  const shooter = join(game), victim = join(game);
+  shooter.player.position = { x: 120.5, y: 50, z: 120.5 };
+  input(game, shooter.connection, { weapon: 'grenade', fire: true }); game.step();
+  input(game, shooter.connection, { weapon: 'grenade' }); game.step();
+  const grenade = [...game.projectiles.values()][0];
+  grenade.position = { x: 100.5, y: 50, z: 100.5 };
+  grenade.velocity = { x: 0, y: 0, z: 0 };
+  grenade.expires = game.tick + 1;
+  shooter.player.alive = false;
+  shooter.player.health = 0;
+  victim.player.position = { x: 100.5, y: 50, z: 100.5 };
+  victim.player.health = 1;
+  game.step();
+  const death = victim.peer.events('death')[0];
+  expect(death.death!.killer?.id).toBe(shooter.player.id);
+  expect(death.death!.killer?.alive).toBe(false);
+  expect(death.death!.killer?.position).toEqual(shooter.player.position);
+  const pose = structuredClone(death.death!.killer);
+  shooter.player.position.y += 10;
+  shooter.player.velocity.x += 2;
+  expect(death.death!.killer).toEqual(pose);
 });

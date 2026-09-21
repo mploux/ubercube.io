@@ -1,4 +1,4 @@
-export const PROTOCOL_VERSION = 4;
+export const PROTOCOL_VERSION = 6;
 export const TICK_RATE = 60;
 export const DT = 1 / TICK_RATE;
 export type Mode = 'tdm' | 'ffa';
@@ -20,7 +20,7 @@ export interface InputFrame {
   seq: number; roundId: number; moveX: number; moveZ: number;
   yaw: number; pitch: number; jump: boolean; sprint: boolean;
   fire: boolean; alt: boolean; weapon: WeaponId;
-  cancelActions?: boolean;
+  cancelActions?: boolean; sneak?: boolean;
 }
 export type ClientMessage =
   | { type: 'hello'; version: number; name: string }
@@ -36,7 +36,7 @@ export type GameEvent = {
   blockColor?: number; // Server-captured RGB24 before the impacted block changes.
   projectileId?: number; velocity?: Vec3; tick?: number; inputSeq?: number;
   endPosition?: Vec3; // Hitscan shot endpoint, including misses; no persistent projectile or flight velocity.
-  death?: { player: PlayerState; hitPoint: Vec3; impulse: Vec3 }; // Cosmetic corpse state; never changes gameplay physics.
+  death?: { player: PlayerState; killer?: PlayerState; hitPoint: Vec3; impulse: Vec3 }; // Cosmetic corpse/replay state; never changes gameplay physics.
 };
 export type ServerMessage =
   | { type: 'welcome'; id: number; roundId: number; mode: Mode; maxPlayers: number; world: WorldConfig; tickRate: number }

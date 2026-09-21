@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { Vec3, WeaponId } from '../shared/protocol';
+import type { PlayerState, Vec3, WeaponId } from '../shared/protocol';
 import { createWeaponPose, hideWeaponPose, stepWeaponMotion, stepWeaponPose, WEAPON_POSES, WEAPON_MODEL_SCALE,
   type WeaponPoseActions, type WeaponPoseInput, type WeaponPoseState } from '../shared/weapon-pose';
 import { loadWeaponModel, WEAPON_MODEL_FILES, WEAPON_PREVIEWS } from './weapon-model';
@@ -92,7 +92,7 @@ export class WeaponView {
   }
 
   tick(input: WeaponViewInput, random: () => number = Math.random): WeaponPoseActions {
-    if (this.disposed) return { fired: false, thrown: false, force: 0, melee: false, heal: false, build: false };
+    if (this.disposed) return { fired: false, thrown: false, force: 0, melee: false, heal: false, selfHeal: false, build: false };
     if (this.pendingSwitch) {
       // Wheel events precede the next input frame: transfer held buttons, never an old release.
       this.poses[this.current].fireHeld = this.fireHeld && input.fire;
@@ -106,6 +106,17 @@ export class WeaponView {
     this.visible = this.current !== 'grenade' || input.grenades > 0;
     this.updateMatrix();
     return actions;
+  }
+
+  replayTick(player: PlayerState, fired: boolean): void {
+    this.setWeapon(player.weapon);
+    // Replay confirmed shots even when snapshot timing differs from the local weapon cooldown.
+    if (fired) this.poses[this.current].shot = false;
+    const { x, z } = player.velocity;
+    this.tick({ moveX: (Math.cos(player.yaw) * x - Math.sin(player.yaw) * z) / 6,
+      moveZ: (-Math.sin(player.yaw) * x - Math.cos(player.yaw) * z) / 6,
+      sprint: Math.hypot(x, z) > 7, fire: fired, alt: player.aiming,
+      lookDeltaYaw: 0, lookDeltaPitch: 0, grenades: player.grenades }, () => .5);
   }
 
   private attach(): void {

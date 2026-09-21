@@ -2,6 +2,8 @@
 
 Implémentation autorisée par Marc le 12 septembre 2026 après l'exploration ci-dessous. Le tir automatique reste reporté à un essai ultérieur, après son retour sur cette version manuelle.
 
+Ajouts locaux du 21 septembre 2026, non publiés : bouton Sneak au-dessus du joystick, activé/désactivé par appui pour garder deux pouces sur déplacement et regard ; il prend priorité sur le sprint. Pause, annulation ou changement d'arme le désactivent. Avec le sac médic, le bouton secondaire devient « Se soigner », +10 PV par appui confirmé par le serveur, sans bascule de visée. Les contrôles sont masqués pendant death cam et kill cam.
+
 ## Interface du pouce droit : arc compact
 
 Direction 1 choisie par Marc le 13 septembre 2026 : bouton de tir de 80 × 80 pixels CSS, avec Visée et Saut de 52 × 52 pixels disposés au-dessus en arc. Pictogrammes, libellés courts, fond noir translucide et contours carrés conservent la police Riffic. Les consignes permanentes ont été retirées ; les libellés Lancer, Creuser, Bâtir et Soigner restent adaptés à l'équipement.
