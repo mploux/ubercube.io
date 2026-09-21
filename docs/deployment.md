@@ -4,6 +4,18 @@
 
 Le client statique peut être servi par Vercel et permet de jouer seul sans hébergement supplémentaire. Pour le multijoueur, la simulation reste dans un processus Bun permanent, sur une seule instance pour la première version. Le serveur conserve le monde en mémoire : son redémarrage termine les sessions et réinitialise le terrain. Les connexions et instances temporaires des Vercel Functions ne conviennent pas au monde partagé actuel.
 
+## Publication des caméras et commandes de survie — 21 septembre 2026
+
+Le commit applicatif `e8ba02f1fdcd4efe05515b72d4058e6a8cb2cdad`, poussé sur `codex/gameplay-deathcam-release`, contient les caméras de mort/replay, Maj pour sneak, Ctrl pour courir, les réticules, les chutes entre 6 et 20 blocs et l'auto-soin du médic. Le chantier antérieur d'import/rotation des cartes est exclu et conservé dans le dossier principal. Le protocole **6** est publié sur les deux cibles ; les pages déjà ouvertes doivent être rechargées.
+
+La release `20260921-231500` est figée depuis un checkout propre. Validation : **478 tests / 21 658 assertions**, TypeScript, 11 sorties de build et **20 contrôles navigateur** locaux, puis **181 tests / 3 910 assertions** Linux avant activation. L'archive serveur contient les nouvelles suites d'actions et de transport gameplay.
+
+Activation serveur à **21:45:11 UTC**, sans joueur connecté, PID **184043** : service actif, treize empreintes et protocole 6 conformes. Les anciennes sources sont conservées dans `/opt/ubercube/releases/20260921-231500/previous-src`. Le build Git Vercel `dpl_Gk9UozRXtdGqknz1XddKP4UCvX46` est ensuite promu ; le SHA GitHub, les trois domaines et **54 ressources publiques** sont vérifiés à **21:45:53 UTC**.
+
+Le smoke Internet confirme le protocole, deux joueurs, synchronisation, apparitions, intentions acquittées et fermeture. Le parcours public pseudo → lobby → Medic → jeu → déconnexion affiche terrain, arme, réticule, HUD et minicarte sans diagnostic console ; retour à zéro joueur confirmé. La souris reste refusée par le navigateur intégré. Aucun test de charge public ni nouveau ressenti humain n'est revendiqué. La kill cam reconstruit les états reçus et conserve le terrain courant.
+
+Preuves depuis le dossier principal : `.runtime/gameplay-release/.runtime/releases/20260921-231500/` (archives, `server-stage.log`, `server-activate.log`, `server-verification.txt`, `verification.json`, `smoke.json`). La suite locale se trouve dans `.runtime/gameplay-release/.runtime-release-check.log` et le replay navigateur dans `.runtime/gameplay-release/.runtime/gameplay-qa/`. Les empreintes `ops/` enregistrent cette publication applicative. Le push du commit de preuves sur `main` peut déclencher un build identique ; son SHA et ses ressources sont vérifiés séparément sans redémarrer le serveur.
+
 ## Publication du cadrage RPG relevé — 21 septembre 2026
 
 Le cadrage approuvé par Marc relève le repos FPS de −0,18 à 0 bloc sur Y, avec le départ de la roquette toujours aligné sur le modèle. La visée et les deux poses distantes sont inchangées, captures identiques à l'appui. Le commit applicatif `5ea1639128ba74b3b34e56ba9ec54b67948837fd`, poussé sur `codex/rpg-idle-height`, est figé dans la release `20260921-212035`. Le seul fichier applicatif modifié est `src/shared/weapon-pose.ts` ; le protocole reste 4.

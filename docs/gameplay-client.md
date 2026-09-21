@@ -4,9 +4,9 @@ Ajout du 21 septembre 2026 : [le bazooka RPG](bazooka.md) reprend le maniement d
 
 État du 11 septembre 2026. Inspection statique ciblée du Java dans `C:\Users\Marc\Documents\Dev\ubercube`. Aucun lancement du jeu, aucune compilation, aucune modification Java. Les chemins actifs ci-dessous constituent une référence à vérifier en jeu ; une présence dans le code ne prouve pas une expérience fonctionnelle sans défaut.
 
-## Ajouts locaux du 21 septembre 2026
+## Ajouts du 21 septembre 2026
 
-Non publiés. Protocole 6 côté client, serveur et worker solo ; codec binaire inchangé. Ces décisions étendent volontairement la référence Java historique décrite plus bas.
+Publiés ensemble le 21 septembre 2026. Protocole 6 côté client, serveur et worker solo ; codec binaire inchangé. Ces décisions étendent volontairement la référence Java historique décrite plus bas.
 
 - Maj maintenu active le sneak à 3 blocs/s. Ctrl conserve la course à 9 blocs/s. Le support sous les pieds est vérifié pendant les déplacements horizontaux au sol, y compris en diagonale et avec de l'élan ; le saut et la destruction du support permettent toujours de tomber. Pas de nouvelle hauteur de collision ni de posture accroupie : il s'agit du sneak pour les bords. La prédiction client et le serveur appellent la même simulation.
 - Les chutes sont mesurées depuis le sommet de la trajectoire jusqu'au premier atterrissage. Aucun dégât jusqu'à 6 blocs ; progression linéaire vers 100 PV à 20 blocs, arrondie vers le bas au PV entier, avec tolérance du solveur de contact. Une chute de 13 blocs retire 50 PV. Le suivi est effacé à la mort, à l'apparition et au reset ; le client ne transmet ni distance de chute ni dégâts.

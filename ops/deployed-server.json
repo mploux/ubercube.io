@@ -13,7 +13,7 @@
   },
   {
     "file": "src/shared/game.ts",
-    "sha256": "f93dc405f0097cd78e0a42fd566a458f3373585c7881d024d1bc916e7e9e546c"
+    "sha256": "1eb3e0f0c21c0ba09e20bf7c07c3942d143c7a8cbf1da96f94bdd7952b80bf9d"
   },
   {
     "file": "src/shared/grenade.ts",
@@ -21,11 +21,11 @@
   },
   {
     "file": "src/shared/movement.ts",
-    "sha256": "33cd58c0ab91997b4aba1d34ba724bb375bfbe82c3015c1cb1c9ae9ecad3c2ab"
+    "sha256": "87102e51b9c09e267730953c1adb5e278e4aef948bd2270909d6085248be2ffb"
   },
   {
     "file": "src/shared/protocol.ts",
-    "sha256": "e57930960967af10dffe2b3df9d06c70400c87a6de57fbbe3cd71010cd14a018"
+    "sha256": "7dd4a918134b1f304984fef40f80de06051776da2d2ac748e7cf1b4031afa97d"
   },
   {
     "file": "src/shared/ruin-model.ts",
@@ -45,7 +45,7 @@
   },
   {
     "file": "src/shared/weapon-pose.ts",
-    "sha256": "252f1c988055d8fbd40727aa9a81671cca37adf7db6f9dc7fb0b2241922b9477"
+    "sha256": "a3b442e7454f8bcf83acee1e7770ce520870a000dc7b665419adc5e39528a5f5"
   },
   {
     "file": "src/shared/wire.ts",

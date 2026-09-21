@@ -236,8 +236,8 @@
   },
   {
     "file": "public/index.html",
-    "sha": "9811621825ccbed24b1d3a04b810abe65088cf4a",
-    "size": 14809
+    "sha": "3ad10edb9c573cbcc1cd9d775ad36ea76367a4e1",
+    "size": 15470
   },
   {
     "file": "public/robots.txt",
@@ -260,9 +260,19 @@
     "size": 4142
   },
   {
+    "file": "src/client/death-camera.ts",
+    "sha": "6caed0e7f06c4cd00bb6fb65a9813cb50597c511",
+    "size": 823
+  },
+  {
+    "file": "src/client/death-replay.ts",
+    "sha": "6bdf4b3312fe048ebf4b89cf36341238c6349c54",
+    "size": 10374
+  },
+  {
     "file": "src/client/grenade-visuals.ts",
-    "sha": "b57b97e5044e9f255ab4722674802e80b38c319e",
-    "size": 11603
+    "sha": "57288ff01c9075844a15c4abd962a71ab8c6f2a0",
+    "size": 11633
   },
   {
     "file": "src/client/input-button.ts",
@@ -276,8 +286,8 @@
   },
   {
     "file": "src/client/main.ts",
-    "sha": "c592261fb70a4c9f1d59fb852254e8f902a86937",
-    "size": 40650
+    "sha": "43390cd81b8064de1aa8411879bb77ef3d962f68",
+    "size": 45452
   },
   {
     "file": "src/client/minimap.ts",
@@ -291,13 +301,13 @@
   },
   {
     "file": "src/client/player-visuals.ts",
-    "sha": "038e4e6a7351ea503e4e878287ab9857331840d9",
-    "size": 21199
+    "sha": "43135b629717b2a9dbb76b590c958a8a4c2b8ef1",
+    "size": 21303
   },
   {
     "file": "src/client/presentation.ts",
-    "sha": "aae9300bc53aa2c15ee4ce5c5811b22f0c348726",
-    "size": 7420
+    "sha": "63829ff7c4ddeef203ba193d2779aedeaa1a04dd",
+    "size": 7445
   },
   {
     "file": "src/client/ragdoll-terrain.ts",
@@ -306,8 +316,8 @@
   },
   {
     "file": "src/client/ragdolls.ts",
-    "sha": "d135cf5579bd237795ce6befb716be2c8cdad533",
-    "size": 10449
+    "sha": "35719ad877412075dff93c710dcc2aedb45d1b1d",
+    "size": 10799
   },
   {
     "file": "src/client/remote-players.ts",
@@ -346,8 +356,8 @@
   },
   {
     "file": "src/client/styles.css",
-    "sha": "aa681b76486b1efd63fd3d68549b06022ec5974b",
-    "size": 24052
+    "sha": "b733d42e7f71aa3ebd5be668ab01418ffb216593",
+    "size": 24934
   },
   {
     "file": "src/client/terrain.ts",
@@ -361,8 +371,8 @@
   },
   {
     "file": "src/client/touch-controls.ts",
-    "sha": "9caf8b87e1dc4cb5027862569e4be43415d137e5",
-    "size": 8800
+    "sha": "d2055f0641211669016d18621e3d59669924da68",
+    "size": 9460
   },
   {
     "file": "src/client/weapon-model.ts",
@@ -371,8 +381,8 @@
   },
   {
     "file": "src/client/weapon-view.ts",
-    "sha": "f2b19b818faec26465b6fb7689f8e181fb6c9b09",
-    "size": 9716
+    "sha": "b2aaca3121b1ba4ae7a7c378101b4d400ae375b1",
+    "size": 10338
   },
   {
     "file": "src/client/world-material.ts",
@@ -396,8 +406,8 @@
   },
   {
     "file": "src/shared/game.ts",
-    "sha": "5b06039810321933ad21cfe9680663e5b7de58a4",
-    "size": 38305
+    "sha": "229984911f69378240cf23d60d8967f8463b411f",
+    "size": 39564
   },
   {
     "file": "src/shared/grenade.ts",
@@ -406,13 +416,13 @@
   },
   {
     "file": "src/shared/movement.ts",
-    "sha": "3be4794de8d8e8b8273da7f57db65a30f4c727b8",
-    "size": 3774
+    "sha": "738d08f55261d87149fca7343c83b1e598b135b4",
+    "size": 4157
   },
   {
     "file": "src/shared/protocol.ts",
-    "sha": "175f1ee28afc5717a314c8415fac4b9cf12357ca",
-    "size": 3496
+    "sha": "39f565a05ebeee4c4532a3627cff2189a183de08",
+    "size": 3542
   },
   {
     "file": "src/shared/ruin-model.ts",
@@ -436,8 +446,8 @@
   },
   {
     "file": "src/shared/weapon-pose.ts",
-    "sha": "35ab86cade061ce3e4b42daef1ab4002785ba714",
-    "size": 8451
+    "sha": "6950eb72fde2f2997688b8f5731fd7e8fff1b55f",
+    "size": 8629
   },
   {
     "file": "src/shared/wire.ts",

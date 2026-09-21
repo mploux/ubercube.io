@@ -1,6 +1,6 @@
 # Reprise de l'interface Java
 
-Ajouts locaux du 21 septembre 2026, non publiés : réticule standard présent sur toutes les armes hors lunette (le RPG conserve son point), death cam de 3 s suivie d'une kill cam de 3 s avec titre, nom du tueur et compte à rebours. Les informations de vie, scores, minicarte et munitions en direct sont masquées pendant le replay. [Règles et limites](gameplay-client.md#ajouts-locaux-du-21-septembre-2026).
+Ajouts publiés le 21 septembre 2026 : réticule standard présent sur toutes les armes hors lunette (le RPG conserve son point), death cam de 3 s suivie d'une kill cam de 3 s avec titre, nom du tueur et compte à rebours. Les informations de vie, scores, minicarte et munitions en direct sont masquées pendant le replay. [Règles et limites](gameplay-client.md#ajouts-du-21-septembre-2026).
 
 Les références ci-dessous sont dans `../ubercube/src/main/java/fr/veridiangames`. Le projet original est utilisé en lecture seule. La présentation a été relevée dans les chemins actifs du code Java ; aucune capture d'une session Java exécutée n'est disponible pour certifier une identité pixel par pixel.
 
