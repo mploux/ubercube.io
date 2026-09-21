@@ -10,6 +10,8 @@ import { packBlock, VoxelWorld } from '../src/shared/voxel';
 const obj = await Bun.file('public/assets/weapons/grenade/GRENADE.obj').text();
 const mtl = await Bun.file('public/assets/weapons/grenade/GRENADE.mtl').text();
 const loader = async () => parseWeaponModel(obj, mtl);
+const rocketOBJ = await Bun.file('public/assets/weapons/rpg/RPG.obj').text();
+const rocketMTL = await Bun.file('public/assets/weapons/rpg/RPG.mtl').text();
 const grenade = (x: number, id = 1, y = 3): ProjectileState => ({ id, owner: 7, weapon: 'grenade',
   position: { x, y, z: 0 }, velocity: { x: 60, y: 0, z: 0 } });
 const event = (kind: GameEvent['event'], tick: number, id = 1): GameEvent => ({ type: 'event', event: kind,
@@ -170,7 +172,7 @@ test('loading after disposal cannot add a model to the scene', async () => {
 
 test('Effects routes snapshots, rendered frames and explosion cleanup to the grenade renderer', async () => {
   const scene = new THREE.Scene();
-  const effects = new Effects(scene, 160, loader); await effects.ready;
+  const effects = new Effects(scene, 160, loader, async () => parseWeaponModel(rocketOBJ, rocketMTL)); await effects.ready;
   effects.snapshot([grenade(0)], 0, 1);
   effects.snapshot([grenade(3)], 3, 1.05);
   effects.snapshot([grenade(6)], 6, 1.1);

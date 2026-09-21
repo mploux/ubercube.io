@@ -315,7 +315,7 @@ for (const releaseFirst of ['look', 'fire'] as const) {
   });
 }
 
-for (const weapon of ['ak47', 'grenade'] as const) {
+for (const weapon of ['ak47', 'grenade', 'rpg'] as const) {
   test(`a quick ${weapon} double tap preserves the press and release edges`, () => {
     const { elements, controls, fire } = fixture(weapon);
     controls.setEnabled(true);
@@ -327,7 +327,7 @@ for (const weapon of ['ak47', 'grenade'] as const) {
   });
 }
 
-for (const weapon of ['ak47', 'awp'] as const) {
+for (const weapon of ['ak47', 'awp', 'rpg'] as const) {
   test(`${weapon} aim stays active after release and toggles off on the next press`, () => {
     const { elements, controls, events, alt } = fixture(weapon);
     controls.setEnabled(true);

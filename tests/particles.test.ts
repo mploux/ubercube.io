@@ -11,6 +11,9 @@ import { parseWeaponModel } from '../src/client/weapon-model';
 const grenadeOBJ = await Bun.file('public/assets/weapons/grenade/GRENADE.obj').text();
 const grenadeMTL = await Bun.file('public/assets/weapons/grenade/GRENADE.mtl').text();
 const grenadeLoader = async () => parseWeaponModel(grenadeOBJ, grenadeMTL);
+const rocketOBJ = await Bun.file('public/assets/weapons/rpg/RPG.obj').text();
+const rocketMTL = await Bun.file('public/assets/weapons/rpg/RPG.mtl').text();
+const rocketLoader = async () => parseWeaponModel(rocketOBJ, rocketMTL);
 
 function shotFixture(weapon: WeaponId, rgb: number, health = 1) {
   const game = new GameServer({ world: { seed: 12345, size: 64, height: 64 } });
@@ -50,7 +53,7 @@ test.each(['ak47', 'awp', 'shovel'] as const)('%s transports the impacted surfac
     game.world.set(32, 47, 30, packBlock(255, 0, 255));
 
     const scene = new THREE.Scene();
-    const effects = new Effects(scene, 128, grenadeLoader);
+    const effects = new Effects(scene, 128, grenadeLoader, rocketLoader);
     effects.event(event, 0);
     effects.update(0, 0);
     const mesh = scene.getObjectByName('UBERCUBE impact particles') as THREE.InstancedMesh;
@@ -102,7 +105,7 @@ test('invalid or missing block palettes never become arbitrary debris colors, an
   for (const blockColor of [undefined, NaN, Infinity, -.1, -1, 0x1000000, 1.5]) expect(particleColor({ ...event, blockColor }, .5)).toBeNull();
   for (const kind of ['heal', 'build', 'shot'] as const) expect(particleColor({ ...event, event: kind }, .5)).toBeNull();
   const scene = new THREE.Scene();
-  const effects = new Effects(scene, 160, grenadeLoader);
+  const effects = new Effects(scene, 160, grenadeLoader, rocketLoader);
   for (let i = 0; i < 100; i++) effects.event({ ...event, event: 'explosion' }, 0);
   effects.update(0, 0);
   const mesh = scene.getObjectByName('UBERCUBE impact particles') as THREE.InstancedMesh;
@@ -110,7 +113,7 @@ test('invalid or missing block palettes never become arbitrary debris colors, an
 });
 
 test('corpse blood reuses living-hit particles at the contact without creating gameplay events or traces', () => {
-  const scene = new THREE.Scene(), effects = new Effects(scene, 160, grenadeLoader);
+  const scene = new THREE.Scene(), effects = new Effects(scene, 160, grenadeLoader, rocketLoader);
   const point = { x: 12, y: 1.4, z: 18 };
   const livingHit: GameEvent = { type: 'event', event: 'impact', roundId: 1, position: point, targetId: 1 };
   for (const random of [0, .5, 1]) {

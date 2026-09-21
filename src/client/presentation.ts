@@ -5,6 +5,7 @@ import type { VoxelWorld } from '../shared/voxel';
 import { createParticleMaterial, particleColor, type ParticleEvent } from './particle-material';
 import { BulletVisuals } from './bullet-visuals';
 import { GrenadeVisuals } from './grenade-visuals';
+import { RocketVisuals } from './rocket-visuals';
 
 interface Particle { position: THREE.Vector3; velocity: THREE.Vector3; life: number; maxLife: number; color: THREE.Color; size: number }
 
@@ -14,15 +15,17 @@ export class Effects {
   private readonly mesh: THREE.InstancedMesh;
   private readonly bullets: BulletVisuals;
   private readonly grenades: GrenadeVisuals;
+  private readonly rockets: RocketVisuals;
   private readonly transform = new THREE.Object3D();
 
-  constructor(scene: THREE.Scene, fogDistance = 160, grenadeLoader?: () => Promise<THREE.Group>) {
+  constructor(scene: THREE.Scene, fogDistance = 160, grenadeLoader?: () => Promise<THREE.Group>, rocketLoader?: () => Promise<THREE.Group>) {
     this.mesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), createParticleMaterial(fogDistance), 384);
     this.mesh.name = 'UBERCUBE impact particles';
     this.mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(384 * 3), 3);
     this.bullets = new BulletVisuals(scene, fogDistance);
     this.grenades = new GrenadeVisuals(scene, fogDistance, 256, grenadeLoader);
-    this.ready = this.grenades.ready;
+    this.rockets = new RocketVisuals(scene, fogDistance, 256, 16384, rocketLoader);
+    this.ready = Promise.all([this.grenades.ready, this.rockets.ready]).then(() => undefined);
     this.mesh.frustumCulled = false; this.mesh.count = 0;
     this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(this.mesh);
   }
@@ -31,10 +34,12 @@ export class Effects {
     if (Number.isFinite(distance) && distance > 0) (this.mesh.material as THREE.ShaderMaterial).uniforms.fogDistance.value = distance;
     this.bullets.setFogDistance(distance);
     this.grenades.setFogDistance(distance);
+    this.rockets.setFogDistance(distance);
   }
 
   snapshot(projectiles: readonly ProjectileState[], tick: number, now: number): void {
     this.grenades.snapshot(projectiles, tick, now);
+    this.rockets.snapshot(projectiles, tick, now);
   }
 
   predictGrenade(owner: number, seq: number, launch: GrenadeFlight, world: VoxelWorld, now: number): void {
@@ -47,9 +52,10 @@ export class Effects {
 
   acknowledgeInputs(player: PlayerState): void { this.grenades.acknowledge(player.id, player.lastSeq, player.alive); }
 
-  event(event: GameEvent, now: number): void {
+  event(event: GameEvent, now: number, rocketOrigin?: Vec3): void {
     this.bullets.event(event, now);
     this.grenades.event(event, now);
+    this.rockets.event(event, now, rocketOrigin);
     this.emitParticles(event);
   }
 
@@ -66,9 +72,10 @@ export class Effects {
     }
   }
 
-  update(dt: number, time: number): void {
+  update(dt: number, time: number, camera?: THREE.Camera): void {
     this.bullets.update(time);
     this.grenades.update(time);
+    this.rockets.update(time, camera);
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const particle = this.particles[i];
       particle.life -= dt;
@@ -89,7 +96,7 @@ export class Effects {
     if (this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true;
   }
 
-  clear(): void { this.particles.length = 0; this.bullets.clear(); this.grenades.clear(); this.update(0, 0); }
+  clear(): void { this.particles.length = 0; this.bullets.clear(); this.grenades.clear(); this.rockets.clear(); this.update(0, 0); }
 }
 
 export class GameAudio {

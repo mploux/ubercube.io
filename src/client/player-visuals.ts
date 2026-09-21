@@ -1,7 +1,9 @@
 import * as THREE from 'three';
 import { PLAYER_HEIGHT } from '../shared/movement';
 import type { GameEvent, PlayerState, Vec3, VoxelEdit, WeaponId } from '../shared/protocol';
+import { WEAPONS as WEAPON_RULES } from '../shared/protocol';
 import type { VoxelWorld } from '../shared/voxel';
+import { WEAPON_MODEL_SCALE, WEAPON_POSES } from '../shared/weapon-pose';
 import { loadWeaponModel } from './weapon-model';
 import { Ragdolls } from './ragdolls';
 
@@ -17,7 +19,7 @@ const BONES = [
   { name: 'right thigh', parent: 0, position: [.2, 0, 0], size: [.3, .65, .3], color: [3, 34, 3] },
   { name: 'right shin', parent: 8, position: [0, .65, 0], size: [.3, .65, .3], color: [3, 34, 3] },
 ] as const;
-const WEAPONS: WeaponId[] = ['ak47', 'awp', 'shovel', 'grenade', 'medic'];
+const WEAPONS: WeaponId[] = ['ak47', 'awp', 'shovel', 'grenade', 'medic', 'rpg'];
 const DEGREES = Math.PI / 180;
 const FORWARD = new THREE.Vector3(0, 0, -1);
 const UP = new THREE.Vector3(0, 1, 0);
@@ -38,9 +40,10 @@ export class PlayerVisuals {
   private readonly weapons = new Map<WeaponId, THREE.InstancedMesh[]>();
   private readonly names = new Map<number, THREE.Sprite>();
   private readonly aliveIds = new Set<number>();
-  private readonly lastPoses = new Map<number, { matrices: THREE.Matrix4[]; position: THREE.Vector3; yaw: number; deaths: number }>();
+  private readonly lastPoses = new Map<number, { matrices: THREE.Matrix4[]; position: THREE.Vector3; yaw: number; deaths: number; rpgMuzzle: THREE.Vector3 | null }>();
   private readonly deathCounts = new Map<number, number>();
   private readonly corpseShots = new Map<number, number>();
+  private readonly rpgShots = new Map<number, { projectileId: number; until: number }>();
   private ragdolls: Ragdolls | null = null;
   private lastTime: number | null = null;
   private readonly transform = new THREE.Object3D();
@@ -48,6 +51,11 @@ export class PlayerVisuals {
   private readonly leftHand = new THREE.Vector3();
   private readonly rightHand = new THREE.Vector3();
   private readonly direction = new THREE.Vector3();
+  private readonly rpgMatrix = new THREE.Matrix4();
+  private readonly shoulder = new THREE.Vector3();
+  private readonly elbow = new THREE.Vector3();
+  private readonly bend = new THREE.Vector3();
+  private readonly boneRotation = new THREE.Quaternion();
   private capacity = 100;
   private fontReady = false;
 
@@ -106,8 +114,10 @@ export class PlayerVisuals {
         const positions = object.geometry.getAttribute('position');
         positions.applyMatrix4(object.matrixWorld);
         // The legacy weapon shader shades the original local normals, including on reflected viewmodels.
-        for (let i = 0; i < positions.count; i++) positions.setZ(i, -positions.getZ(i));
-        meshes.push(this.createInstances(object.geometry, material, this.capacity, `UBERCUBE remote ${weapon}`));
+        if (weapon !== 'rpg') for (let i = 0; i < positions.count; i++) positions.setZ(i, -positions.getZ(i));
+        const mesh = this.createInstances(object.geometry, material, this.capacity, `UBERCUBE remote ${weapon}`);
+        mesh.userData.weaponPart = object.name;
+        meshes.push(mesh);
       });
       this.weapons.set(weapon, meshes);
     })).then(() => {});
@@ -140,7 +150,7 @@ export class PlayerVisuals {
     const legSin = Math.sin(frames * .15 * speed) * 40 * movement;
     const legCos = Math.cos(frames * .15 * speed) * 40 * movement;
     const view = Math.sin(player.pitch) * 90;
-    const firearm = player.weapon === 'ak47' || player.weapon === 'awp';
+    const firearm = player.weapon === 'ak47' || player.weapon === 'awp' || player.weapon === 'rpg';
     const aiming = firearm && player.aiming;
     this.pose(1, -view);
     this.pose(2, arm + (firearm ? 160 : 185) - view * (aiming ? 1 : .4) - (aiming ? 72.5 : 0), firearm ? 0 : -5, firearm ? (aiming ? -10 : 20) : 0);
@@ -152,6 +162,35 @@ export class PlayerVisuals {
     this.pose(8, 180 - legSin - 10 * movement, 3);
     this.pose(9, 40 * movement + legCos);
     this.root.updateMatrixWorld(true);
+    if (player.weapon === 'rpg') {
+      const scale = WEAPON_POSES.rpg.scale.x * WEAPON_MODEL_SCALE;
+      this.transform.position.set(.46, (aiming ? 2.44 : 2.03) - PLAYER_HEIGHT / 2, aiming ? 0 : -.12);
+      this.transform.rotation.set(aiming ? player.pitch : player.pitch * .4 - .12, 0, 0);
+      this.transform.scale.setScalar(1);
+      this.transform.updateMatrix();
+      // Pivot the tube over the shoulder, with the left hand supporting its rear grip.
+      this.rpgMatrix.makeScale(scale, scale, scale).setPosition(0, 1.6 * scale, 11 * scale)
+        .premultiply(this.transform.matrix).premultiply(this.root.matrixWorld);
+      for (const [upper, gripY, gripZ] of [[2, -3, -11.7], [4, -3.2, -14.4]]) {
+        this.rightHand.set(0, gripY, gripZ).applyMatrix4(this.rpgMatrix);
+        this.shoulder.setFromMatrixPosition(this.bones[upper].matrixWorld);
+        this.direction.copy(this.rightHand).sub(this.shoulder);
+        const reach = Math.min(.999, this.direction.length());
+        this.direction.normalize();
+        this.bend.set(upper === 2 ? -1 : 1, -1, -.4).applyAxisAngle(UP, player.yaw);
+        this.bend.addScaledVector(this.direction, -this.bend.dot(this.direction)).normalize();
+        this.elbow.copy(this.shoulder).addScaledVector(this.direction, reach / 2)
+          .addScaledVector(this.bend, Math.sqrt(.25 - reach * reach / 4));
+        this.direction.copy(this.elbow).sub(this.shoulder).normalize();
+        this.bones[upper].quaternion.setFromUnitVectors(UP, this.direction);
+        this.bones[upper].quaternion.premultiply(this.bones[0].getWorldQuaternion(this.boneRotation).invert());
+        this.bones[upper].updateMatrixWorld(true);
+        this.direction.copy(this.rightHand).sub(this.elbow).normalize();
+        this.bones[upper + 1].quaternion.setFromUnitVectors(UP, this.direction);
+        this.bones[upper + 1].quaternion.premultiply(this.bones[upper].getWorldQuaternion(this.boneRotation).invert());
+        this.bones[upper + 1].updateMatrixWorld(true);
+      }
+    }
   }
 
   setFogDistance(distance: number): void {
@@ -170,8 +209,22 @@ export class PlayerVisuals {
 
   applyEdits(edits: readonly VoxelEdit[]): void { this.ragdolls?.applyEdits(edits); }
 
+  getRpgMuzzle(id: number): Vec3 | null {
+    const muzzle = this.aliveIds.has(id) ? this.lastPoses.get(id)?.rpgMuzzle : null;
+    return muzzle ? { x: muzzle.x, y: muzzle.y, z: muzzle.z } : null;
+  }
+
   shot(event: GameEvent, time: number): Vec3 | null {
-    const id = event.projectileId;
+    const id = event.projectileId, shooter = event.shooterId;
+    if (event.event === 'shot' && event.weapon === 'rpg' && Number.isFinite(time)
+      && typeof shooter === 'number' && Number.isInteger(shooter) && shooter >= 0
+      && typeof id === 'number' && Number.isInteger(id) && id >= 0) {
+      const previous = this.rpgShots.get(shooter);
+      if (!previous || id > previous.projectileId) {
+        this.rpgShots.set(shooter, { projectileId: id, until: time + WEAPON_RULES.rpg.interval });
+      }
+      return null;
+    }
     if (!this.ragdolls || event.event !== 'shot' || (event.weapon !== 'ak47' && event.weapon !== 'awp')
       || !event.endPosition || !Number.isFinite(time) || typeof id !== 'number' || !Number.isInteger(id) || id < 0
       || this.corpseShots.has(id)) return null;
@@ -187,6 +240,7 @@ export class PlayerVisuals {
     const deaths = event.death?.player.deaths ?? player.deaths + (player.alive ? 1 : 0);
     if (deaths <= (this.deathCounts.get(player.id) ?? -1)) return;
     this.deathCounts.set(player.id, deaths);
+    this.rpgShots.delete(player.id);
     const cached = this.lastPoses.get(player.id);
     const useCached = cached && cached.deaths === deaths - 1 && cached.position.distanceTo(player.position) < 15;
     if (!useCached) this.updatePose(player, time);
@@ -208,6 +262,7 @@ export class PlayerVisuals {
     const present = new Set(players.map(player => player.id));
     for (const id of this.lastPoses.keys()) if (!present.has(id)) this.lastPoses.delete(id);
     for (const id of this.deathCounts.keys()) if (!present.has(id)) this.deathCounts.delete(id);
+    for (const id of this.rpgShots.keys()) if (!present.has(id)) this.rpgShots.delete(id);
     this.aliveIds.clear();
     let visible = this.ragdolls?.poses.length ?? 0;
     for (const player of players) {
@@ -229,10 +284,14 @@ export class PlayerVisuals {
       this.updatePose(player, time);
       let cached = this.lastPoses.get(player.id);
       if (!cached) {
-        cached = { matrices: BONES.map(() => new THREE.Matrix4()), position: new THREE.Vector3(), yaw: 0, deaths: 0 };
+        cached = { matrices: BONES.map(() => new THREE.Matrix4()), position: new THREE.Vector3(), yaw: 0, deaths: 0, rpgMuzzle: null };
         this.lastPoses.set(player.id, cached);
       }
       cached.position.copy(player.position); cached.yaw = player.yaw; cached.deaths = player.deaths;
+      if (player.weapon === 'rpg') {
+        const muzzle = WEAPON_POSES.rpg.muzzle!;
+        (cached.rpgMuzzle ??= new THREE.Vector3()).set(muzzle.x, muzzle.y, muzzle.z).applyMatrix4(this.rpgMatrix);
+      } else cached.rpgMuzzle = null;
       for (let i = 0; i < BONES.length; i++) {
         cached.matrices[i].copy(this.bones[i].matrixWorld);
         this.matrix.copy(this.bones[i].matrixWorld).scale(this.sizes[i]);
@@ -241,21 +300,28 @@ export class PlayerVisuals {
       }
       const weaponMeshes = this.weapons.get(player.weapon);
       if (weaponMeshes?.length && (player.weapon !== 'grenade' || player.grenades > 0)) {
-        this.rightHand.set(0, .5, 0).applyMatrix4(this.bones[5].matrixWorld);
-        this.leftHand.set(0, .5, 0).applyMatrix4(this.bones[3].matrixWorld);
-        this.transform.position.copy(this.rightHand);
-        this.transform.quaternion.identity();
-        const firearm = player.weapon === 'ak47' || player.weapon === 'awp';
-        if (firearm) {
-          this.direction.copy(this.leftHand).sub(this.rightHand).normalize();
-          this.transform.quaternion.setFromUnitVectors(FORWARD, this.direction);
+        if (player.weapon === 'rpg') {
+          this.matrix.copy(this.rpgMatrix);
+        } else {
+          this.rightHand.set(0, .5, 0).applyMatrix4(this.bones[5].matrixWorld);
+          this.leftHand.set(0, .5, 0).applyMatrix4(this.bones[3].matrixWorld);
+          this.transform.position.copy(this.rightHand);
+          this.transform.quaternion.identity();
+          const firearm = player.weapon === 'ak47' || player.weapon === 'awp';
+          if (firearm) {
+            this.direction.copy(this.leftHand).sub(this.rightHand).normalize();
+            this.transform.quaternion.setFromUnitVectors(FORWARD, this.direction);
+          }
+          const scale = player.weapon === 'ak47' ? .02 : player.weapon === 'awp' ? .04 : .08;
+          this.transform.scale.setScalar(scale);
+          this.transform.updateMatrix();
+          this.matrix.makeTranslation(0, player.weapon === 'ak47' ? 10 : player.weapon === 'awp' ? 5 : -5, player.weapon === 'ak47' ? 34 : player.weapon === 'awp' ? 17 : 0);
+          this.matrix.premultiply(this.transform.matrix);
         }
-        const scale = player.weapon === 'ak47' ? .02 : player.weapon === 'awp' ? .04 : .08;
-        this.transform.scale.setScalar(scale);
-        this.transform.updateMatrix();
-        this.matrix.makeTranslation(0, player.weapon === 'ak47' ? 10 : player.weapon === 'awp' ? 5 : -5, player.weapon === 'ak47' ? 34 : player.weapon === 'awp' ? 17 : 0);
-        this.matrix.premultiply(this.transform.matrix);
-        for (const mesh of weaponMeshes) mesh.setMatrixAt(mesh.count++, this.matrix);
+        for (const mesh of weaponMeshes) {
+          if (mesh.userData.weaponPart === 'RPG_rocket' && time < (this.rpgShots.get(player.id)?.until ?? 0)) continue;
+          mesh.setMatrixAt(mesh.count++, this.matrix);
+        }
       }
       let name = this.names.get(player.id);
       if (!name && this.fontReady) {
@@ -306,6 +372,7 @@ export class PlayerVisuals {
     this.lastPoses.clear();
     this.deathCounts.clear();
     this.corpseShots.clear();
+    this.rpgShots.clear();
     this.lastTime = null;
     this.body.count = 0;
     for (const meshes of this.weapons.values()) for (const mesh of meshes) mesh.count = 0;

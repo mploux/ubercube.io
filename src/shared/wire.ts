@@ -2,7 +2,7 @@ import type { Kit, PlayerState, ProjectileState, ServerMessage, WeaponId } from 
 
 const MAGIC = 0x55424331;
 const kits: Kit[] = ['assault', 'sniper', 'medic'];
-const weapons: WeaponId[] = ['ak47', 'awp', 'shovel', 'grenade', 'medic'];
+const weapons: WeaponId[] = ['ak47', 'awp', 'shovel', 'grenade', 'medic', 'rpg'];
 const encoder = new TextEncoder();
 const decoder = new TextDecoder('utf-8', { fatal: true });
 

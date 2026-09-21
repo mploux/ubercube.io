@@ -11,6 +11,7 @@ export const WEAPON_POSES: Record<WeaponId, WeaponPreset> = {
   shovel: { scale: { x: .3, y: .3, z: .3 }, idle: { x: .1, y: -.2, z: .2 }, zoom: { x: .1, y: -.2, z: .2 }, hide: { x: .1, y: -1.2, z: .2 }, zoomAmount: 0 },
   grenade: { scale: { x: 1, y: 1, z: 1 }, idle: { x: .4, y: -.3, z: 1 }, zoom: { x: .4, y: -.3, z: 1 }, hide: { x: .3, y: -1.05, z: 0 }, zoomAmount: 0 },
   medic: { scale: { x: 3, y: 3, z: 3 }, idle: { x: .09, y: -.4, z: .85 }, zoom: { x: 0, y: 0, z: 0 }, hide: { x: 0, y: 0, z: 0 }, zoomAmount: 0 },
+  rpg: { scale: { x: 2, y: 2, z: -2 }, idle: { x: .3, y: -.18, z: -1.1 }, zoom: { x: .09, y: .055, z: -1 }, hide: { x: .3, y: -1.18, z: -1.1 }, muzzle: { x: 0, y: -1.6, z: -24 }, zoomAmount: 150 },
 };
 
 export interface WeaponPoseState {
@@ -89,7 +90,7 @@ export function getWeaponMuzzle(state: WeaponPoseState): { position: Vec3; direc
 /** One Java gameplay tick (60 Hz). Angles are current-client radians; raw mouse Y is positive down. */
 export function stepWeaponPose(state: WeaponPoseState, input: WeaponPoseInput, random: () => number = Math.random): WeaponPoseActions {
   const preset = WEAPON_POSES[state.weapon];
-  const gun = state.weapon === 'ak47' || state.weapon === 'awp';
+  const gun = state.weapon === 'ak47' || state.weapon === 'awp' || state.weapon === 'rpg';
   const fire = input.fire && !input.cancelActions, alt = input.alt && !input.cancelActions;
   const pressed = fire && !state.fireHeld, released = !fire && state.fireHeld;
   const actions: WeaponPoseActions = { fired: gun && fire && !state.shot, thrown: false, force: 0,
@@ -101,8 +102,11 @@ export function stepWeaponPose(state: WeaponPoseState, input: WeaponPoseInput, r
 
   if (actions.fired) {
     const forward = rotate({ x: 0, y: 0, z: 1 }, state.quaternion);
-    state.position.z -= forward.z * (alt ? .001 : .025);
-    if (!alt) { state.rotationFactor.x += random() * .05 - .025; state.rotationFactor.y += random() * .05 - .05; }
+    state.position.z -= forward.z * (state.weapon === 'rpg' ? .2 : alt ? .001 : .025);
+    if (!alt) {
+      state.rotationFactor.x += state.weapon === 'rpg' ? random() * .04 - .02 : random() * .05 - .025;
+      state.rotationFactor.y += state.weapon === 'rpg' ? random() * .04 - .02 : random() * .05 - .05;
+    }
   }
   if (actions.melee) state.attacking = true;
   if (state.weapon === 'grenade' && input.grenades > 0) {
@@ -146,7 +150,7 @@ export function stepWeaponPose(state: WeaponPoseState, input: WeaponPoseInput, r
   if (gun) {
     if (actions.fired) {
       state.shot = true; state.shootTimer = 0;
-      state.rotationFactor.x -= state.weapon === 'ak47' ? (alt ? .01 : .15) : (alt ? .1 : .3);
+      state.rotationFactor.x -= state.weapon === 'rpg' ? .1 : state.weapon === 'ak47' ? (alt ? .01 : .15) : (alt ? .1 : .3);
     }
     if (fire && state.shootTimer > (state.weapon === 'ak47' ? 6 : 60)) state.shot = false;
     if (state.shot) state.shootTimer++;

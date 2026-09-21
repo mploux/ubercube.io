@@ -115,6 +115,12 @@ export class WeaponView {
 
   private updateMatrix(): void {
     const pose = this.pose, scale = WEAPON_POSES[this.current].scale;
+    const round = this.models.get('rpg')?.getObjectByName('RPG_rocket');
+    const rpgPose = this.poses.rpg;
+    if (round) round.visible = !rpgPose.shot || rpgPose.shootTimer >= 62;
+    const sights = this.models.get('rpg')?.getObjectByName('RPG_sights');
+    // The magnified optic focuses past the nearby iron sight; keep its aperture unobstructed.
+    if (sights) sights.visible = !rpgPose.altHeld;
     this.position.set(pose.position.x, pose.position.y, pose.position.z);
     this.rotation.set(pose.quaternion.x, pose.quaternion.y, pose.quaternion.z, pose.quaternion.w);
     this.scale.set(scale.x * WEAPON_MODEL_SCALE, scale.y * WEAPON_MODEL_SCALE, scale.z * WEAPON_MODEL_SCALE);

@@ -46,12 +46,12 @@ export interface Connection {
   previousAlt: boolean;
   weaponPoses: Map<WeaponId, WeaponPoseState>;
   weaponMotion: Vec3;
-  magazines: { ak47: number; awp: number };
+  magazines: { ak47: number; awp: number; rpg: number };
   initial: InitialWorld | null;
 }
 interface Projectile extends ProjectileState, GrenadeFlight { damage: number; expires: number }
 interface Shot {
-  id: number; owner: number; weapon: 'ak47' | 'awp'; inputSeq: number;
+  id: number; owner: number; weapon: 'ak47' | 'awp' | 'rpg'; inputSeq: number;
   eye: Vec3; origin: Vec3; direction: Vec3;
 }
 
@@ -134,7 +134,7 @@ export class GameServer {
       peer, player: null, closed: false, connectedAt: this.tick, rateTick: this.tick, messages: 0, frames: 0,
       invalid: 0, lastMessage: this.tick, queue: [], input: null, highestSeq: 0, lastInputTick: this.tick,
       previousFire: false, previousAlt: false, weaponPoses: new Map(), weaponMotion: { x: 0, y: 0, z: 0 },
-      magazines: { ak47: 30, awp: 5 }, initial: null,
+      magazines: { ak47: 30, awp: 5, rpg: 30 }, initial: null,
     };
     this.connections.add(connection);
     return connection;
@@ -263,7 +263,7 @@ export class GameServer {
       player.grenades = 10;
       player.alive = true;
       player.aiming = false;
-      connection.magazines = { ak47: 30, awp: 5 };
+      connection.magazines = { ak47: 30, awp: 5, rpg: 30 };
       player.ammo = WEAPONS[player.weapon].magazine;
       connection.queue = [];
       connection.input = null;
@@ -461,8 +461,8 @@ export class GameServer {
       lookDeltaPitch: player.pitch - previousPitch, grenades: player.grenades, cancelActions: frame.cancelActions }, () => this.random());
     connection.previousFire = frame.fire && !frame.cancelActions;
     connection.previousAlt = frame.alt && !frame.cancelActions;
-    player.aiming = pose.altHeld && (player.weapon === 'ak47' || player.weapon === 'awp');
-    player.ammo = player.weapon === 'ak47' || player.weapon === 'awp' ? connection.magazines[player.weapon] : 0;
+    player.aiming = pose.altHeld && (player.weapon === 'ak47' || player.weapon === 'awp' || player.weapon === 'rpg');
+    player.ammo = player.weapon === 'ak47' || player.weapon === 'awp' || player.weapon === 'rpg' ? connection.magazines[player.weapon] : 0;
     const eye = { x: player.position.x, y: player.position.y + EYE_HEIGHT, z: player.position.z };
     const aim = aimDirection(player.yaw, player.pitch);
 
@@ -474,7 +474,8 @@ export class GameServer {
         damage: WEAPONS.grenade.damage, expires: this.tick + 2 * TICK_RATE, gravity: 0 });
       this.event('shot', position, { shooterId: player.id, weapon: 'grenade', projectileId: id, velocity: { ...velocity }, inputSeq: player.lastSeq });
     }
-    if (actions.fired && (player.weapon === 'ak47' || player.weapon === 'awp')) {
+    if (actions.fired && (player.weapon === 'ak47' || player.weapon === 'awp' || player.weapon === 'rpg')
+      && (player.weapon !== 'rpg' || this.projectiles.size + this.shots.length < this.options.maxPlayers * 32)) {
       const muzzle = getWeaponMuzzle(pose);
       const sy = Math.sin(player.yaw), cy = Math.cos(player.yaw), sp = Math.sin(player.pitch), cp = Math.cos(player.pitch);
       const toWorld = (v: Vec3): Vec3 => ({ x: cy * v.x + sy * sp * v.y + aim.x * v.z,
@@ -519,14 +520,16 @@ export class GameServer {
       }
     }
   }
-  private explode(projectile: Projectile): void {
+  private explode(projectile: Projectile, directTarget?: number): void {
     const position = projectile.position;
+    const radius = projectile.weapon === 'rpg' ? 3.5 : 4;
+    const strength = projectile.weapon === 'rpg' ? .8 : 1;
     for (let x = Math.floor(position.x) - 4; x <= Math.floor(position.x) + 4; x++) {
       for (let y = Math.floor(position.y) - 4; y <= Math.floor(position.y) + 4; y++) {
         for (let z = Math.floor(position.z) - 4; z <= Math.floor(position.z) + 4; z++) {
           const distance = Math.hypot(x + .5 - position.x, y + .5 - position.y, z + .5 - position.z);
           const value = this.world.get(x, y, z);
-          if (value && distance < 4) this.mutate(x, y, z, damageBlock(value, Math.min(1, (1 - distance / 4) * 3)));
+          if (value && distance < radius) this.mutate(x, y, z, damageBlock(value, Math.min(1, (1 - distance / radius) * 3)));
         }
       }
     }
@@ -539,16 +542,25 @@ export class GameServer {
       const torsoDy = hitPoint.y - position.y;
       const torsoDistance = Math.hypot(dx, torsoDy, dz);
       // Cosmetic impulse acts at the torso; capture the corpse before the existing gameplay knockback.
-      const corpseImpulse = (1 - distance / 10) * 20;
-      this.hurt(player, Math.floor((10 - distance) * 10), projectile.owner, false, { weapon: 'grenade', point: hitPoint,
+      const corpseImpulse = (1 - distance / 10) * 20 * strength;
+      const damage = player.id === directTarget ? projectile.damage : Math.floor((10 - distance) * (projectile.damage / 10));
+      this.hurt(player, damage, projectile.owner, false, { weapon: projectile.weapon, point: hitPoint,
         impulse: torsoDistance > 1e-8 ? { x: dx / torsoDistance * corpseImpulse, y: torsoDy / torsoDistance * corpseImpulse,
           z: dz / torsoDistance * corpseImpulse } : { x: 0, y: corpseImpulse, z: 0 } });
-      const impulse = (1 - distance / 10) * 12;
+      const impulse = (1 - distance / 10) * 12 * strength;
       player.velocity.x += dx / Math.max(distance, .1) * impulse;
-      player.velocity.y += 4;
+      player.velocity.y += 4 * strength;
       player.velocity.z += dz / Math.max(distance, .1) * impulse;
     }
-    this.event('explosion', position, { shooterId: projectile.owner, weapon: 'grenade', projectileId: projectile.id });
+    if (projectile.weapon === 'rpg') for (const other of this.projectiles.values()) {
+      if (other.weapon !== 'grenade') continue;
+      const dx = other.position.x - position.x, dy = other.position.y - position.y, dz = other.position.z - position.z;
+      const distance = Math.hypot(dx, dy, dz);
+      if (distance < 1e-8) continue;
+      const impulse = TICK_RATE / (distance * distance + 1) / distance;
+      other.velocity.x += dx * impulse; other.velocity.y += dy * impulse; other.velocity.z += dz * impulse;
+    }
+    this.event('explosion', position, { shooterId: projectile.owner, weapon: projectile.weapon, projectileId: projectile.id });
   }
 
   private resolveShots(): void {
@@ -565,6 +577,16 @@ export class GameServer {
         x: block.point.x + block.normal.x * .001, y: block.point.y + block.normal.y * .001,
         z: block.point.z + block.normal.z * .001,
       } : shot.origin;
+      if (weapon === 'rpg') {
+        const speed = 60;
+        const velocity = { x: direction.x * speed, y: direction.y * speed, z: direction.z * speed };
+        const projectile: Projectile = { id, owner, weapon, position: { ...origin }, velocity,
+          damage: WEAPONS.rpg.damage, expires: this.tick + Math.ceil(Math.hypot(this.world.config.size,
+            this.world.config.size, this.world.config.height + 64) / speed * TICK_RATE) + 1 };
+        this.event('shot', origin, { shooterId: owner, weapon, projectileId: id, inputSeq: shot.inputSeq, velocity });
+        if (!this.impactRocket(projectile, block, target)) this.projectiles.set(id, projectile);
+        continue;
+      }
       let distance = WEAPONS[weapon].range;
       if (!target && !block) {
         const bounds = { x: this.world.config.size, y: this.world.config.height + 64, z: this.world.config.size };
@@ -596,16 +618,47 @@ export class GameServer {
     this.shots.length = 0;
   }
 
+  private impactRocket(projectile: Projectile, block: ReturnType<typeof raycast>,
+    target: ReturnType<GameServer['playerHit']>): boolean {
+    const { id, owner } = projectile;
+    if (target) {
+      projectile.position = { ...target.point };
+      this.event('impact', target.point, { shooterId: owner, targetId: target.player.id, weapon: 'rpg', projectileId: id });
+    } else if (block) {
+      const position = { x: block.point.x + block.normal.x * .001, y: block.point.y + block.normal.y * .001,
+        z: block.point.z + block.normal.z * .001 };
+      projectile.position = position;
+      this.event('impact', position, { shooterId: owner, weapon: 'rpg', projectileId: id, blockColor: block.value & 0xffffff });
+    }
+    if (!target && !block) return false;
+    this.explode(projectile, target?.player.id);
+    return true;
+  }
+
   private updateProjectiles(): void {
     for (const projectile of this.projectiles.values()) {
-      if (this.tick >= projectile.expires) {
-        this.explode(projectile);
-        this.projectiles.delete(projectile.id);
-        continue;
+      if (projectile.weapon === 'rpg') {
+        const { velocity, position } = projectile;
+        const speed = Math.hypot(velocity.x, velocity.y, velocity.z);
+        const direction = { x: velocity.x / speed, y: velocity.y / speed, z: velocity.z / speed };
+        const distance = speed * DT;
+        const block = raycast(this.world, position, direction, distance);
+        const target = this.playerHit(position, direction, block?.distance ?? distance, projectile.owner);
+        if (this.impactRocket(projectile, block, target)) {
+          this.projectiles.delete(projectile.id);
+          continue;
+        }
+        position.x += velocity.x * DT; position.y += velocity.y * DT; position.z += velocity.z * DT;
+      } else {
+        if (this.tick >= projectile.expires) {
+          this.explode(projectile);
+          this.projectiles.delete(projectile.id);
+          continue;
+        }
+        stepGrenade(projectile, this.world);
       }
-      stepGrenade(projectile, this.world);
       const { x, y, z } = projectile.position;
-      if (x < 0 || z < 0 || y < 0 || x >= this.options.world.size || z >= this.options.world.size || y > this.options.world.height + 64) {
+      if (this.tick >= projectile.expires || x < 0 || z < 0 || y < 0 || x >= this.options.world.size || z >= this.options.world.size || y > this.options.world.height + 64) {
         this.event('projectile-end', projectile.position, { shooterId: projectile.owner, weapon: projectile.weapon, projectileId: projectile.id });
         this.projectiles.delete(projectile.id);
       }

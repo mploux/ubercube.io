@@ -7,6 +7,7 @@ import { checkBulletVisuals } from './bullets-check';
 import { checkWeaponView } from './weapon-check';
 import { checkMuzzleAlignment } from './muzzle-check';
 import { checkGrenadeVisuals } from './grenade-check';
+import { checkRocketVisuals } from './rocket-check';
 import { checkPlayers } from './player-check';
 import { checkRagdolls } from './ragdoll-check';
 
@@ -104,6 +105,7 @@ try {
   messages.push(...await checkWeaponView(renderer));
   messages.push(...await checkMuzzleAlignment(renderer));
   messages.push(...await checkGrenadeVisuals(renderer));
+  messages.push(...await checkRocketVisuals(renderer));
   messages.push(...await checkPlayers(renderer));
   messages.push(...await checkRagdolls(renderer));
 

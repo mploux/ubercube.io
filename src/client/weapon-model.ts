@@ -5,7 +5,7 @@ import type { WeaponId } from '../shared/protocol';
 
 export const WEAPON_MODEL_FILES: Record<WeaponId, string> = {
   ak47: 'ak47/AK47', awp: 'awp/AWP', shovel: 'shovel/SHOVEL',
-  grenade: 'grenade/GRENADE', medic: 'medicbag/MEDICBAG',
+  grenade: 'grenade/GRENADE', medic: 'medicbag/MEDICBAG', rpg: 'rpg/RPG',
 };
 
 export const WEAPON_PREVIEWS = {
@@ -24,7 +24,7 @@ export function parseWeaponModel(obj: string, mtl: string): THREE.Group {
     // Original OBJ faces overlap with different palettes; Java's GL_LESS keeps the first face.
     depthFunc: THREE.LessDepth,
     toneMapped: false,
-    uniforms: { preview: { value: false }, fogDistance: { value: 0 } },
+    uniforms: { preview: { value: false }, fogDistance: { value: 0 }, weaponOpacity: { value: 1 } },
     vertexShader: `
       uniform bool preview;
       varying vec3 legacyColor;
@@ -42,15 +42,16 @@ export function parseWeaponModel(obj: string, mtl: string): THREE.Group {
         gl_Position = projectionMatrix * viewMatrix * world;
       }
     `,
-    // weapon.frag uses raw Kd, 2x intensity and the same light factor twice; its cubemap is separate.
+    // Preserve the original OBJ weapons' doubled directional light.
     fragmentShader: `
       varying vec3 legacyColor;
       varying vec3 legacyNormal;
       varying vec3 legacyWorld;
       uniform float fogDistance;
+      uniform float weaponOpacity;
       void main() {
         float lightDot = clamp(dot(legacyNormal, normalize(vec3(1.0))) + 0.8, 0.8, 1.0);
-        gl_FragColor = vec4(legacyColor * 0.98 * 2.0 * lightDot * lightDot, 1.0);
+        gl_FragColor = vec4(legacyColor * 0.98 * 2.0 * lightDot * lightDot, weaponOpacity);
         if (fogDistance > 0.0) {
           float fog = clamp(distance(cameraPosition, legacyWorld) / fogDistance * 2.0 - 0.8, 0.0, 1.0);
           gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(221.0, 232.0, 255.0) / 255.0, fog);
@@ -79,6 +80,14 @@ export function parseWeaponModel(obj: string, mtl: string): THREE.Group {
     geometry.clearGroups();
     for (const original of originals) discarded.add(original);
     object.material = material;
+    if (object.name === 'RPG_lens') {
+      const lens = material.clone();
+      lens.name = 'UBERCUBE RPG lens';
+      lens.transparent = true;
+      lens.depthWrite = false;
+      lens.uniforms.weaponOpacity.value = Number(palette[originals[0].name]?.d ?? .12);
+      object.material = lens;
+    }
   });
   for (const original of discarded) original.dispose();
   return model;

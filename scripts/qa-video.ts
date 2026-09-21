@@ -5,8 +5,9 @@ import { createHash } from 'node:crypto';
 const root = resolve(import.meta.dir, '..');
 const output = resolve(root, '.runtime/qa-video/client');
 await mkdir(output, { recursive: true });
+const localSources = process.argv.includes('--local-sources');
 const manifest = await Bun.file(resolve(root, 'ops/deployed-client.json')).json() as { file: string; sha: string }[];
-for (const entry of manifest) {
+for (const entry of localSources ? [] : manifest) {
   const bytes = await Bun.file(resolve(root, entry.file)).bytes();
   if (createHash('sha1').update(bytes).digest('hex') !== entry.sha) throw new Error(`Published source differs: ${entry.file}`);
 }
@@ -14,6 +15,7 @@ const replacements = new Map([
   ["const active = !paused && !document.hidden && !cancelActions && (touchMode || (document.pointerLockElement === canvas && document.hasFocus()));", "const active = !paused && !document.hidden && !cancelActions && (qaVideoDriving || touchMode || (document.pointerLockElement === canvas && document.hasFocus()));"],
   ['  camera.updateProjectionMatrix();\n  if (world &&', '  if (qaVideoCamera) { camera.position.set(...qaVideoCamera.position); camera.lookAt(...qaVideoCamera.target); camera.fov = 55; }\n  camera.updateProjectionMatrix();\n  if (world &&'],
   ["  } else if (screen === 'game' && local?.alive) {\n    weaponView.render", "  } else if (screen === 'game' && local?.alive && !qaVideoCamera) {\n    weaponView.render"],
+  ['avatars.update(remotePlayers.sample(now), localId, now / 1000, camera);', 'avatars.update(remotePlayers.sample(now), qaVideoCamera?.showLocal ? -1 : localId, now / 1000, camera);'],
   ['function handleEvent(event: GameEvent): void {', 'function handleEvent(event: GameEvent): void {\n  qaVideoEvents.push({ ...event, receivedAt: performance.now() });'],
 ]);
 const build = await Bun.build({
@@ -28,7 +30,7 @@ const build = await Bun.build({
         if (!contents.includes(before)) throw new Error(`QA adapter no longer matches main.ts: ${before}`);
         contents = contents.replace(before, after);
       }
-      contents = `import { installVideoReview } from '../../tests/browser/qa-video';\nlet qaVideoDriving = false;\nlet qaVideoCamera: { position: [number,number,number]; target: [number,number,number] } | null = null;\nconst qaVideoEvents: (GameEvent & { receivedAt: number })[] = [];\n` + contents;
+      contents = `import { installVideoReview } from '../../tests/browser/qa-video';\nlet qaVideoDriving = false;\nlet qaVideoCamera: { position: [number,number,number]; target: [number,number,number]; showLocal?: boolean } | null = null;\nconst qaVideoEvents: (GameEvent & { receivedAt: number })[] = [];\n` + contents;
       contents += `\ninstallVideoReview({
         canvas, audio,
         ready: () => worldReady && !!local?.alive && !terrain?.stats.error,
@@ -53,7 +55,10 @@ const build = await Bun.build({
 });
 if (!build.success) { console.error(build.logs); process.exit(1); }
 await Bun.write(resolve(output, 'index.html'), (await Bun.file(resolve(root, 'public/index.html')).text()).replace('<title>UBERCUBE — Free Multiplayer Voxel FPS</title>', '<title>UBERCUBE — revue vidéo locale</title>'));
-console.log('QA client built from verified published sources; only input, camera and capture adapters added.');
+const sourceFiles = [...new Bun.Glob('src/**/*.ts').scanSync(root), ...new Bun.Glob('public/assets/weapons/rpg/*').scanSync(root)].sort();
+const sources = await Promise.all(sourceFiles.map(async file => ({ file, sha256: createHash('sha256').update(await Bun.file(resolve(root, file)).bytes()).digest('hex') })));
+await Bun.write(resolve(output, 'qa-source.json'), JSON.stringify({ mode: localSources ? 'local working sources' : 'verified published sources', createdAt: new Date().toISOString(), sources }, null, 2));
+console.log(`QA client built from ${localSources ? 'local working sources (not published)' : 'verified published sources'}; only input, camera and capture adapters added.`);
 const { startQaVideoServer } = await import('./qa-video-server');
 const running = await startQaVideoServer();
 console.log(`Vidéo QA locale : http://127.0.0.1:${running.server.port}/`);

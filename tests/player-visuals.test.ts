@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
 import { PlayerVisuals } from '../src/client/player-visuals';
 import { parseWeaponModel, WEAPON_MODEL_FILES } from '../src/client/weapon-model';
-import type { PlayerState, WeaponId } from '../src/shared/protocol';
+import { WEAPONS, type GameEvent, type PlayerState, type WeaponId } from '../src/shared/protocol';
 
 const player = (overrides: Partial<PlayerState> = {}): PlayerState => ({
   id: 1, name: 'Reference', team: 1, kit: 'assault', weapon: 'ak47', aiming: false,
@@ -47,7 +47,7 @@ test('the active Java player is ten articulated cuboids, with the original dimen
   }
 });
 
-test.each(['ak47', 'awp', 'shovel', 'grenade', 'medic'] as const)('%s elbows and knees remain attached while moving, looking and aiming', weapon => {
+test.each(['ak47', 'awp', 'shovel', 'grenade', 'medic', 'rpg'] as const)('%s elbows and knees remain attached while moving, looking and aiming', weapon => {
   const scene = new THREE.Scene(), visuals = new PlayerVisuals(scene, 160, emptyLoader);
   for (const aiming of [false, true]) {
     visuals.update([player({ weapon, aiming, yaw: .8, pitch: .6, velocity: { x: 6, y: 12, z: 0 } })], -1, .75, camera);
@@ -121,7 +121,7 @@ test('the moving ADS skeleton matches matrices emitted by the compiled original 
   }
 });
 
-test('all five original weapon meshes preserve their faces/palettes and anchor at the actual hands through ADS', async () => {
+test('all original weapon meshes preserve their faces/palettes and hand attachments through ADS', async () => {
   const scene = new THREE.Scene(), visuals = new PlayerVisuals(scene, 160, realLoader);
   await visuals.ready;
   for (const weapon of Object.keys(WEAPON_MODEL_FILES) as WeaponId[]) {
@@ -134,6 +134,12 @@ test('all five original weapon meshes preserve their faces/palettes and anchor a
       expect(weaponMesh.geometry.getAttribute('normal').array).toEqual(source.geometry.getAttribute('normal').array);
       expect(weaponMesh.geometry.getAttribute('position').count).toBe(source.geometry.getAttribute('position').count);
       const gunMatrix = matrix(weaponMesh, 0);
+      if (weapon === 'rpg') {
+        expect(weaponMesh.geometry.getAttribute('position').array).toEqual(source.geometry.getAttribute('position').array);
+        const scale = new THREE.Vector3().setFromMatrixScale(gunMatrix);
+        scale.toArray().forEach(value => expect(value).toBeCloseTo(2 / 16, 7));
+        continue;
+      }
       const offsetY = weapon === 'ak47' ? 10 : weapon === 'awp' ? 5 : -5;
       const offsetZ = weapon === 'ak47' ? 34 : weapon === 'awp' ? 17 : 0;
       const grip = new THREE.Vector3(0, -offsetY, -offsetZ).applyMatrix4(gunMatrix);
@@ -146,6 +152,78 @@ test('all five original weapon meshes preserve their faces/palettes and anchor a
       }
     }
   }
+});
+
+test('the RPG rests beside the torso and above the shoulder in ADS, with both hands on its grips', async () => {
+  const scene = new THREE.Scene(), visuals = new PlayerVisuals(scene, 160, realLoader);
+  await visuals.ready;
+  for (const aiming of [false, true]) for (const yaw of [0, 1.2]) for (const pitch of [-.4, 0, .4]) {
+    visuals.update([player({ weapon: 'rpg', aiming, yaw, pitch })], -1, .7, camera);
+    const weapon = scene.getObjectByName('UBERCUBE remote rpg') as THREE.InstancedMesh;
+    const weaponMatrix = matrix(weapon, 0), body = bodies(scene);
+    for (const [forearm, y, z] of [[3, -3, -11.7], [5, -3.2, -14.4]]) {
+      const grip = new THREE.Vector3(0, y, z).applyMatrix4(weaponMatrix);
+      expect(point(body, forearm, 0, 1).distanceTo(grip)).toBeLessThan(.000001);
+    }
+    // Test actual mesh vertices against the articulated head and torso volumes.
+    const occupied = new THREE.Box3(new THREE.Vector3(-.5, 0, -.5), new THREE.Vector3(.5, 1, .5));
+    for (const bone of [0, 1]) {
+      const toBone = matrix(body, bone).invert().multiply(weaponMatrix);
+      let intersectingVertices = 0;
+      scene.traverse(object => {
+        if (!(object instanceof THREE.InstancedMesh) || !object.name.startsWith('UBERCUBE remote rpg')) return;
+        const vertices = object.geometry.getAttribute('position');
+        for (let vertex = 0; vertex < vertices.count; vertex++) {
+          if (occupied.containsPoint(new THREE.Vector3().fromBufferAttribute(vertices, vertex).applyMatrix4(toBone))) intersectingVertices++;
+        }
+      });
+      expect(intersectingVertices).toBe(0);
+    }
+    const tip = new THREE.Vector3(0, -1.6, -24).applyMatrix4(weaponMatrix);
+    expect(tip.distanceTo(visuals.getRpgMuzzle(1)!)).toBeLessThan(.000001);
+    if (pitch === 0 && yaw === 0) {
+      const tube = new THREE.Vector3(0, -1.6, -11).applyMatrix4(weaponMatrix);
+      if (aiming) {
+        expect(tube.y).toBeGreaterThan(point(body, 0, 0, 1).y + .075);
+        expect(tube.y).toBeLessThan(point(body, 0, 0, 1).y + .2);
+      } else {
+        expect(tube.y).toBeLessThan(point(body, 4).y - .15);
+      }
+    }
+  }
+});
+
+test('a confirmed RPG shot removes only its carried round and reloads when the next shot is allowed', async () => {
+  const scene = new THREE.Scene(), visuals = new PlayerVisuals(scene, 160, realLoader);
+  await visuals.ready;
+  const players = [player({ weapon: 'rpg' }), player({ id: 2, weapon: 'rpg' })];
+  const part = (name: string) => {
+    let found: THREE.InstancedMesh | undefined;
+    scene.traverse(object => { if (object instanceof THREE.InstancedMesh && object.userData.weaponPart === name) found = object; });
+    expect(found).toBeDefined();
+    return found!;
+  };
+  visuals.update(players, -1, 1, camera);
+  const rocket = part('RPG_rocket');
+  expect(rocket.count).toBe(2);
+  const event: GameEvent = { type: 'event', roundId: 1, event: 'shot', weapon: 'rpg', shooterId: 1,
+    projectileId: 7, position: { x: 0, y: 2, z: -1 } };
+  expect(visuals.shot(event, 1)).toBeNull();
+  visuals.update(players, -1, 1.1, camera);
+  expect(rocket.count).toBe(1);
+  expect((scene.getObjectByName('UBERCUBE remote rpg') as THREE.InstancedMesh).count).toBe(2);
+  visuals.shot(event, 1.6);
+  visuals.update(players, -1, 1 + WEAPONS.rpg.interval - .05, camera);
+  expect(rocket.count).toBe(1);
+  visuals.update(players, -1, 1 + WEAPONS.rpg.interval, camera);
+  expect(rocket.count).toBe(2);
+  visuals.shot({ ...event, projectileId: 8 }, 2.1);
+  visuals.update(players, -1, 2.2, camera);
+  expect(rocket.count).toBe(1);
+  visuals.clear();
+  expect(visuals.getRpgMuzzle(1)).toBeNull();
+  visuals.update(players, -1, 2.2, camera);
+  expect(rocket.count).toBe(2);
 });
 
 test('100 players share one body draw and weapon batches; local/dead/cleared players leave no rendered instances', async () => {

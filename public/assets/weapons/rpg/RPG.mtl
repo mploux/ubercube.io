@@ -1,0 +1,36 @@
+# UBERCUBE RPG palette; shared AK wood and steel values, no baked voxel shading
+newmtl steel
+Kd 0.06 0.06 0.06
+d 1
+
+newmtl edge
+Kd 0.14 0.14 0.14
+d 1
+
+newmtl black
+Kd 0.03 0.03 0.03
+d 1
+
+newmtl wood
+Kd 0.25 0.09 0.03
+d 1
+
+newmtl woodDark
+Kd 0.16 0.055 0.018
+d 1
+
+newmtl olive
+Kd 0.14 0.17 0.055
+d 1
+
+newmtl oliveDark
+Kd 0.085 0.105 0.035
+d 1
+
+newmtl band
+Kd 0.24 0.22 0.13
+d 1
+
+newmtl glass
+Kd 0.04 0.1 0.11
+d 0.12

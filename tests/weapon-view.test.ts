@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
 import { WeaponView, type WeaponViewInput } from '../src/client/weapon-view';
 import { parseWeaponModel, WEAPON_MODEL_FILES } from '../src/client/weapon-model';
-import { createWeaponPose, hideWeaponPose, stepWeaponMotion, stepWeaponPose,
+import { createWeaponPose, getWeaponMuzzle, hideWeaponPose, stepWeaponMotion, stepWeaponPose,
   type WeaponPoseInput } from '../src/shared/weapon-pose';
 import type { WeaponId } from '../src/shared/protocol';
 
@@ -15,7 +15,7 @@ const loader = async (weapon: WeaponId): Promise<THREE.Group> => {
   return parseWeaponModel(readFileSync(`${path}.obj`, 'utf8'), readFileSync(`${path}.mtl`, 'utf8'));
 };
 
-test.each([['ak47', [0, 8, 16]], ['awp', [0, 62, 124]]] as const)('%s keeps the actual Java held-trigger cadence', (weapon, expected) => {
+test.each([['ak47', [0, 8, 16]], ['awp', [0, 62, 124]], ['rpg', [0, 62, 124]]] as const)('%s keeps the actual Java held-trigger cadence', (weapon, expected) => {
   const pose = createWeaponPose(weapon), shots: number[] = [];
   for (let tick = 0; tick <= expected[2]; tick++) if (stepWeaponPose(pose, { ...still, fire: true }, () => .5).fired) shots.push(tick);
   expect(shots).toEqual([...expected]);
@@ -49,6 +49,21 @@ test('gun pushback is applied before position damping and angular recoil affects
   expect(randomCalls).toBe(0);
 });
 
+test('RPG launch point follows the optic-aligned pose, with AWP zoom and its existing kick', () => {
+  const pose = createWeaponPose('rpg');
+  for (let tick = 0; tick < 80; tick++) stepWeaponPose(pose, { ...still, alt: true });
+  const muzzle = getWeaponMuzzle(pose);
+  expect(muzzle.position.x).toBeCloseTo(.09, 8);
+  expect(muzzle.position.y).toBeCloseTo(-.145, 8);
+  expect(muzzle.position.z).toBeCloseTo(2, 8);
+  expect(muzzle.direction).toEqual({ x: 0, y: 0, z: 1 });
+  expect(70 - pose.zoom).toBeCloseTo(11.655, 7);
+  stepWeaponPose(pose, { ...still, fire: true, alt: true }, () => .5);
+  expect(pose.position.z).toBeCloseTo(-1.12, 8);
+  expect(pose.rotationFactor.x).toBeCloseTo(-.1, 8);
+  expect(pose.quaternion.x).toBe(0);
+});
+
 test('idle shot randomness feeds the current orientation, distinct from next-tick recoil', () => {
   const pose = createWeaponPose('ak47');
   stepWeaponPose(pose, { ...still, fire: true }, () => .5);
@@ -57,7 +72,55 @@ test('idle shot randomness feeds the current orientation, distinct from next-tic
   expect(pose.rotationFactor.x).toBeCloseTo(-.15, 8);
 });
 
-test.each([['ak47', 54.44133333333333], ['awp', 11.655]] as const)('%s follows the original ADS recurrence and returns to FOV70', (weapon, expectedFov) => {
+test('RPG fires its attached round, keeps the tube visible, and replenishes before the next shot', async () => {
+  const view = new WeaponView(loader);
+  await view.ready;
+  try {
+    view.reset('rpg');
+    for (let tick = 0; tick < 80; tick++) view.tick(viewInput);
+    const round = view.scene.getObjectByName('RPG_rocket')!;
+    expect(round).toBeDefined();
+    expect(round.visible).toBe(true);
+    expect(view.tick({ ...viewInput, fire: true }, () => .5).fired).toBe(true);
+    expect(round.visible).toBe(false);
+    const body = view.scene.getObjectByName('RPG')!;
+    expect(body.visible).toBe(true);
+    for (let tick = 0; tick < 30; tick++) view.tick(viewInput);
+    expect(round.visible).toBe(false);
+    for (let tick = 0; tick < 32; tick++) view.tick(viewInput);
+    expect(round.visible).toBe(true);
+    view.reset('rpg');
+    expect(round.visible).toBe(true);
+  } finally { view.dispose(); }
+});
+
+test('RPG aimed camera looks through the transparent optic, without a solid cap on its sight line', async () => {
+  const view = new WeaponView(loader);
+  await view.ready;
+  try {
+    view.reset('rpg');
+    for (let tick = 0; tick < 120; tick++) view.tick({ ...viewInput, alt: true });
+    view.scene.updateMatrixWorld(true);
+    const lens = view.scene.getObjectByName('RPG_lens') as THREE.Mesh;
+    expect(lens).toBeDefined();
+    expect(view.scene.getObjectByName('RPG_sights')!.visible).toBe(false);
+    const center = new THREE.Vector3(-.72, -.44, -12.11).applyMatrix4(lens.matrixWorld);
+    expect(center.x).toBeCloseTo(0, 7);
+    expect(center.y).toBeCloseTo(0, 7);
+    expect(center.z).toBeLessThan(-.05);
+    const hits = new THREE.Raycaster(new THREE.Vector3(), new THREE.Vector3(0, 0, -1)).intersectObject(view.scene, true);
+    expect(hits.length).toBeGreaterThan(0);
+    for (const hit of hits) {
+      const material = (hit.object as THREE.Mesh).material as THREE.Material;
+      expect(material.transparent).toBe(true);
+      expect(material.depthWrite).toBe(false);
+    }
+    view.tick(viewInput);
+    expect(view.scene.getObjectByName('RPG_sights')!.visible).toBe(true);
+  } finally { view.dispose(); }
+});
+
+test.each([['ak47', 54.44133333333333], ['awp', 11.655], ['rpg', 11.655]] as const)('%s follows the original ADS recurrence and returns to FOV70', (weapon, expectedFov) => {
   const pose = createWeaponPose(weapon);
   for (let tick = 0; tick < 120; tick++) stepWeaponPose(pose, { ...still, alt: true });
   expect(70 - pose.zoom).toBeCloseTo(expectedFov, 7);
@@ -144,13 +207,14 @@ test('outgoing hide preserves fire cadence and adds the Java hide translation', 
   expect(pose.shot).toBe(true);
 });
 
-test('all five first-person models keep their original vertices and exact raw transform/pivot', async () => {
+test('all six first-person models keep their original vertices and exact raw transform/pivot', async () => {
   const view = new WeaponView(loader);
   await view.ready;
   const expected: Record<WeaponId, { scale: number[]; idle: number[] }> = {
     ak47: { scale: [-.35, .35, .35], idle: [.2, -.05, -.3] }, awp: { scale: [.65, .65, .65], idle: [.2, 0, -.3] },
     shovel: { scale: [.3, .3, .3], idle: [.1, -.2, .2] }, grenade: { scale: [1, 1, 1], idle: [.4, -.3, 1] },
     medic: { scale: [3, 3, 3], idle: [.09, -.4, .85] },
+    rpg: { scale: [2, 2, -2], idle: [.3, -.18, -1.1] },
   };
   try {
     for (const weapon of Object.keys(expected) as WeaponId[]) {

@@ -88,7 +88,7 @@ export class TouchControls {
     element.addEventListener('pointerdown', event => {
       if (!this.enabled || element.matches(':disabled') || event.button !== 0 || this.pointers.has(event.pointerId)
         || [...this.pointers.values()].some(pointer => pointer.element === element)) return;
-      if (action === 'alt' && this.weapon !== 'ak47' && this.weapon !== 'awp' && this.weapon !== 'shovel') return;
+      if (action === 'alt' && this.weapon !== 'ak47' && this.weapon !== 'awp' && this.weapon !== 'rpg' && this.weapon !== 'shovel') return;
       event.preventDefault();
       if (action !== 'move' && action !== 'look') {
         this.lastTap = undefined;
@@ -177,7 +177,7 @@ export class TouchControls {
   }
 
   private updateAltVisual(): void {
-    const toggle = this.weapon === 'ak47' || this.weapon === 'awp';
+    const toggle = this.weapon === 'ak47' || this.weapon === 'awp' || this.weapon === 'rpg';
     if (toggle) this.altElement.setAttribute('aria-pressed', String(this.aiming));
     else this.altElement.removeAttribute('aria-pressed');
     this.altElement.classList.toggle('active', this.aiming

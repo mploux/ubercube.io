@@ -47,7 +47,7 @@ export async function checkPlayers(renderer: THREE.WebGLRenderer): Promise<strin
   const head = new THREE.Vector3(0, 2.65, -.25).project(camera);
   const offset = (Math.floor((head.y + 1) * 128) * 256 + Math.floor((head.x + 1) * 128)) * 4;
   verify([166, 131, 107].every((value, channel) => Math.abs(idle[offset + channel] - value) <= 2), 'palette de peau Java dans le framebuffer, sans ACES');
-  for (const weapon of ['ak47', 'awp', 'shovel', 'grenade', 'medic'] as WeaponId[]) {
+  for (const weapon of ['ak47', 'awp', 'shovel', 'grenade', 'medic', 'rpg'] as WeaponId[]) {
     player.weapon = weapon;
     visuals.update([player], -1, 0, camera);
     const equipped = read();
@@ -59,6 +59,23 @@ export async function checkPlayers(renderer: THREE.WebGLRenderer): Promise<strin
     for (let i = 0; i < equipped.length; i += 4) if (equipped[i] !== empty[i] || equipped[i + 1] !== empty[i + 1] || equipped[i + 2] !== empty[i + 2]) changed++;
     verify(changed > 10, `${weapon} visible dans la main (${changed} pixels)`);
   }
+  player.weapon = 'rpg';
+  camera.position.set(8, 0, -5); camera.lookAt(0, 0, 0);
+  visuals.update([player], -1, 1, camera);
+  capture('RPG : port sur les avant-bras');
+  player.aiming = true;
+  visuals.update([player], -1, 1, camera);
+  capture('RPG : visée sur épaule');
+  const loaded = read();
+  visuals.shot({ type: 'event', roundId: 1, event: 'shot', weapon: 'rpg', shooterId: 1,
+    projectileId: 1, position: visuals.getRpgMuzzle(1)! }, 1);
+  visuals.update([player], -1, 1.1, camera);
+  const unloaded = read();
+  capture('RPG : ogive partie après le tir');
+  verify(unloaded.some((value, index) => value !== loaded[index]), 'le tir retire l’ogive portée du framebuffer');
+  visuals.update([player], -1, 2.1, camera);
+  verify(read().every((value, index) => value === loaded[index]), 'l’ogive revient après la cadence sans modifier le lanceur');
+  camera.position.set(0, 0, -10); camera.lookAt(0, 0, 0);
   player.weapon = 'ak47'; player.aiming = true; player.pitch = .3;
   player.velocity.z = -9;
   visuals.update([player], -1, .7, camera);

@@ -1,10 +1,10 @@
-export const PROTOCOL_VERSION = 3;
+export const PROTOCOL_VERSION = 4;
 export const TICK_RATE = 60;
 export const DT = 1 / TICK_RATE;
 export type Mode = 'tdm' | 'ffa';
 export type Team = 0 | 1 | 2;
 export type Kit = 'assault' | 'sniper' | 'medic';
-export type WeaponId = 'ak47' | 'awp' | 'shovel' | 'grenade' | 'medic';
+export type WeaponId = 'ak47' | 'awp' | 'shovel' | 'grenade' | 'medic' | 'rpg';
 export interface Vec3 { x: number; y: number; z: number }
 export interface WorldConfig { seed: number; size: number; height: number }
 export type VoxelEdit = [x: number, y: number, z: number, value: number];
@@ -47,13 +47,14 @@ export type ServerMessage =
   | { type: 'pong'; time: number }
   | GameEvent;
 export const KITS: Record<Kit, readonly WeaponId[]> = {
-  assault: ['ak47', 'grenade', 'shovel'],
+  assault: ['ak47', 'rpg', 'grenade', 'shovel'],
   sniper: ['awp', 'grenade', 'shovel'],
   medic: ['medic', 'ak47', 'grenade', 'shovel'],
 };
 export const WEAPONS: Record<WeaponId, { name: string; damage: number; interval: number; range: number; magazine: number }> = {
   ak47: { name: 'AK-47', damage: 20, interval: 8 / TICK_RATE, range: 2400, magazine: 30 },
   awp: { name: 'AWP', damage: 70, interval: 62 / TICK_RATE, range: 4800, magazine: 5 },
+  rpg: { name: 'Bazooka', damage: 80, interval: 62 / TICK_RATE, range: 0, magazine: 30 },
   shovel: { name: 'Pelle', damage: 20, interval: 0, range: 0, magazine: 0 },
   grenade: { name: 'Grenade', damage: 100, interval: 0, range: 0, magazine: 10 },
   medic: { name: 'Soins', damage: -10, interval: 0, range: 0, magazine: 0 },

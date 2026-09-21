@@ -1,6 +1,60 @@
-# Validation du 11 au 20 septembre 2026
+# Validation du 11 au 21 septembre 2026
 
 Le jeu est publié sur Vercel et Hetzner. Cette page distingue les vérifications locales et celles de production ; la parité des sensations avec le Java, la tenue prolongée sur Internet et les grandes distances d'affichage ne sont pas encore entièrement validées.
+
+## Ogive, lunette et prises en main du RPG — 21 septembre 2026
+
+Après validation du modèle par Marc, sa silhouette et sa palette sont conservées. Les 280 triangles de l'ogive verte deviennent une pièce séparée, masquée sur le lanceur après le tir et réutilisée pour le projectile en vol. Le tube se recharge visuellement à la cadence existante. L'intérieur de l'optique est ouvert et la lentille devient transparente ; la visée reprend le zoom et le réticule de l'AWP. Le personnage porte le lanceur sur les avant-bras au repos et à l'épaule en visée, avec les mains sur les poignées. La géométrie finale compte **1 176 triangles, 656 sommets indexés et neuf matériaux**.
+
+TypeScript, le build client et **388 tests / 20 317 assertions dans 39 fichiers** passent. Les tests protègent notamment le détachement/rechargement en FPS et sur les joueurs, le dégagement de la lentille, les contacts mains/poignées et les intersections avec tête/torse sur les angles testés. Les deux suites de publication exécutant Git restent exclues ; aucun succès de `bun run check` complet n'est revendiqué. Preuve : `.runtime/rpg-attachment-final-tests.log`.
+
+Le contrôle GPU final affiche **RÉSULTAT : SUCCÈS** : ogive verte en vol à 60 blocs/s, départ du lanceur, fumée derrière l'ogive, disparition du mesh à l'impact puis dissipation des particules, poses FPS/TP et régressions existantes. Les planches `.runtime/rpg-review/quatre-vues-quarter.png`, `quatre-vues-profile.png` et `quatre-vues-front.png` ont été inspectées : repos et visée, en première et troisième personne. Les captures `third-shot20.png` et `third-shot45.png` montrent la séparation. Ce banc fixe utilise les vrais renderers avec des événements préparés, sans serveur.
+
+La vidéo `.runtime/qa-video/bazooka-review-v3.mp4` vérifie séparément le vrai client et le vrai serveur via WebSocket : **20,13 s**, **1280 × 720 à 30 images/s**, son du jeu, **604 images décodées sans erreur**. Les deux scènes contiennent chacune deux tirs et deux explosions autoritaires, avec 170 puis 176 modifications voxel. Les 40 empreintes du rapport `rpg-report.json` correspondent aux sources et assets filmés. La planche `rpg-v3-contact-sheet.png` a été inspectée. Les commandes et caméras sont automatisées ; aucune nouvelle partie humaine ou mesure Internet n'est revendiquée. Travail local, sans Git ni publication.
+
+## Revue du bazooka : modèle polygonal, explosion et particules — 21 septembre 2026
+
+Cette révision locale remplace le premier modèle voxel et les paramètres du premier portage ci-dessous. Le RPG-7 original compte **1 106 triangles, 607 sommets indexés et neuf matériaux**, à partir de quatre références visuelles citées dans [bazooka](bazooka.md#modèle-dédié). Il emploie le shader et la palette bois/métal des autres armes, avec une pose à l'épaule et un départ de roquette à la pointe du modèle. L'assaut conserve son AK et reçoit le RPG ; le médic garde son kit de soins.
+
+La roquette passe de 30 à **60 blocs/s**. Ses explosions infligent jusqu'à **80 PV**, contre 100 pour une grenade, avec dégâts dégressifs jusqu'à dix blocs et sans cumul direct + radial sur la cible touchée. Les buffers des particules alpha sont triés par profondeur de caméra, de loin vers près, avant chaque rendu ; matrices, couleurs et opacités restent associées sans modifier la simulation.
+
+TypeScript, le build client et **378 tests / 19 894 assertions dans 39 fichiers** passent. Ils incluent les échanges WebSocket réels, l'impact direct et radial, la conservation des grenades, les classes, les resets, la pose et la génération reproductible du modèle. Les deux suites de publication qui exécutent Git restent exclues ; aucun succès de `bun run check` complet n'est revendiqué. Preuve : `.runtime/rpg-review-tests.log`.
+
+Le contrôle GPU reconstruit depuis les sources finales affiche **RÉSULTAT : SUCCÈS**, sans erreur ni avertissement console. Le tri alpha est contrôlé au premier rendu après inversion de caméra (RGB 60,66,0 puis 100,26,0), avec occlusion opaque conservée (RGB 0,66,153). Les vues RPG repos/visée/recul, la fumée, les autres armes, personnages, ragdolls, terrain et ombres passent aussi. Les aperçus `.runtime/rpg-model-revised.png` et `.runtime/rpg-weapons-comparison.png` ont été inspectés.
+
+La vidéo `.runtime/qa-video/bazooka-review-v2.mp4` dure **20 s**, en **1280 × 720 à 30 images/s**, avec son du jeu. Deux tirs et deux explosions autoritaires par scène, 179 puis 173 modifications voxel, vues FPS et extérieure inspectées ; les 600 images se décodent sans erreur. Les 40 empreintes du rapport archivé `rpg-report-v2.json` correspondaient aux sources et assets de cette prise. Marc a ensuite validé le modèle et demandé les corrections d'ogive, de lunette et de poses décrites ci-dessus. Cadrage et commandes automatisés.
+
+Mesure locale de 100 joueurs concentrés, 600 ticks actifs : 1 081 tirs, 60 explosions, 545 éditions, 247 projectiles simultanés au maximum, 81 réapparitions après les dégâts de zone et aucun input perdu. Simulation + encodage : p50 **0,623 ms**, p95 **1,391 ms**, p99 **2,423 ms**, maximum **13,028 ms**. Preuve : `.runtime/rpg-concentrated-load.json`. Ce contrôle ne représente ni 100 navigateurs ni une session Internet. Aucun Git ni déploiement effectué pour cette révision.
+
+## Première vidéo du bazooka — 21 septembre 2026 (avant revue)
+
+Capture locale du vrai client et du vrai serveur, en première puis troisième personne, sans modification du gameplay. Deux tirs et deux explosions par prise sont présents dans les événements du client et du serveur ; les prises enregistrées produisent respectivement 70 et 104 modifications voxel. Le mur est restauré entre les prises. Le personnage en vue extérieure utilise le renderer des joueurs du jeu. Les commandes et le cadrage sont automatisés.
+
+Le MP4 `.runtime/qa-video/bazooka-premiere-troisieme-personne.mp4` dure **20,17 s**, en **1280 × 720, 30 images/s**, avec son du jeu et gain conservé. Les images des deux scènes sont inspectées et les 605 images décodées sans erreur. Le rapport archivé `rpg-report-before-review.json` conserve les intentions, événements, états serveur et empreintes des sources locales de cette prise. Procédure reproductible dans [le guide vidéo](qa-video.md#bazooka-en-première-et-troisième-personne).
+
+Les trois tests du banc vidéo passent : **610 assertions**, dont vol réel en WebSocket, explosions, mutations et restauration. TypeScript et build client passent. Pas de Git, de publication, de modification du gain audio ni d'essai humain revendiqué.
+
+## Premier modèle de lance-roquettes — 21 septembre 2026 (remplacé après revue)
+
+À la demande de Marc, le RPG remplace son ancien visuel AK par un modèle voxel original, partagé entre vue FPS et personnages distants. Le modèle comporte 2 276 triangles et 39 matériaux ; tube creux, ogive olive, manchon bois, deux poignées et viseur décalé. Son point de lancement, ses poses et toutes les règles du bazooka restent inchangés. Travail local, non publié.
+
+`bun run doctor`, TypeScript et le build client passent. Les quatre fichiers ciblés (`rpg-model`, `materials`, `weapon-view`, `player-visuals`) passent : **45 tests / 8 939 assertions**. Ils vérifient la génération reproductible, le nez au point de lancement, la marge devant la caméra pendant le recul, l'orientation des faces, les matériaux et les poses. Preuve : `.runtime/rpg-model-tests.log`.
+
+Le contrôle GPU local affiche **RÉSULTAT : SUCCÈS**, sans erreur ni avertissement console. Les captures du modèle complet, du repos, de la visée et du recul ont été inspectées ; les personnages distants chargent le même asset. L'aperçu final est enregistré dans `.runtime/rpg-model-preview.png`. Aucun nouvel essai humain ou sur téléphone physique. La suite de publication utilisant Git n'a pas été relancée ; les vérifications du gameplay ci-dessous restent celles du premier portage.
+
+## Bazooka de l'assaut — 21 septembre 2026
+
+Travail local, non publié, protocole 4. Le [RPG historique](bazooka.md) est ajouté après l'AK dans le seul kit assaut ; le médic conserve son kit. Source Java inspectée en lecture seule dans la dernière révision avant suppression du RPG, `543efa27c158f119725ebbf3d1984a93789bf11c`, sans compiler ni exécuter le Java.
+
+`bun run doctor`, TypeScript et la compilation du client passent. **369 tests de jeu / 15 864 assertions dans 37 fichiers** passent, plus le test isolé de compilation (**1 test / 16 assertions**). Ils couvrent règles et poses du RPG, conversion des 253 voxels, vitesse/cadence, dégâts directs sans bonus tête, destruction, souffle sur joueurs et grenades, refus de l'arme aux autres classes, indépendance des munitions, protocole, événements, reset, fumée et régressions des armes existantes. Preuve : `.runtime/bazooka-gameplay-tests.log`.
+
+`bun run check` a été tenté : les sous-processus Bun et Git de l'outillage ont rencontré `EPERM` dans le bac à sable Windows. Le test de compilation repasse avec la permission d'exécution adaptée. Les deux fichiers de tests de publication qui lancent Git (`release-prepare` et `release-vercel`) n'ont pas été relancés, pour respecter la restriction Git hors consultation demandée du Java ; aucun succès de `check` complet n'est annoncé. Ces tests ne concernent pas les règles du bazooka. Le dépôt du jeu n'a été ni committé ni publié.
+
+Les **trois tests WebSocket réels** de `rpg-network.test.ts` confirment le tir et son acquittement, le stock, le même projectile pour tireur et témoin, l'explosion unique, les mutations reçues, l'arrivée pendant un transfert initial de plus de 12 000 éditions et la convergence avec le serveur. Ils confirment aussi le refus du RPG au médic suivi d'un soin de 10 PV, et le reset pendant un vol avec rejet d'une ancienne commande. Toutes les connexions de test sont fermées et vérifiées.
+
+Le contrôle GPU dans le navigateur affiche **RÉSULTAT : SUCCÈS**, sans erreur ni avertissement console. Les six armes chargent ; les pixels du RPG au repos, en visée et avec recul, le vol jaune à 30 blocs/s, la fumée transparente, le brouillard, les impacts et le reset sont vérifiés. Les captures FPS du bazooka ont été inspectées. Les contrôles existants des grenades, AK/AWP, personnages, ragdolls, terrain, neige et ombres passent. Le parcours réel pseudo → lobby → assaut → déconnexion est vérifié sur le serveur local ; la capture de souris est refusée par le navigateur intégré, donc aucun ressenti clavier/souris n'est revendiqué.
+
+Mesure locale avec 100 joueurs concentrés dans 18 × 18 blocs, 600 ticks actifs : 1 000 tirs RPG de 100 tireurs, 66 explosions, 505 éditions terrain, 400 projectiles au maximum, aucun input perdu. Temps de simulation et encodage p50 **0,765 ms**, p95 **1,326 ms**, p99 **2,139 ms**, maximum **8,237 ms**. Preuve : `.runtime/rpg-concentrated-load.json`. Ce test mesure le serveur simulé, pas 100 navigateurs ni une session Internet. La comparaison humaine avec le Java et le téléphone physique restent à faire.
 
 ## Impacts sur cadavres ×4 — 20 septembre 2026
 

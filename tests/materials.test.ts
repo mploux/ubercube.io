@@ -4,8 +4,8 @@ import * as THREE from 'three';
 import { parseWeaponModel, WEAPON_MODEL_FILES } from '../src/client/weapon-model';
 import type { WeaponId } from '../src/shared/protocol';
 
-const expectedFaces: Record<WeaponId, number> = { ak47: 2308, awp: 1996, grenade: 102, shovel: 116, medic: 616 };
-const expectedPalette: Record<WeaponId, number> = { ak47: 4, awp: 8, grenade: 3, shovel: 2, medic: 3 };
+const expectedFaces: Record<WeaponId, number> = { ak47: 2308, awp: 1996, grenade: 102, shovel: 116, medic: 616, rpg: 1176 };
+const expectedPalette: Record<WeaponId, number> = { ak47: 4, awp: 8, grenade: 3, shovel: 2, medic: 3, rpg: 9 };
 
 test.each(Object.keys(WEAPON_MODEL_FILES) as WeaponId[])('%s preserves every original face, normal and raw material color', weapon => {
   const path = `public/assets/weapons/${WEAPON_MODEL_FILES[weapon]}`;

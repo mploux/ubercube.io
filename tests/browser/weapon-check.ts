@@ -27,7 +27,7 @@ export async function checkWeaponView(renderer: THREE.WebGLRenderer): Promise<st
   const messages: string[] = [];
   const sheet = document.createElement('section');
   sheet.id = 'weapon-check-captures';
-  sheet.setAttribute('aria-label', 'Armes : captures GPU des modèles Java');
+  sheet.setAttribute('aria-label', 'Armes : captures GPU des modèles du jeu');
   sheet.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;max-width:1100px;margin-top:24px';
   document.getElementById(sheet.id)?.remove();
   document.body.append(sheet);
@@ -81,25 +81,27 @@ export async function checkWeaponView(renderer: THREE.WebGLRenderer): Promise<st
 
   try {
     await view.ready;
-    if (loaded.size !== 5) throw new Error(`Chargement OBJ/MTL incomplet : ${[...loaded].join(', ')}`);
-    messages.push('OK Armes : les cinq OBJ/MTL Java sont chargés depuis les assets locaux');
+    if (loaded.size !== 6) throw new Error(`Chargement OBJ/MTL incomplet : ${[...loaded].join(', ')}`);
+    messages.push('OK Armes : les six armes sont chargées depuis les assets locaux');
     renderer.setPixelRatio(1);
     renderer.setSize(width, height);
     renderer.setClearColor(0x000000, 1);
     renderer.autoClear = false;
 
-    for (const weapon of ['ak47', 'awp', 'shovel', 'grenade', 'medic'] as const) {
+    for (const weapon of ['ak47', 'awp', 'shovel', 'grenade', 'medic', 'rpg'] as const) {
       view.reset(weapon);
       tick(60);
       const idle = capture(`${weapon} repos`);
       visible(`${weapon} repos`, idle);
-      if (weapon === 'ak47' || weapon === 'awp') {
+      if (weapon === 'ak47' || weapon === 'awp' || weapon === 'rpg') {
         const idleFov = view.fov;
         tick(60, { alt: true });
         const ads = capture(`${weapon} visée`);
         visible(`${weapon} visée`, ads);
         changed(`${weapon} repos → visée`, idle, ads);
-        if (!(view.fov > 0 && view.fov < idleFov)) throw new Error(`${weapon} : FOV de visée invalide ${view.fov}`);
+        if (!(view.fov > 0 && view.fov < idleFov)) {
+          throw new Error(`${weapon} : FOV de visée invalide ${view.fov}`);
+        }
         view.reset(weapon); tick(60);
         const beforeRecoil = capture(`${weapon} avant tir`);
         const action = view.tick({ ...input, fire: true }, () => .5);

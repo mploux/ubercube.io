@@ -174,9 +174,9 @@ function updateTouchControls(): void {
 
 function rotateView(dx: number, dy: number, touch = false): void {
   if (screen !== 'game' || paused) return;
-  const zoom = rightMouse && (selectedWeapon === 'awp' || selectedWeapon === 'ak47');
+  const zoom = rightMouse && (selectedWeapon === 'awp' || selectedWeapon === 'rpg' || selectedWeapon === 'ak47');
   const scale = touch ? Math.PI / Math.max(320, Math.min(innerWidth, innerHeight)) : Math.PI / 720;
-  const speed = (zoom ? zoomSensitivity * (selectedWeapon === 'awp' ? 0.15 : 0.45) : sensitivity) * scale;
+  const speed = (zoom ? zoomSensitivity * (selectedWeapon === 'ak47' ? 0.45 : 0.15) : sensitivity) * scale;
   weaponMouseDX += dx; weaponMouseDY += dy;
   yaw -= dx * speed;
   yaw = Math.atan2(Math.sin(yaw), Math.cos(yaw));
@@ -467,13 +467,14 @@ function applyLocalState(state: PlayerState): void {
 
 function handleEvent(event: GameEvent): void {
   const time = performance.now() / 1000;
-  effects.event(event, time);
+  effects.event(event, time, event.weapon === 'rpg'
+    ? avatars.getRpgMuzzle(event.shooterId ?? -1) ?? undefined : undefined);
   const corpseHit = avatars.shot(event, time);
   if (corpseHit) effects.blood(corpseHit);
   const listener = predicted ? { ...predicted.position, y: predicted.position.y + EYE_HEIGHT } : camera.position;
   const own = event.shooterId === localId;
   if (event.event === 'shot') {
-    const file = event.weapon === 'awp' ? 'AWPShoot' : event.weapon === 'ak47' ? 'AK47Shoot' : event.weapon === 'shovel' ? 'dig' : '';
+    const file = event.weapon === 'awp' ? 'AWPShoot' : event.weapon === 'ak47' || event.weapon === 'rpg' ? 'AK47Shoot' : event.weapon === 'shovel' ? 'dig' : '';
     // The local weapon already responded to the trigger; confirmation must not play it twice.
     if (file && !own) audio.play(file, event.position, listener, yaw, 0.5);
   }
@@ -568,6 +569,7 @@ function simulate(): void {
 
 function updateUI(): void {
   if (touchMode) touchControls.setWeapon(selectedWeapon);
+  element('crosshair').dataset.weapon = selectedWeapon;
   element('touch-weapon-label').textContent = WEAPONS[selectedWeapon].name;
   element('touch-fire-label').textContent = selectedWeapon === 'grenade' ? 'Lancer' : selectedWeapon === 'shovel' ? 'Creuser' : selectedWeapon === 'medic' ? 'Soigner' : 'TIR';
   element('touch-fire').title = selectedWeapon === 'grenade' ? 'Maintenir pour charger, glisser pour orienter, relâcher pour lancer' : 'Maintenir et glisser pour agir tout en regardant';
@@ -636,10 +638,10 @@ function frame(now: number): void {
   if (screen === 'game' && predicted) {
     camera.position.set(predicted.position.x, predicted.position.y + EYE_HEIGHT, predicted.position.z).add(correctionOffset);
     camera.rotation.set(pitch, yaw, 0, 'YXZ');
-    const zoom = weaponView.pose.altHeld && (selectedWeapon === 'awp' || selectedWeapon === 'ak47');
+    const zoom = weaponView.pose.altHeld && (selectedWeapon === 'awp' || selectedWeapon === 'rpg' || selectedWeapon === 'ak47');
     camera.fov = weaponView.fov;
-    element('scope').hidden = !(zoom && selectedWeapon === 'awp');
-    element('crosshair').hidden = selectedWeapon === 'ak47' || selectedWeapon === 'awp';
+    element('scope').hidden = !(zoom && (selectedWeapon === 'awp' || selectedWeapon === 'rpg'));
+    element('crosshair').hidden = selectedWeapon === 'ak47' || selectedWeapon === 'awp' || (selectedWeapon === 'rpg' && zoom);
     if (selectedWeapon === 'shovel' && world && !paused) {
       const hit = raycast(world, { ...predicted.position, y: predicted.position.y + EYE_HEIGHT }, aimDirection(yaw, pitch), 5);
       target.visible = !!hit;
@@ -665,7 +667,7 @@ function frame(now: number): void {
   if (screen !== 'lobby') terrain?.update(camera.position);
   if (terrain?.stats.error && !renderErrorShown) { renderErrorShown = true; toast(terrain.stats.error); refreshKitButtons(); if (screen === 'game') { document.exitPointerLock?.(); setPaused(true); } }
   avatars.update(remotePlayers.sample(now), localId, now / 1000, camera);
-  effects.update(dt, now / 1000);
+  effects.update(dt, now / 1000, camera);
   renderer.setClearAlpha(screen === 'lobby' ? 0 : 1);
   renderer.clear();
   if (screen !== 'lobby') renderer.render(scene, camera);

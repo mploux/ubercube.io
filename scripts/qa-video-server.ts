@@ -8,7 +8,7 @@ import { packBlock } from '../src/shared/voxel.ts';
 import { createWeaponPose, getWeaponMuzzle, stepWeaponPose } from '../src/shared/weapon-pose.ts';
 import { decodeServerMessage, encodeServerMessage } from '../src/shared/wire.ts';
 
-export const VIDEO_SCENES = ['ak-body', 'ak-head', 'awp-body', 'wall', 'moving'] as const;
+export const VIDEO_SCENES = ['ak-body', 'ak-head', 'awp-body', 'wall', 'moving', 'rpg-first', 'rpg-third'] as const;
 type VideoScene = typeof VIDEO_SCENES[number];
 interface SocketData { connection: Connection | null }
 
@@ -23,6 +23,8 @@ export async function startQaVideoServer(port = 3014) {
   let targetId: number | null = null;
   let botSeq = 0;
   let botDirection = 1;
+  let setupRevision = 0;
+  let worldEditsSinceSetup = 0;
   const events: (GameEvent & { receivedAt: number })[] = [];
   const inputs: { tick: number; playerId: number; frame: InputFrame }[] = [];
   const game = new GameServer({ mode: 'ffa', maxPlayers: 4, world: { seed: 121, size: 64, height: 64 } }, data => {
@@ -40,6 +42,7 @@ export async function startQaVideoServer(port = 3014) {
       events.push({ ...message, receivedAt: performance.now() });
       if (events.length > 2048) events.shift();
     }
+    if (message.type === 'world' && !message.initial) worldEditsSinceSetup += message.edits.length;
     server.publish('game', data);
   });
 
@@ -53,6 +56,10 @@ export async function startQaVideoServer(port = 3014) {
   }
   for (let x = 8; x < 56; x++) for (const z of [20, 35, 50]) {
     game.world.set(x, 47, z, packBlock(163, 186, 204));
+  }
+  const arena: VoxelEdit[] = [];
+  for (let x = 8; x < 56; x++) for (let y = 42; y < 64; y++) for (let z = 6; z < 60; z++) {
+    arena.push([x, y, z, game.world.get(x, y, z)]);
   }
 
   const server = Bun.serve<SocketData>({
@@ -73,6 +80,7 @@ export async function startQaVideoServer(port = 3014) {
       }
       if (request.method === 'GET' && url.pathname === '/qa/state') {
         return Response.json({ scene, impulseScale, shooterId, targetId, tick: game.tick, roundId: game.roundId,
+          revision: game.revision, setupRevision, worldEditsSinceSetup,
           players: [...game.players.values()], projectiles: [...game.projectiles.values()], events, inputs },
         { headers: { 'Cache-Control': 'no-store' } });
       }
@@ -86,17 +94,27 @@ export async function startQaVideoServer(port = 3014) {
         if (payload.impulseScale !== undefined && ![1, 2, 4, 8].includes(payload.impulseScale as number)) {
           return new Response('Invalid impulse scale', { status: 400 });
         }
+        const rpg = payload.scene === 'rpg-first' || payload.scene === 'rpg-third';
+        if (rpg && payload.impulseScale !== undefined) return new Response('RPG impulse is not overridden', { status: 400 });
         const shooter = game.players.get(payload.shooterId as number);
         const target = targetId === null ? undefined : game.players.get(targetId);
         if (!shooter || !target || shooter === target || [...game.connections].some(connection => connection.initial)) {
           return new Response('Both clients must finish joining', { status: 409 });
         }
+        const restoreArena = rpg || scene === 'rpg-first' || scene === 'rpg-third';
         scene = payload.scene as VideoScene;
         impulseScale = payload.impulseScale as number | undefined ?? null;
         shooterId = shooter.id;
-        const weapon = scene === 'awp-body' ? 'awp' : 'ak47';
+        const weapon = rpg ? 'rpg' : scene === 'awp-body' ? 'awp' : 'ak47';
         const kit: Kit = weapon === 'awp' ? 'sniper' : 'assault';
         const changes: VoxelEdit[] = [];
+        if (restoreArena) for (const [x, y, z, value] of arena) {
+          if (game.world.set(x, y, z, value)) changes.push([x, y, z, value]);
+        }
+        if (rpg) for (let x = 27; x <= 37; x++) for (let y = 48; y <= 53; y++) for (let z = 35; z <= 37; z++) {
+          const value = packBlock(132 + (y % 2) * 12, 107 + (x % 2) * 8, 78);
+          if (game.world.set(x, y, z, value)) changes.push([x, y, z, value]);
+        }
         for (let x = 30; x <= 34; x++) for (let y = 48; y < 52; y++) for (let z = 41; z <= 42; z++) {
           const value = scene === 'wall' ? packBlock(117, 103, 88) : 0;
           if (game.world.set(x, y, z, value)) changes.push([x, y, z, value]);
@@ -108,7 +126,7 @@ export async function startQaVideoServer(port = 3014) {
         Object.assign(shooter, { position: { x: 32, y: 48, z: 52 }, velocity: { x: 0, y: 0, z: 0 },
           health: 100, alive: true, grounded: true, yaw: 0, pitch: 0, kit, weapon, ammo: WEAPONS[weapon].magazine,
           aiming: false, kills: 0, deaths: 0, grenades: 10 });
-        Object.assign(target, { position: { x: 32, y: 48, z: 35 }, velocity: { x: 0, y: 0, z: 0 },
+        Object.assign(target, { position: { x: rpg ? 26 : 32, y: 48, z: 35 }, velocity: { x: 0, y: 0, z: 0 },
           health: impulseScale === null ? 100 : 1, alive: true, grounded: true, yaw: Math.PI, pitch: 0,
           kit: 'assault', weapon: 'ak47', ammo: 30, aiming: false, kills: 0, deaths: 0, grenades: 10 });
         for (const connection of game.connections) {
@@ -116,11 +134,13 @@ export async function startQaVideoServer(port = 3014) {
           connection.queue = []; connection.input = null;
           connection.previousFire = false; connection.previousAlt = false;
           connection.weaponPoses.clear(); connection.weaponMotion = { x: 0, y: 0, z: 0 };
-          connection.magazines = { ak47: 30, awp: 5 };
+          connection.magazines = { ak47: 30, awp: 5, rpg: 30 };
         }
         game.projectiles.clear();
         events.length = 0; inputs.length = 0; botDirection = 1;
-        const aimPoint: Vec3 = { ...target.position, y: target.position.y + (scene === 'ak-head' ? 2.55 : 1.45) };
+        setupRevision = game.revision; worldEditsSinceSetup = 0;
+        const aimPoint: Vec3 = rpg ? { x: 32, y: 50, z: 37 } :
+          { ...target.position, y: target.position.y + (scene === 'ak-head' ? 2.55 : 1.45) };
         const pose = createWeaponPose(weapon);
         for (let i = 0; i < 90; i++) stepWeaponPose(pose, { fire: false, alt: true, sprint: false,
           localVelocity: { x: 0, y: 0, z: 0 }, lookDeltaYaw: 0, lookDeltaPitch: 0, grenades: 10 });
@@ -131,17 +151,18 @@ export async function startQaVideoServer(port = 3014) {
         const pitch = Math.atan2(dy, distance) - Math.asin(muzzle.position.y / Math.hypot(dy, distance));
         shooter.yaw = yaw; shooter.pitch = pitch;
         const label = { 'ak-body': 'AK-47 · impacts au torse et chute', 'ak-head': 'AK-47 · impact à la tête',
-          'awp-body': 'AWP · impacts au torse', wall: 'Obstacle · cible protégée', moving: 'Cible en déplacement' }[scene];
+          'awp-body': 'AWP · impacts au torse', wall: 'Obstacle · cible protégée', moving: 'Cible en déplacement',
+          'rpg-first': 'RPG · première personne', 'rpg-third': 'RPG · troisième personne' }[scene];
         game.sendSnapshot();
         return Response.json({ scene, label, kit, weapon, impulseScale,
-          impulseMagnitude: (weapon === 'awp' ? 20 : 12) * (impulseScale ?? 4),
+          impulseMagnitude: rpg ? null : (weapon === 'awp' ? 20 : 12) * (impulseScale ?? 4),
           shooterId, targetId, yaw, pitch, aiming: true,
-          targetPosition: target.position, aimPoint, tick: game.tick, distance });
+          shooterPosition: shooter.position, targetPosition: target.position, aimPoint, tick: game.tick, distance });
       }
       if (request.method === 'POST' && (url.pathname === '/qa/video' || url.pathname === '/qa/report')) {
         const review = url.searchParams.get('review');
-        if (review !== null && review !== 'impulse') return new Response('Invalid review', { status: 400 });
-        const prefix = review === 'impulse' ? 'impulse-' : '';
+        if (review !== null && review !== 'impulse' && review !== 'rpg') return new Response('Invalid review', { status: 400 });
+        const prefix = review === null ? '' : `${review}-`;
         if (url.pathname === '/qa/video') {
           const contentType = request.headers.get('content-type') ?? '';
           if (!contentType.startsWith('video/webm')) return new Response('WebM required', { status: 415 });

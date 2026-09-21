@@ -4,6 +4,7 @@ import type { GameAudio } from '../../src/client/presentation';
 interface SceneSetup {
   scene: string; label: string; kit: Kit; weapon: WeaponId; shooterId: number; targetId: number;
   yaw: number; pitch: number; targetPosition: Vec3; distance: number;
+  shooterPosition?: Vec3;
   impulseScale?: number; impulseMagnitude?: number;
 }
 interface ReviewClient {
@@ -13,17 +14,18 @@ interface ReviewClient {
     events: (GameEvent & { receivedAt: number })[]; screen: string; worldReady: boolean; terrain?: { chunks: number; queued: number; error: string | null } };
   connect(): void; spawn(kit: Kit): void; prepare(setup: SceneSetup): void;
   drive(input: { yaw?: number; pitch?: number; fire?: boolean; aim?: boolean }): void;
-  camera(value: { position: [number, number, number]; target: [number, number, number] } | null): void;
+  camera(value: { position: [number, number, number]; target: [number, number, number]; showLocal?: boolean } | null): void;
   pose(): { position?: Vec3; yaw: number; pitch: number }; leave(): void;
 }
 
 export function installVideoReview(client: ReviewClient): void {
   const impulseReview = new URLSearchParams(location.search).get('review') === 'impulse';
-  const trials = impulseReview
+  const rpgReview = new URLSearchParams(location.search).get('review') === 'rpg';
+  const trials = rpgReview ? ['rpg-first', 'rpg-third'].map(scene => ({ scene, impulseScale: undefined })) : impulseReview
     ? ['ak-body', 'ak-head', 'awp-body'].flatMap(scene => [1, 2, 4, 8].map(impulseScale => ({ scene, impulseScale })))
     : ['ak-body', 'ak-head', 'awp-body', 'wall', 'moving'].map(scene => ({ scene, impulseScale: undefined }));
   const start = document.createElement('button');
-  start.textContent = impulseReview ? 'Comparer les forces du ragdoll' : 'Enregistrer la revue vidéo'; start.id = 'qa-record';
+  start.textContent = rpgReview ? 'Filmer le bazooka' : impulseReview ? 'Comparer les forces du ragdoll' : 'Enregistrer la revue vidéo'; start.id = 'qa-record';
   start.style.cssText = 'position:fixed;z-index:999;top:20px;right:20px;padding:16px 22px;background:#f4cd67;color:#18212e;border:0;border-radius:8px;font:bold 18px sans-serif;cursor:pointer';
   const status = document.createElement('output'); status.id = 'qa-status';
   status.style.cssText = 'position:fixed;z-index:998;top:82px;right:20px;background:#18212ed9;color:white;padding:10px;font:15px sans-serif';
@@ -62,6 +64,10 @@ export function installVideoReview(client: ReviewClient): void {
         ctx.drawImage(scope, rect.x * 1280 / innerWidth, rect.y * 720 / innerHeight, rect.width * 1280 / innerWidth, rect.height * 720 / innerHeight);
         ctx.imageSmoothingEnabled = true;
       }
+      if (rpgReview && sight.hidden) {
+        ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(640, 360, 3, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(640, 360, 1.5, 0, Math.PI * 2); ctx.fill();
+      }
       const headshot = document.getElementById('headshot-label')!;
       if (!headshot.hidden) {
         const rect = headshot.getBoundingClientRect();
@@ -70,7 +76,7 @@ export function installVideoReview(client: ReviewClient): void {
     }
     const top = ctx.createLinearGradient(0, 0, 0, 154); top.addColorStop(0, '#0b1529f5'); top.addColorStop(1, '#0b152900');
     ctx.fillStyle = top; ctx.fillRect(0, 0, 1280, 155);
-    text(`UBERCUBE   /   ${impulseReview ? 'FORCE DU RAGDOLL' : 'REVIEW COMBAT'}   /   ${String(chapter).padStart(2, '0')} / ${trials.length}`, 34, 32, 14, '#e9c36f');
+    text(`UBERCUBE   /   ${rpgReview ? 'BAZOOKA · ASSAUT' : impulseReview ? 'FORCE DU RAGDOLL' : 'REVIEW COMBAT'}   /   ${String(chapter).padStart(2, '0')} / ${trials.length}`, 34, 32, 14, '#e9c36f');
     text(title, 34, 70, 30); text(subtitle, 35, 102, 17, '#d8e5ed', '400');
     if (impulseReview && setup) {
       ctx.fillStyle = setup.impulseScale === 1 ? '#284150ee' : '#70541aee'; ctx.fillRect(1000, 24, 248, 106);
@@ -85,12 +91,13 @@ export function installVideoReview(client: ReviewClient): void {
     const shots = state.events.filter(event => event.event === 'shot' && event.shooterId === state.localId);
     const health = deaths.length ? 0 : victim?.health ?? 100;
     text(angle, 34, 656, 13, '#e9c36f');
-    text(`Cible  ${health} PV`, 34, 692, 25, health === 0 ? '#ff9c82' : '#f3f7fa');
-    text(`Tirs ${shots.length}   /   Touches ${hits.length}   /   Morts ${deaths.length}`, 240, 690, 21, '#d9e4ee');
+    text(rpgReview ? 'RPG' : `Cible  ${health} PV`, 34, 692, 25, health === 0 ? '#ff9c82' : '#f3f7fa');
+    text(rpgReview ? `Tirs ${shots.length}   /   Impacts explosifs ${state.events.filter(e => e.event === 'explosion' && e.weapon === 'rpg').length}`
+      : `Tirs ${shots.length}   /   Touches ${hits.length}   /   Morts ${deaths.length}`, 240, 690, 21, '#d9e4ee');
     const currentAmmo = document.getElementById('ammo-value')?.textContent ?? '—';
-    text(`${setup?.weapon === 'awp' ? 'AWP' : 'AK-47'}   ${currentAmmo}`, 792, 690, 21);
+    text(`${rpgReview ? 'MUNITIONS' : setup?.weapon === 'awp' ? 'AWP' : 'AK-47'}   ${currentAmmo}`, 792, 690, 21);
     ctx.textAlign = 'right'; text('VITESSE RÉELLE · PRISE AUTOMATISÉE', 1246, 654, 12, '#b8c9d6');
-    text('Validation visuelle : Marc', 1246, 691, 17, '#e9c36f'); ctx.textAlign = 'left';
+    text(rpgReview ? 'VERSION LOCALE' : 'Validation visuelle : Marc', 1246, 691, 17, '#e9c36f'); ctx.textAlign = 'left';
     frameId = requestAnimationFrame(draw);
   };
 
@@ -134,6 +141,43 @@ export function installVideoReview(client: ReviewClient): void {
         await sleep(1500);
         await until(() => (client.state().terrain?.queued ?? 0) === 0);
         chapter++;
+        if (rpgReview) {
+          const third = scene === 'rpg-third';
+          title = third ? 'Troisième personne' : 'Première personne';
+          subtitle = third ? 'Le personnage, le lance-roquettes et la destruction du mur.' : 'Tir à la hanche, puis en visée.';
+          angle = third ? 'VUE EXTÉRIEURE' : 'VUE JOUEUR';
+          client.drive({ aim: false, yaw: setup.yaw + .14 });
+          if (third) {
+            const p = setup.shooterPosition!;
+            client.camera({ position: [p.x + 5, p.y + 3.5, p.z + 4], target: [p.x - 1, p.y + 1.8, p.z - 5.5], showLocal: true });
+          }
+          await sleep(500);
+          if (recorder.state === 'inactive') { recorder.start(1000); started = performance.now(); }
+          else recorder.resume();
+          const begin = performance.now();
+          status.textContent = `Enregistrement ${chapter}/2 : ${title}`;
+          await sleep(1200);
+          client.drive({ fire: true }); await sleep(100); client.drive({ fire: false });
+          await until(() => client.state().events.some(e => e.event === 'explosion' && e.weapon === 'rpg'), 3000);
+          await sleep(Math.max(0, 3400 - (performance.now() - begin)));
+          client.drive({ aim: true, yaw: setup.yaw - .14 });
+          await sleep(1100);
+          client.drive({ fire: true }); await sleep(100); client.drive({ fire: false });
+          await until(() => client.state().events.filter(e => e.event === 'explosion' && e.weapon === 'rpg').length === 2, 3000);
+          await sleep(Math.max(0, 8500 - (performance.now() - begin)));
+          client.drive({ aim: false });
+          await sleep(700);
+          const events = [...client.state().events];
+          const server = await (await fetch('/qa/state')).json();
+          const shots = events.filter(e => e.event === 'shot' && e.weapon === 'rpg');
+          const explosions = events.filter(e => e.event === 'explosion' && e.weapon === 'rpg');
+          if (shots.length !== 2 || explosions.length !== 2) throw new Error('La prise RPG doit contenir deux tirs et deux explosions confirmés.');
+          const durationSeconds = (performance.now() - begin) / 1000;
+          report.push({ scene, label: title, timestampSeconds: totalSeconds, durationSeconds,
+            observed: { shots: shots.length, explosions: explosions.length, ammo: client.state().local?.ammo }, events, server });
+          totalSeconds += durationSeconds;
+          continue;
+        }
         if (impulseReview) {
           title = scene === 'ak-head' ? 'AK-47 · impact à la tête' : scene === 'awp-body' ? 'AWP · impact au torse' : 'AK-47 · impact au torse';
           subtitle = 'Même cible immobile, même visée, même caméra. Seule l’impulsion change.';
@@ -208,19 +252,20 @@ export function installVideoReview(client: ReviewClient): void {
           events, server });
         totalSeconds += (performance.now() - begin) / 1000;
       }
-      subtitle = impulseReview ? 'Choix validé par Marc : ×4 pour AK et AWP. ×1 conserve la référence initiale.'
+      subtitle = rpgReview ? 'Bazooka réservé à l’assaut · le médic conserve son kit de soins.' : impulseReview ? 'Choix validé par Marc : ×4 pour AK et AWP. ×1 conserve la référence initiale.'
         : 'À toi de juger les impacts et les chutes. Repères : chapitre ou minute:seconde.';
       await sleep(1700);
       const stopped = new Promise<void>(resolve => { recorder!.onstop = () => resolve(); });
       recorder.stop(); await stopped;
       const video = new Blob(chunks, { type: 'video/webm' });
       status.textContent = 'Sauvegarde de la vidéo…';
-      const suffix = impulseReview ? '?review=impulse' : '';
+      const suffix = rpgReview ? '?review=rpg' : impulseReview ? '?review=impulse' : '';
       const upload = await fetch('/qa/video' + suffix, { method: 'POST', headers: { 'Content-Type': 'video/webm' }, body: video });
       if (!upload.ok) throw new Error(`Sauvegarde vidéo : HTTP ${upload.status}`);
       const saved = await fetch('/qa/report' + suffix, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
         date: new Date().toISOString(), durationIncludingSetupSeconds: (performance.now() - started) / 1000,
         width: 1280, height: 720, fps: 30, mimeType, bytes: video.size,
+        source: await (await fetch('/qa-source.json')).json(),
         scope: 'Real main.ts client, WebSocket commands and server combat; fixture arena, automated inputs, review camera, capture overlay.'
           + (impulseReview ? ' Local-only death impulse normalization to historical AK 12 / AWP 20 times each factor; target starts at 1 HP for a single fatal impact. Production unchanged by the fixture.' : ''),
         review: 'Pending Marc visual review', scenes: report,
