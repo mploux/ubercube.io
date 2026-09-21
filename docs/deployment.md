@@ -4,6 +4,20 @@
 
 Le client statique peut être servi par Vercel et permet de jouer seul sans hébergement supplémentaire. Pour le multijoueur, la simulation reste dans un processus Bun permanent, sur une seule instance pour la première version. Le serveur conserve le monde en mémoire : son redémarrage termine les sessions et réinitialise le terrain. Les connexions et instances temporaires des Vercel Functions ne conviennent pas au monde partagé actuel.
 
+## Publication du bazooka assaut — 21 septembre 2026
+
+Marc a validé le modèle, l'ogive détachable, la visée à travers la lunette et les quatre poses avant de demander la publication. Le commit applicatif `c159cd58885f7fe4488bc51cc488d5c92c2b3cec` contient le RPG du kit assaut, ses dégâts de 80 PV, son vol à 60 blocs/s et le tri des particules transparentes. Le médic garde son kit. Le client et le serveur utilisent désormais le **protocole 4** ; une page déjà ouverte doit être rechargée.
+
+Le commit a été poussé sur `codex/assault-rpg-release`, puis intégré sans réécriture dans `main`. La release figée `20260921-203509` a été testée avant bascule : **410 tests / 20 478 assertions** localement avec TypeScript et build client, puis **148 tests / 3 270 assertions** sur Linux, dont les règles RPG et les échanges WebSocket. L'archive de validation inclut désormais ces deux suites RPG. Les contrôles GPU et les captures/vidéo approuvées sont décrits dans [la validation](validation.md#ogive-lunette-et-prises-en-main-du-rpg--21-septembre-2026).
+
+Le serveur a été activé à **18:36:46 UTC**, sans joueur connecté : service `ubercube` actif, PID 179804, treize fichiers serveur/partagés conformes aux empreintes et protocole 4 confirmé dans les sources actives. Les sources précédentes restent dans `/opt/ubercube/releases/20260921-203509/previous-src`. Configuration, compte système et accès SSH/sudo sont conservés.
+
+Le build Git Vercel préparé `dpl_CsubdSnLmFTh47pcFgEU9yW349Jj` a été promu après activation du serveur. Le push de `main` a ensuite produit `dpl_DHtaaewtABT8VJ3ZaKsSMNoWc8WW`, issu du même SHA. Les trois domaines `www.ubercube.io`, `ubercube.io` et `ubercube-io.vercel.app`, ainsi que **54 ressources publiques**, ont été comparés au build figé. Aucun upload de sources locales n'a été utilisé.
+
+Le smoke Internet confirme deux identités distinctes, monde/manche communs, apparitions autoritaires, commandes acquittées, visée/annulation, départ et rejet du protocole précédent. Le navigateur public passe pseudo → lobby → Assault → partie, avec HUD à 100 PV et 30 munitions et sans diagnostic console. Le navigateur intégré refuse la capture de souris et n'a pas fourni de capture d'écran lors de ce contrôle ; la session de test a ensuite expiré avant le retour à l'accueil. Cette vérification ne remplace pas une partie humaine. Le rendu est couvert par les captures locales approuvées et la conformité des ressources servies.
+
+Preuves locales : `.runtime/releases/20260921-203509/` contient les archives figées, `server-stage.log`, `server-activation.log`, `server-verification.txt`, `verification-staged.json`, `verification.json` et `smoke.json`. La suite locale est dans `.runtime/rpg-release-check.log`. Les empreintes datées de `ops/` décrivent cette publication applicative ; le commit documentaire peut provoquer un autre build identique, dont le SHA et les ressources sont contrôlés séparément après son push.
+
 ## Publication des impacts sur cadavres ×4 — 20 septembre 2026
 
 Le client issu du commit `d263001834db692f48a17181cce7b9f9ed12a78b`, poussé sur `main`, est publié par l'intégration Git Vercel : `dpl_wAyRUfhz8UQWQn7AnJ4LSYADZBbz`. Les trois domaines `www.ubercube.io`, `ubercube.io` et `ubercube-io.vercel.app` servent ce commit ; 51 ressources publiques correspondent au build figé de la release `20260920-224939`, vérifiées à 20:51 UTC. Ce changement ajoute les réactions aux tirs AK/AWP sur les cadavres, impulsions 48/80 choisies par Marc, avec sang au point touché.

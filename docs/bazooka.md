@@ -1,6 +1,6 @@
 # Bazooka RPG — 21 septembre 2026
 
-Implémentation locale, non publiée. Le bazooka est la deuxième arme du kit assaut, après l'AK-47. Le médic garde ses soins, son AK-47, ses grenades et sa pelle ; le sniper reste inchangé. La sélection par molette et les flèches tactiles utilisent le même inventaire validé par le serveur.
+Publié le 21 septembre 2026 avec le protocole 4 ; voir [la preuve de publication](deployment.md#publication-du-bazooka-assaut--21-septembre-2026). Le bazooka est la deuxième arme du kit assaut, après l'AK-47. Le médic garde ses soins, son AK-47, ses grenades et sa pelle ; le sniper reste inchangé. La sélection par molette et les flèches tactiles utilisent le même inventaire validé par le serveur.
 
 ## Référence retrouvée
 
@@ -28,7 +28,7 @@ Les quatre références visuelles consultées à l'écran pour la silhouette et 
 - [Corps nu — ministère tchèque de la Défense](https://doarmady.mo.gov.cz/file/edee/o-armade/armypedia/vyzbroj/protitankove-zbrane/rpg-7/rpg-7-002.png).
 - [RPG complet avec optique — IMA](https://www.ima-usa.com/cdn/shop/files/ONSV24OID016A__06.jpg?v=1738944754).
 
-Aucune photo ni géométrie externe n'est copiée dans les ressources du jeu. Le recul et le point de départ brut `(0 ; -1,6 ; -24)` sont conservés. L'échelle de pose reste `(2 ; 2 ; -2)`, avant le facteur commun `1/16` : le modèle mesure 2,375 blocs, entre les longueurs de l'AK et de l'AWP. La pose FPS de visée aligne maintenant l'axe de la lentille avec la caméra ; le point de tir suit toujours l'échelle et la translation de la géométrie. En visée stabilisée, sa coordonnée locale est `(0,09 ; -0,145 ; 2)`, à la pointe du modèle. Le modèle et les nouvelles règles ci-dessous restent locaux, non publiés, avec le protocole 4 déjà prévu pour le RPG.
+Aucune photo ni géométrie externe n'est copiée dans les ressources du jeu. Le recul et le point de départ brut `(0 ; -1,6 ; -24)` sont conservés. L'échelle de pose reste `(2 ; 2 ; -2)`, avant le facteur commun `1/16` : le modèle mesure 2,375 blocs, entre les longueurs de l'AK et de l'AWP. La pose FPS de visée aligne maintenant l'axe de la lentille avec la caméra ; le point de tir suit toujours l'échelle et la translation de la géométrie. En visée stabilisée, sa coordonnée locale est `(0,09 ; -0,145 ; 2)`, à la pointe du modèle. Le modèle et les règles ci-dessous sont publiés depuis le 21 septembre 2026 avec le protocole 4.
 
 ## Règles actuelles
 
@@ -54,6 +54,6 @@ Le rendu distant porte l'arme abaissée sur les avant-bras au repos et au-dessus
 
 Les dégâts et le souffle utilisent la distance aux pieds du joueur, comme les grenades du jeu actuel ; l'impulsion cosmétique du cadavre agit au torse et plafonne à 16, contre 20 pour une grenade. La fumée est bornée pour les scènes chargées et ses particules transparentes sont triées de loin vers près. Le shader commun aux armes conserve leurs palettes et leur éclairage facetté ; le reflet cubemap historique n'est pas reproduit. Les cadavres restent cosmétiques dans le système actuel. La révision de présentation ne change ni la vitesse, ni la cadence, ni les dégâts du RPG.
 
-Le protocole passe de 3 à 4 : un ancien client ne sait pas interpréter l'arme RPG. Le code d'arme est ajouté à la fin de la table binaire ; la structure des enregistrements ne change pas, donc la version du format binaire reste 1. Une publication devra mettre à jour client et serveur ensemble.
+Le protocole passe de 3 à 4 : un ancien client ne sait pas interpréter l'arme RPG. Le code d'arme est ajouté à la fin de la table binaire ; la structure des enregistrements ne change pas, donc la version du format binaire reste 1. Le client et le serveur ont été mis à jour ensemble lors de la publication du 21 septembre 2026.
 
 La référence Java a été inspectée en lecture seule, sans lancement ni compilation. Les tests automatisés et le contrôle GPU sont récapitulés dans [la validation](validation.md). Le modèle, la vitesse et les dégâts sont désormais des adaptations demandées par Marc ; la comparaison des autres sensations avec une session humaine du Java reste à faire.

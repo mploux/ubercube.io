@@ -2,6 +2,12 @@
 
 Le jeu est publié sur Vercel et Hetzner. Cette page distingue les vérifications locales et celles de production ; la parité des sensations avec le Java, la tenue prolongée sur Internet et les grandes distances d'affichage ne sont pas encore entièrement validées.
 
+## Publication du RPG validé — 21 septembre 2026
+
+Après validation visuelle de Marc, la version applicative `c159cd5` est poussée sur `main` et publiée côté client et serveur en protocole 4. **`bun run check` passe : 410 tests / 20 478 assertions**, TypeScript et 11 sorties de build. L'archive de staging inclut les tests RPG et RPG réseau ; **148 tests / 3 270 assertions** passent sur Linux avant activation. Les vérifications de préparation d'archive et de génération des assets repassent après les seuls ajustements d'emballage et de fin de fichier.
+
+Les empreintes des treize fichiers serveur/partagés actifs, les trois domaines et 54 ressources client sont conformes. Le smoke Internet à deux joueurs passe, y compris le refus du protocole 3. Le parcours public pseudo → lobby → Assault → jeu atteint le HUD, sans erreur console. Le navigateur intégré refuse la souris et ses captures sont indisponibles pendant ce contrôle ; sa session de test a expiré avant le retour à l'accueil. Les captures GPU et la vidéo de la révision précédente restent les preuves visuelles approuvées. Aucun tir de contrôle ni test de charge n'a été lancé sur la production. [Publication et preuves](deployment.md#publication-du-bazooka-assaut--21-septembre-2026).
+
 ## Ogive, lunette et prises en main du RPG — 21 septembre 2026
 
 Après validation du modèle par Marc, sa silhouette et sa palette sont conservées. Les 280 triangles de l'ogive verte deviennent une pièce séparée, masquée sur le lanceur après le tir et réutilisée pour le projectile en vol. Le tube se recharge visuellement à la cadence existante. L'intérieur de l'optique est ouvert et la lentille devient transparente ; la visée reprend le zoom et le réticule de l'AWP. Le personnage porte le lanceur sur les avant-bras au repos et à l'épaule en visée, avec les mains sur les poignées. La géométrie finale compte **1 176 triangles, 656 sommets indexés et neuf matériaux**.

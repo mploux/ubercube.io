@@ -205,6 +205,21 @@
     "size": 72919
   },
   {
+    "file": "public/assets/weapons/rpg/AK47.vox",
+    "sha": "9908b118df2f03e10721c640588b22cf542b609f",
+    "size": 9023
+  },
+  {
+    "file": "public/assets/weapons/rpg/RPG.mtl",
+    "sha": "8d693a19d46224a014a6aec985db1890da488aaf",
+    "size": 415
+  },
+  {
+    "file": "public/assets/weapons/rpg/RPG.obj",
+    "sha": "8b6af997c93f9968cb8d9206ae553a9ba6ec91bb",
+    "size": 106399
+  },
+  {
     "file": "public/assets/weapons/shovel/SHOVEL.mtl",
     "sha": "21dc59c406dd1dff319f696c5a4e23c5d545c2a7",
     "size": 357
@@ -261,8 +276,8 @@
   },
   {
     "file": "src/client/main.ts",
-    "sha": "85893766553bfa6e254b260a88d3ac94186a249c",
-    "size": 40336
+    "sha": "c592261fb70a4c9f1d59fb852254e8f902a86937",
+    "size": 40650
   },
   {
     "file": "src/client/minimap.ts",
@@ -271,18 +286,18 @@
   },
   {
     "file": "src/client/particle-material.ts",
-    "sha": "f4683078caf587235328ff5f741e68f340efd0f4",
-    "size": 1990
+    "sha": "984020e63cb144d65e5d628625318a20b652830d",
+    "size": 4358
   },
   {
     "file": "src/client/player-visuals.ts",
-    "sha": "62351fda0f0dcf4dbf4322ac5bb5c8f3fabb61d8",
-    "size": 17145
+    "sha": "038e4e6a7351ea503e4e878287ab9857331840d9",
+    "size": 21199
   },
   {
     "file": "src/client/presentation.ts",
-    "sha": "387208677a1244b9f68d1ec18e40cbae2fcab701",
-    "size": 6894
+    "sha": "aae9300bc53aa2c15ee4ce5c5811b22f0c348726",
+    "size": 7420
   },
   {
     "file": "src/client/ragdoll-terrain.ts",
@@ -298,6 +313,11 @@
     "file": "src/client/remote-players.ts",
     "sha": "a82ee64eee68a2ea10022ee5fb990265ad13e9b4",
     "size": 3317
+  },
+  {
+    "file": "src/client/rocket-visuals.ts",
+    "sha": "c7b84199c2d5f9db706acc9f19f9546e3c56ab02",
+    "size": 10929
   },
   {
     "file": "src/client/server-endpoints.ts",
@@ -326,8 +346,8 @@
   },
   {
     "file": "src/client/styles.css",
-    "sha": "9b57649e2fd4fae2a086b4f4685e3ebc6426b250",
-    "size": 23947
+    "sha": "aa681b76486b1efd63fd3d68549b06022ec5974b",
+    "size": 24052
   },
   {
     "file": "src/client/terrain.ts",
@@ -341,18 +361,18 @@
   },
   {
     "file": "src/client/touch-controls.ts",
-    "sha": "b9aeee99f1287fc39143bd18e67cf0ad46114285",
-    "size": 8750
+    "sha": "9caf8b87e1dc4cb5027862569e4be43415d137e5",
+    "size": 8800
   },
   {
     "file": "src/client/weapon-model.ts",
-    "sha": "5800f4e2c927155d48d0da7f2e85777c938c5932",
-    "size": 4190
+    "sha": "1ad8a4449e6c3107c99a605aa065487d4df055c2",
+    "size": 4546
   },
   {
     "file": "src/client/weapon-view.ts",
-    "sha": "63d37a908894e8114a984fd2c21a327663d2f67c",
-    "size": 9313
+    "sha": "f2b19b818faec26465b6fb7689f8e181fb6c9b09",
+    "size": 9716
   },
   {
     "file": "src/client/world-material.ts",
@@ -376,8 +396,8 @@
   },
   {
     "file": "src/shared/game.ts",
-    "sha": "87cf0006fd65c555282e3ab144c52e4d09ebdc43",
-    "size": 34926
+    "sha": "5b06039810321933ad21cfe9680663e5b7de58a4",
+    "size": 38305
   },
   {
     "file": "src/shared/grenade.ts",
@@ -391,8 +411,8 @@
   },
   {
     "file": "src/shared/protocol.ts",
-    "sha": "bb94e795d76541ff67f6becce07ed44dc820ba17",
-    "size": 3391
+    "sha": "175f1ee28afc5717a314c8415fac4b9cf12357ca",
+    "size": 3496
   },
   {
     "file": "src/shared/ruin-model.ts",
@@ -416,13 +436,13 @@
   },
   {
     "file": "src/shared/weapon-pose.ts",
-    "sha": "fb2fb6ad1cfafd669dbd3ab51eb7fb719a2c7753",
-    "size": 8058
+    "sha": "d889302033b2e04d554bb813e8e081d6b40b21e9",
+    "size": 8454
   },
   {
     "file": "src/shared/wire.ts",
-    "sha": "17a78d26e468e969dae14260343877ab459b1656",
-    "size": 5177
+    "sha": "2b175209fe4bbad0ddda23521d493d5d15242976",
+    "size": 5184
   },
   {
     "file": "tsconfig.json",
