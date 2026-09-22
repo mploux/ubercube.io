@@ -14,6 +14,8 @@ Publié le 21 septembre 2026 : death cam de 3 s puis kill cam de 3 s, sneak sur 
 
 Publié le 22 septembre 2026 : pointeur conservé pendant les deux caméras et kill cam portée à 5 s, avec 2 s d'action après la mort. Sur ordinateur, entrer en jeu ou reprendre demande le plein écran et la capture clavier pour courir avec Ctrl tout en affichant les scores avec Tab. Échap libère les captures ; les raccourcis réservés restent possibles si le navigateur refuse ou ne prend pas en charge la capture clavier. [Preuve de publication](docs/deployment.md#publication-des-captures-et-de-la-kill-cam-prolongée--22-septembre-2026).
 
+Ajustement local du 22 septembre 2026 : le plein écran automatique est retiré. Le bouton **Fullscreen** dans **Options** permet de l'activer ou de le quitter volontairement ; entrer en jeu, réapparaître et reprendre n'y basculent jamais. En fenêtre, les raccourcis réservés comme Ctrl+Tab peuvent rester gérés par le navigateur.
+
 ## Reprendre le projet
 
 Nouveau développeur ou agent : lire [AGENTS.md](AGENTS.md), puis le [guide de démarrage](docs/agent-start.md). Il donne les points d'entrée du code, les décisions produit, les vérifications et les accès de publication sans dépendre d'un historique de discussion.

@@ -2,6 +2,14 @@
 
 Le jeu est publié sur Vercel et Hetzner. Cette page distingue les vérifications locales et celles de production ; la parité des sensations avec le Java, la tenue prolongée sur Internet et les grandes distances d'affichage ne sont pas encore entièrement validées.
 
+## Plein écran volontaire — 22 septembre 2026, local
+
+Le plein écran automatique est retiré de l'entrée en jeu, de la réapparition et de la reprise. **Options → Fullscreen** permet de l'activer volontairement, puis **Exit fullscreen** de le quitter. En fenêtre, seule la souris est capturée ; la capture clavier n'est demandée qu'en plein écran déjà actif. Ctrl+Tab peut donc rester réservé au navigateur en mode fenêtre.
+
+`bun run check` réussit avec **545 tests / 22 320 assertions**, TypeScript et 11 sorties de build. Les **36 tests de contrôles / 236 assertions** exécutent les handlers de production : fenêtre par défaut, bascule manuelle, refus/API absente et permissions asynchrones. Les sous-processus bloqués par `EPERM` passent avec les permissions adaptées. Journal : `.runtime/manual-fullscreen-check.log`. Ce total inclut le chantier de cartes local déjà présent, sans le publier.
+
+Le vrai client local est vérifié dans le navigateur : apparition, panneau Options, activation puis sortie manuelles du plein écran et déconnexion. Le bouton change de libellé après les événements du navigateur ; les dispositions 1280 × 720 et 390 × 844 sont inspectées, sans avertissement ni erreur console. La capture souris reste refusée par le navigateur intégré ; les raccourcis système et le ressenti FPS ne sont pas validés par ce parcours. Aucun déploiement pour cet ajustement.
+
 ## Captures souris/clavier et continuation de kill cam — 22 septembre 2026
 
 Publication client vérifiée : commit `b25b90356092d3612debe28bca8572b8c79f91ee`, protocole 6, sans redémarrage du serveur. Dans le checkout isolé, excluant le chantier de cartes, **`bun run check` complet réussit : 510 tests / 21 866 assertions**, TypeScript et 11 sorties de build. Le SHA GitHub et Vercel, les trois domaines et **54 ressources publiques** sont vérifiés. Smoke Internet réussi avec deux joueurs et fermeture des connexions ; parcours public pseudo → lobby → assaut → jeu/menu → déconnexion, HUD/arme/minicarte inspectés et aucun diagnostic console. Le navigateur intégré refuse toujours la capture souris : l'interception native de Ctrl+Tab reste à confirmer dans Chrome/Edge. [Preuves de publication](deployment.md#publication-des-captures-et-de-la-kill-cam-prolongée--22-septembre-2026).

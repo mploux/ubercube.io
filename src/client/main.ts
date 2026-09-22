@@ -29,6 +29,7 @@ document.body.classList.toggle('touch-mode', touchMode);
 
 const element = <T extends HTMLElement = HTMLElement>(id: string): T => document.getElementById(id) as T;
 const canvas = element<HTMLCanvasElement>('viewport');
+const fullscreenButton = element<HTMLButtonElement>('fullscreen-button');
 const keyboard = (navigator as Navigator & { keyboard?: { lock(): Promise<void>; unlock(): void } }).keyboard;
 let keyboardCaptureRequested = false;
 const nickname = element<HTMLInputElement>('nickname');
@@ -270,24 +271,16 @@ function lockPointer(): void {
       if (result) void result.catch(() => { unlockKeyboard(); setPaused(true); toast('Ce navigateur a refusé la capture de la souris. Ouvrez le jeu dans Chrome, Firefox ou Edge.'); });
     }
   } catch { unlockKeyboard(); setPaused(true); toast('Ce navigateur a refusé la capture de la souris. Ouvrez le jeu dans Chrome, Firefox ou Edge.'); return; }
-  // Fullscreen consumes the click's activation, so request pointer/keyboard capture first.
+  if (!document.fullscreenElement) return;
   if (keyboard?.lock) {
     keyboardCaptureRequested = true;
     void keyboard.lock().then(() => {
-      if (!keyboardCaptureRequested || touchMode || !document.hasFocus()
+      if (!keyboardCaptureRequested || touchMode || !document.hasFocus() || !document.fullscreenElement
         || (!spawning && screen !== 'game' && screen !== 'death' && screen !== 'killcam')) unlockKeyboard();
     }).catch(() => {
       if (keyboardCaptureRequested) toast('Capture clavier refusée : certains raccourcis du navigateur restent actifs.');
     });
   } else toast('Capture clavier indisponible : Ctrl+Tab reste réservé au navigateur.');
-  if (!document.fullscreenElement) {
-    if (document.documentElement.requestFullscreen) {
-      void document.documentElement.requestFullscreen().catch(() => {
-        unlockKeyboard();
-        toast('Plein écran refusé : certains raccourcis du navigateur restent actifs.');
-      });
-    } else { unlockKeyboard(); toast('Plein écran indisponible : certains raccourcis du navigateur restent actifs.'); }
-  }
 }
 
 function send(message: ClientMessage): boolean {
@@ -809,6 +802,13 @@ audioVolumeInput.addEventListener('input', () => {
   element('audio-volume-value').textContent = String(Math.round(audioVolume * 100));
 });
 element('options-button').addEventListener('click', () => { element('options-panel').hidden = false; element('graphics-panel').hidden = true; });
+fullscreenButton.disabled = !document.documentElement.requestFullscreen;
+fullscreenButton.addEventListener('click', async () => {
+  try {
+    if (document.fullscreenElement) await document.exitFullscreen();
+    else await document.documentElement.requestFullscreen();
+  } catch { toast('Le changement de mode plein écran a été refusé par le navigateur.'); }
+});
 element('graphics-button').addEventListener('click', () => { element('graphics-panel').hidden = false; element('options-panel').hidden = true; });
 for (const button of document.querySelectorAll('[data-close-settings]')) button.addEventListener('click', () => {
   element('options-panel').hidden = true; element('graphics-panel').hidden = true;
@@ -831,6 +831,7 @@ document.addEventListener('pointerlockerror', () => {
   toast('Ce navigateur a refusé la capture de la souris. Ouvrez le jeu dans Chrome, Firefox ou Edge.');
 });
 document.addEventListener('fullscreenchange', () => {
+  fullscreenButton.textContent = document.fullscreenElement ? 'Exit fullscreen' : 'Fullscreen';
   if (document.fullscreenElement) return;
   unlockKeyboard();
   if (document.pointerLockElement === canvas) document.exitPointerLock?.();

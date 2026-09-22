@@ -120,6 +120,7 @@ body[data-screen="killcam"] #game-hud > :not(#crosshair):not(#scope):not(.vignet
 .gui-slider input:focus-visible { outline: 1px solid #fff; }
 .gui-slider output { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); color: rgb(255 255 255 / 40%); font-size: 24px; pointer-events: none; white-space: nowrap; }
 .audio-slider { position: absolute; left: 10px; top: 135px; width: 480px; }
+.fullscreen-setting { position: absolute; top: 195px; left: 50%; min-width: 220px; transform: translateX(-50%); }
 .back-settings { position: absolute; bottom: 10px; left: 50%; width: 150px; transform: translateX(-50%); }
 .gui-checkbox { position: absolute; height: 18px; display: flex; align-items: center; gap: 8px; font-size: 24px; white-space: nowrap; }
 .gui-checkbox input { appearance: none; width: 18px; height: 18px; margin: 0; border: 3px solid rgb(0 0 0 / 50%); background: #fff; cursor: pointer; }
@@ -262,6 +263,7 @@ body[data-screen="killcam"] #game-hud > :not(#crosshair):not(#scope):not(.vignet
   .gui-slider input::-webkit-slider-thumb { height: 28px; margin-top: 8px; width: 20px; }
   .gui-slider input::-moz-range-thumb { height: 28px; width: 20px; }
   .audio-slider { position: relative; inset: auto; width: 100%; flex: none; }
+  .fullscreen-setting { position: static; transform: none; align-self: center; min-height: 48px; }
   .back-settings { position: static; transform: none; align-self: center; margin-top: 10px; min-height: 48px; }
   .gui-checkbox { position: static; min-height: 44px; height: auto; font-size: 20px; white-space: normal; }
   .gui-checkbox input { width: 24px; height: 24px; flex-shrink: 0; }

@@ -11,17 +11,25 @@ const functions = new Set(['clearInput', 'clearActions', 'showScreen', 'setPause
 const events = new Set(['pointerlockchange', 'pointerlockerror', 'fullscreenchange', 'mousemove', 'keydown', 'keyup', 'mousedown', 'mouseup', 'contextmenu', 'wheel', 'blur', 'visibilitychange']);
 const statements = source.statements.filter(node => {
   if (ts.isFunctionDeclaration(node)) return !!node.name && functions.has(node.name.text);
-  if (ts.isVariableStatement(node)) return node.declarationList.declarations.some(declaration => ts.isIdentifier(declaration.name) && ['keyboard', 'keyboardCaptureRequested'].includes(declaration.name.text));
-  if (!ts.isExpressionStatement(node) || !ts.isCallExpression(node.expression)) return false;
+  if (ts.isVariableStatement(node)) return node.declarationList.declarations.some(declaration => ts.isIdentifier(declaration.name) && ['keyboard', 'keyboardCaptureRequested', 'fullscreenButton'].includes(declaration.name.text));
+  if (!ts.isExpressionStatement(node)) return false;
+  if (ts.isBinaryExpression(node.expression)) {
+    const { left } = node.expression;
+    return ts.isPropertyAccessExpression(left) && ts.isIdentifier(left.expression) && left.expression.text === 'fullscreenButton' && left.name.text === 'disabled';
+  }
+  if (!ts.isCallExpression(node.expression)) return false;
   const { expression, arguments: args } = node.expression;
   return ts.isPropertyAccessExpression(expression) && expression.name.text === 'addEventListener'
-    && ts.isIdentifier(expression.expression) && ['document', 'window'].includes(expression.expression.text)
-    && !!args[0] && ts.isStringLiteral(args[0]) && events.has(args[0].text);
+    && ts.isIdentifier(expression.expression) && !!args[0] && ts.isStringLiteral(args[0])
+    && ((['document', 'window'].includes(expression.expression.text) && events.has(args[0].text))
+      || (expression.expression.text === 'fullscreenButton' && args[0].text === 'click'));
 });
 const controlsCode = ts.transpileModule(statements.map(node => node.getText(source)).join('\n'), { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
 
 class Element extends EventTarget {
   hidden = true;
+  disabled = false;
+  textContent = '';
   editable = false;
   dataset: Record<string, string> = {};
   classList = { toggle: () => {} };
@@ -54,11 +62,13 @@ function fixture(options: { keyboard?: 'unsupported' | 'reject'; fullscreen?: 'u
     focused: true,
     hasFocus: () => document.focused,
     exitPointerLock: () => { calls.push('pointer.unlock'); document.pointerLockElement = null; emit(document, 'pointerlockchange'); },
+    exitFullscreen: () => { calls.push('fullscreen.exit'); document.fullscreenElement = null; emit(document, 'fullscreenchange'); return Promise.resolve(); },
   });
   if (options.fullscreen !== 'unsupported') document.documentElement.requestFullscreen = () => {
     calls.push('fullscreen');
     if (options.fullscreen === 'reject') return Promise.reject(new Error('denied'));
     document.fullscreenElement = document.documentElement;
+    emit(document, 'fullscreenchange');
     return Promise.resolve();
   };
   const keyboard = options.keyboard === 'unsupported' ? undefined : {
@@ -90,6 +100,7 @@ function fixture(options: { keyboard?: 'unsupported' | 'reject'; fullscreen?: 'u
 
 test('death and killcam retain capture, clear held actions, and release capture at the lobby', async () => {
   const f = fixture();
+  f.document.fullscreenElement = f.document.documentElement;
   f.showScreen('game'); f.lockPointer();
   await Promise.resolve();
   f.key('keydown', 'ControlLeft');
@@ -197,10 +208,25 @@ test.each(['fullscreenchange', 'pointerlockchange', 'blur', 'visibilitychange'])
   expect(f.element('score-screen').hidden).toBe(true);
 });
 
-test('desktop requests mouse and keyboard before fullscreen; touch requests neither', async () => {
-  const desktop = fixture(); desktop.showScreen('game'); desktop.calls.length = 0; desktop.lockPointer();
-  await Promise.resolve();
-  expect(desktop.calls.filter(call => ['pointer.lock', 'keyboard.lock', 'fullscreen'].includes(call))).toEqual(['pointer.lock', 'keyboard.lock', 'fullscreen']);
+test('entry, resume and respawn capture only the mouse in windowed mode', async () => {
+  const f = fixture();
+  for (const action of ['entry', 'resume', 'respawn']) {
+    if (action === 'resume') f.setPaused(true);
+    else { f.showScreen('lobby'); f.showScreen('game'); }
+    f.calls.length = 0; f.lockPointer(); await Promise.resolve();
+    expect(f.document.pointerLockElement).toBe(f.canvas);
+    expect(f.document.fullscreenElement).toBeNull();
+    expect(f.state.paused).toBe(false);
+    expect(f.calls).not.toContain('keyboard.lock');
+    expect(f.calls).not.toContain('fullscreen');
+    expect(f.notices).toEqual([]);
+  }
+});
+
+test('desktop captures the keyboard only in fullscreen; touch requests neither capture', async () => {
+  const desktop = fixture(); desktop.document.fullscreenElement = desktop.document.documentElement;
+  desktop.showScreen('game'); desktop.calls.length = 0; desktop.lockPointer(); await Promise.resolve();
+  expect(desktop.calls.filter(call => ['pointer.lock', 'keyboard.lock', 'fullscreen'].includes(call))).toEqual(['pointer.lock', 'keyboard.lock']);
   const touch = fixture({ touch: true }); touch.showScreen('game'); touch.setPaused(true); touch.calls.length = 0; touch.lockPointer();
   expect(touch.state.paused).toBe(false);
   expect(touch.calls).not.toContain('pointer.lock');
@@ -208,8 +234,19 @@ test('desktop requests mouse and keyboard before fullscreen; touch requests neit
   expect(touch.calls).not.toContain('fullscreen');
 });
 
-test.each([{ keyboard: 'unsupported' }, { keyboard: 'reject' }, { fullscreen: 'unsupported' }, { fullscreen: 'reject' }] as const)('capture API failure %j is handled without breaking the game', async options => {
+test.each([{ keyboard: 'unsupported' }, { keyboard: 'reject' }, { fullscreen: 'unsupported' }, { fullscreen: 'reject' }] as const)('windowed gameplay does not request optional APIs or show capture warnings with %j', async options => {
   const f = fixture(options); f.showScreen('game');
+  expect(() => f.lockPointer()).not.toThrow();
+  await new Promise(resolve => setTimeout(resolve, 0));
+  expect(f.notices).toEqual([]);
+  expect(f.calls).not.toContain('keyboard.lock');
+  expect(f.calls).not.toContain('fullscreen');
+  expect(f.document.pointerLockElement).toBe(f.canvas);
+  expect(f.state.paused).toBe(false);
+});
+
+test.each(['unsupported', 'reject'] as const)('fullscreen keyboard API %s is handled without breaking the game', async keyboard => {
+  const f = fixture({ keyboard }); f.document.fullscreenElement = f.document.documentElement; f.showScreen('game');
   expect(() => f.lockPointer()).not.toThrow();
   await new Promise(resolve => setTimeout(resolve, 0));
   expect(f.notices.length).toBeGreaterThan(0);
@@ -217,12 +254,62 @@ test.each([{ keyboard: 'unsupported' }, { keyboard: 'reject' }, { fullscreen: 'u
   expect(f.state.paused).toBe(false);
 });
 
-test.each(['lobby', 'blur', 'pause'])('keyboard permission resolving after %s is released again', async transition => {
+test('Options toggles fullscreen only on demand and keeps the menu open', async () => {
+  const f = fixture(); f.showScreen('game'); f.setPaused(true); f.calls.length = 0;
+  const button = f.element('fullscreen-button');
+  expect(button.disabled).toBe(false);
+  emit(button, 'click'); await Promise.resolve();
+  expect(f.document.fullscreenElement).toBe(f.document.documentElement);
+  expect(button.textContent).toBe('Exit fullscreen');
+  expect(f.state.paused).toBe(true);
+  expect(f.calls).toEqual(['fullscreen']);
+  emit(button, 'click'); await Promise.resolve();
+  expect(f.document.fullscreenElement).toBeNull();
+  expect(button.textContent).toBe('Fullscreen');
+  expect(f.calls).toContain('fullscreen.exit');
+  expect(f.state.paused).toBe(true);
+  expect(f.notices).toEqual([]);
+});
+
+test('leaving fullscreen externally updates Options and resuming stays windowed', async () => {
+  const f = fixture(); f.showScreen('game'); f.setPaused(true);
+  emit(f.element('fullscreen-button'), 'click'); await Promise.resolve();
+  f.lockPointer(); await Promise.resolve();
+  await f.document.exitFullscreen();
+  expect(f.element('fullscreen-button').textContent).toBe('Fullscreen');
+  expect(f.state.paused).toBe(true);
+  expect(f.document.pointerLockElement).toBeNull();
+  f.calls.length = 0; f.lockPointer(); await Promise.resolve();
+  expect(f.document.fullscreenElement).toBeNull();
+  expect(f.calls).not.toContain('fullscreen');
+  expect(f.calls).not.toContain('keyboard.lock');
+  expect(f.state.paused).toBe(false);
+});
+
+test('Options handles a refused fullscreen request without leaving the menu', async () => {
+  const f = fixture({ fullscreen: 'reject' }); f.showScreen('game'); f.setPaused(true); f.calls.length = 0;
+  emit(f.element('fullscreen-button'), 'click');
+  await new Promise(resolve => setTimeout(resolve, 0));
+  expect(f.document.fullscreenElement).toBeNull();
+  expect(f.state.paused).toBe(true);
+  expect(f.calls).toEqual(['fullscreen']);
+  expect(f.notices.length).toBe(1);
+});
+
+test('Options disables fullscreen when the browser has no fullscreen API', () => {
+  const f = fixture({ fullscreen: 'unsupported' });
+  expect(f.element('fullscreen-button').disabled).toBe(true);
+  expect(f.calls).toEqual([]);
+  expect(f.notices).toEqual([]);
+});
+
+test.each(['lobby', 'blur', 'pause', 'fullscreen exit'])('keyboard permission resolving after %s is released again', async transition => {
   let resolve!: () => void;
   const permission = new Promise<void>(done => { resolve = done; });
-  const f = fixture({ keyboardLock: () => permission }); f.showScreen('game'); f.lockPointer();
+  const f = fixture({ keyboardLock: () => permission }); f.document.fullscreenElement = f.document.documentElement; f.showScreen('game'); f.lockPointer();
   if (transition === 'lobby') f.showScreen('lobby');
   else if (transition === 'pause') f.setPaused(true);
+  else if (transition === 'fullscreen exit') await f.document.exitFullscreen();
   else { f.document.focused = false; emit(f.window, 'blur'); }
   f.calls.length = 0;
   resolve(); await Promise.resolve();
@@ -232,7 +319,7 @@ test.each(['lobby', 'blur', 'pause'])('keyboard permission resolving after %s is
 test.each(['death', 'killcam'])('keyboard permission resolving after Escape in %s is released again', async screen => {
   let resolve!: () => void;
   const permission = new Promise<void>(done => { resolve = done; });
-  const f = fixture({ keyboardLock: () => permission }); f.showScreen(screen); f.lockPointer();
+  const f = fixture({ keyboardLock: () => permission }); f.document.fullscreenElement = f.document.documentElement; f.showScreen(screen); f.lockPointer();
   f.key('keydown', 'Escape');
   f.calls.length = 0;
   resolve(); await Promise.resolve();
@@ -242,6 +329,7 @@ test.each(['death', 'killcam'])('keyboard permission resolving after Escape in %
 test('an older keyboard permission resolving during a new capture does not cancel it', async () => {
   const approvals: (() => void)[] = [];
   const f = fixture({ keyboardLock: () => new Promise<void>(resolve => approvals.push(resolve)) });
+  f.document.fullscreenElement = f.document.documentElement;
   f.showScreen('game'); f.lockPointer();
   f.key('keydown', 'Escape'); f.lockPointer();
   f.calls.length = 0;
@@ -255,7 +343,7 @@ test('an older keyboard permission resolving during a new capture does not cance
 test('resuming keeps keyboard capture when its permission resolves before pointer capture', async () => {
   let resolvePointer!: () => void;
   const pointerPermission = new Promise<void>(resolve => { resolvePointer = resolve; });
-  const f = fixture(); f.showScreen('game'); f.setPaused(true);
+  const f = fixture(); f.document.fullscreenElement = f.document.documentElement; f.showScreen('game'); f.setPaused(true);
   f.canvas.requestPointerLock = () => { f.calls.push('pointer.lock'); return pointerPermission; };
   f.calls.length = 0;
   f.lockPointer(); await Promise.resolve();
