@@ -236,8 +236,8 @@
   },
   {
     "file": "public/index.html",
-    "sha": "3ad10edb9c573cbcc1cd9d775ad36ea76367a4e1",
-    "size": 15470
+    "sha": "0e3904bbc09eee0eb58a7a8cccc05ef09a03cb00",
+    "size": 15583
   },
   {
     "file": "public/robots.txt",
@@ -286,8 +286,8 @@
   },
   {
     "file": "src/client/main.ts",
-    "sha": "f8146224f2cb1a359bc64c5ee0d757bb3d91eebb",
-    "size": 48106
+    "sha": "9c6c7dd8840e8244130834f1f68a502d7bb36a99",
+    "size": 48211
   },
   {
     "file": "src/client/minimap.ts",
@@ -356,8 +356,8 @@
   },
   {
     "file": "src/client/styles.css",
-    "sha": "b733d42e7f71aa3ebd5be668ab01418ffb216593",
-    "size": 24934
+    "sha": "6eb0964ecc8cc951bb27aa378c14ccf5d739e75a",
+    "size": 25147
   },
   {
     "file": "src/client/terrain.ts",

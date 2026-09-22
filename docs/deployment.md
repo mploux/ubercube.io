@@ -4,6 +4,16 @@
 
 Le client statique peut être servi par Vercel et permet de jouer seul sans hébergement supplémentaire. Pour le multijoueur, la simulation reste dans un processus Bun permanent, sur une seule instance pour la première version. Le serveur conserve le monde en mémoire : son redémarrage termine les sessions et réinitialise le terrain. Les connexions et instances temporaires des Vercel Functions ne conviennent pas au monde partagé actuel.
 
+## Publication du plein écran volontaire — 22 septembre 2026
+
+Le commit applicatif `b1d5afaefce9e68e6cb2a77531e930abafbe81e7`, poussé sur `main`, retire le plein écran automatique et ajoute **Fullscreen** / **Exit fullscreen** dans **Options**. La capture clavier est demandée seulement si le plein écran est déjà actif ; en fenêtre, Ctrl+Tab peut rester réservé au navigateur. Le chantier de cartes est conservé localement et exclu.
+
+La release `20260922-162600` est figée depuis un checkout propre : seuls `public/index.html`, `src/client/main.ts` et `src/client/styles.css` changent dans les ressources publiées. `bun run check` réussit avec **518 tests / 21 925 assertions**, TypeScript et 11 sorties de build. `doctor --server` et les treize empreintes serveur/partagées sont conformes. Protocole **6**, serveur `20260921-231500` conservé sans redémarrage.
+
+Le build Git Vercel `dpl_EPZbF9wWF1zA9hcdFDhntBGQQWNM` sert le SHA attendu sur les trois domaines ; les **54 ressources publiques** sont comparées au snapshot à **14:27:41 UTC**. Le smoke Internet passe avec deux joueurs temporaires. Le parcours public vérifie l'apparition, Options, l'activation puis la sortie volontaires du plein écran, la reprise sans bascule automatique et la déconnexion. Terrain, arme, HUD et minicarte inspectés, aucun avertissement ni erreur console, retour à zéro joueur. La capture souris refusée par le navigateur intégré limite la validation des raccourcis système et du ressenti FPS.
+
+Preuves : `.runtime/controls-killcam-release/.runtime/releases/20260922-162600/` (`verification.json`, `smoke.json`, snapshot et manifests), `.runtime/controls-killcam-release/.runtime/manual-fullscreen-release-check.log`. Les empreintes `ops/` enregistrent ce commit applicatif vérifié. Le commit distinct de preuves peut déclencher un second build identique ; son SHA et ses ressources sont contrôlés séparément après le push, sans toucher au serveur.
+
 ## Publication des captures et de la kill cam prolongée — 22 septembre 2026
 
 Le commit applicatif `b25b90356092d3612debe28bca8572b8c79f91ee`, poussé sur `main`, conserve le pointeur pendant death cam/kill cam, demande le plein écran et Keyboard Lock pour Ctrl+Tab et prolonge le replay de 2 s après la mort (5 s au total). Le chantier d'import/rotation des cartes est conservé localement et exclu. La comparaison de la release `20260922-103500` avec les empreintes précédentes contient seulement `src/client/main.ts` et `src/client/death-replay.ts` ; aucun fichier serveur/partagé ne change.

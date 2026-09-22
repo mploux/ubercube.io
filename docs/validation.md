@@ -2,13 +2,15 @@
 
 Le jeu est publié sur Vercel et Hetzner. Cette page distingue les vérifications locales et celles de production ; la parité des sensations avec le Java, la tenue prolongée sur Internet et les grandes distances d'affichage ne sont pas encore entièrement validées.
 
-## Plein écran volontaire — 22 septembre 2026, local
+## Plein écran volontaire — 22 septembre 2026
 
 Le plein écran automatique est retiré de l'entrée en jeu, de la réapparition et de la reprise. **Options → Fullscreen** permet de l'activer volontairement, puis **Exit fullscreen** de le quitter. En fenêtre, seule la souris est capturée ; la capture clavier n'est demandée qu'en plein écran déjà actif. Ctrl+Tab peut donc rester réservé au navigateur en mode fenêtre.
 
 `bun run check` réussit avec **545 tests / 22 320 assertions**, TypeScript et 11 sorties de build. Les **36 tests de contrôles / 236 assertions** exécutent les handlers de production : fenêtre par défaut, bascule manuelle, refus/API absente et permissions asynchrones. Les sous-processus bloqués par `EPERM` passent avec les permissions adaptées. Journal : `.runtime/manual-fullscreen-check.log`. Ce total inclut le chantier de cartes local déjà présent, sans le publier.
 
-Le vrai client local est vérifié dans le navigateur : apparition, panneau Options, activation puis sortie manuelles du plein écran et déconnexion. Le bouton change de libellé après les événements du navigateur ; les dispositions 1280 × 720 et 390 × 844 sont inspectées, sans avertissement ni erreur console. La capture souris reste refusée par le navigateur intégré ; les raccourcis système et le ressenti FPS ne sont pas validés par ce parcours. Aucun déploiement pour cet ajustement.
+Le vrai client local est vérifié dans le navigateur : apparition, panneau Options, activation puis sortie manuelles du plein écran et déconnexion. Le bouton change de libellé après les événements du navigateur ; les dispositions 1280 × 720 et 390 × 844 sont inspectées, sans avertissement ni erreur console. La capture souris reste refusée par le navigateur intégré ; les raccourcis système et le ressenti FPS ne sont pas validés par ce parcours.
+
+Publication du commit `b1d5afaefce9e68e6cb2a77531e930abafbe81e7` vérifiée : le checkout isolé sans cartes passe **518 tests / 21 925 assertions**, TypeScript et build. Les trois domaines et **54 ressources publiques** correspondent au SHA poussé. Smoke Internet et parcours public réussis : apparition sans plein écran automatique, bouton Options, activation/sortie manuelles, reprise restant fenêtrée, puis déconnexion, sans diagnostic console. Les treize empreintes serveur correspondent à la version active ; protocole 6 conservé, aucun redémarrage. [Preuves de publication](deployment.md#publication-du-plein-écran-volontaire--22-septembre-2026).
 
 ## Captures souris/clavier et continuation de kill cam — 22 septembre 2026
 
