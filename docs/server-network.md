@@ -8,7 +8,7 @@ Le client envoie désormais les intentions générées pendant chaque image, san
 
 `RemotePlayers` utilise les ticks des snapshots et une fenêtre bornée de 40 états pour mesurer la gigue. Il interpole à un intervalle de snapshot de la réception estimée, soit environ 50 ms supplémentaires en régime stable, contre 100 ms auparavant. Le temps affiché ne recule pas ; une interruption ne provoque aucune extrapolation à travers le terrain. Mort, réapparition, déconnexion, téléportation et reset interrompent correctement les anciennes trajectoires. Les états discrets d'arme et de visée suivent le même échantillon que la pose. La visée validée par le serveur occupe un bit libre du champ de flags binaire, sans ajouter d'octets ; les anciens snapshots la décodent à `false`.
 
-Les mesures avant/après, essais à 100 joueurs et limites figurent dans la [validation](validation.md). La [compensation historique AK/AWP](lag-compensation.md) est ajoutée localement le 22 septembre 2026, sans modifier cette interpolation.
+Les mesures avant/après, essais à 100 joueurs et limites figurent dans la [validation](validation.md). La [compensation historique AK/AWP](lag-compensation.md) est publiée le 22 septembre 2026, sans modifier cette interpolation.
 
 ## Périmètre décidé
 
@@ -64,7 +64,7 @@ Le protocole publié le 15 septembre 2026 passe à 3 : un événement JSON `shot
 
 Les paramètres Java sont parfois exprimés par mise à jour. La condition de cadence et le remplissage instantané du chargeur sont conservés ; aucun rechargement temporisé n'est ajouté. La conversion en hitscan a été explicitement demandée pour l'AK-47 et l'AWP.
 
-La compensation AK/AWP locale utilise le tick interpolé de la dernière image, le dernier snapshot utilisé par cette image et la révision de terrain appliquée côté client. Le serveur conserve les snapshots envoyés, reconstruit les positions affichées sans déplacer les joueurs vivants et borne le retour à 250 ms. Il vérifie aussi les couvertures actuelles et celles de la révision reçue : un bloc nouvellement construit ou depuis détruit arrête le rayon. Cadence, canon, dispersion et dégâts restent autoritaires. Les commandes sans métadonnées ou dont l'historique a expiré utilisent la résolution courante. Le RPG et les grenades gardent leur simulation physique. Voir les [règles, limites et preuves](lag-compensation.md). Protocole local 8, format binaire inchangé ; non publié.
+La compensation AK/AWP utilise le tick interpolé de la dernière image, le dernier snapshot utilisé par cette image et la révision de terrain appliquée côté client. Le serveur conserve les snapshots envoyés, reconstruit les positions affichées sans déplacer les joueurs vivants et borne le retour à 250 ms. Il vérifie aussi les couvertures actuelles et celles de la révision reçue : un bloc nouvellement construit ou depuis détruit arrête le rayon. Cadence, canon, dispersion et dégâts restent autoritaires. Les commandes sans métadonnées ou dont l'historique a expiré utilisent la résolution courante. Le RPG et les grenades gardent leur simulation physique. Voir les [règles, limites et preuves](lag-compensation.md). Protocole 8 publié côté client et serveur le 22 septembre 2026, format binaire inchangé.
 
 ## Terrain versionné et arrivée en cours de partie
 

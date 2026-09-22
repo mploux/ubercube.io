@@ -4,6 +4,18 @@
 
 Le client statique peut être servi par Vercel et permet de jouer seul sans hébergement supplémentaire. Pour le multijoueur, la simulation reste dans un processus Bun permanent, sur une seule instance pour la première version. Le serveur conserve le monde en mémoire : son redémarrage termine les sessions et réinitialise le terrain. Les connexions et instances temporaires des Vercel Functions ne conviennent pas au monde partagé actuel.
 
+## Publication de la compensation des tirs — 22 septembre 2026
+
+Le commit applicatif `6c2e5bf72ba28dd334224c5c2f3600a02095f937`, poussé sur `codex/lag-compensation-release`, publie la compensation AK/AWP bornée à 250 ms avec conservation du lissage et vérification des couvertures. Client et serveur passent ensemble au protocole **8**. Le checkout de release exclut le chantier local de cartes : cinq fichiers applicatifs modifiés, dont seulement trois partagés côté serveur ; aucun ajout ni suppression de ressource publique.
+
+La release `20260922-205350` passe `bun run check` intégral (**563 tests / 23 221 assertions**, TypeScript, build), puis **222 tests Linux / 4 207 assertions** avant activation, incluant les 41 tests de compensation. Le banc déterministe isolé passe 1 152 essais ; le nouveau duel WebSocket confirme 24/24 tirs centrés stabilisés en course pour environ 63,46 ms RTT. Le pilote du script de charge adapté au terrain généré passe à dix clients, avec reset et nettoyage. Les mesures initiales à 100 clients restent décrites avec leurs propres conditions dans [le rapport](lag-compensation.md).
+
+Le helper installé active Hetzner après vérification des treize empreintes ; les anciennes sources restent dans `/opt/ubercube/releases/20260922-205350/previous-src`. Aucun joueur n'était présent à la bascule. Vercel `dpl_GLvRcks6JGVq2myZ7oU5hjXo4gyA` déclare le SHA applicatif et sert les trois domaines : **54 ressources publiques vérifiées** à `2026-09-22T18:57:21.099Z`. Le smoke Internet confirme le protocole 8, le refus du précédent, deux apparitions autoritaires, monde partagé, acquittements, visée et départ.
+
+Le parcours navigateur public accueil → lobby → Assault → partie → déconnexion passe : terrain, arme, HUD et minicarte visibles, 100 PV et 30 munitions, aucun avertissement ni erreur console. Retour à zéro joueur. Le navigateur intégré refuse la capture souris ; ce contrôle ne valide pas le ressenti humain du combat. Aucune charge en production.
+
+Les preuves sont dans `.runtime/lag-compensation-release/.runtime/releases/20260922-205350/`, les contrôles locaux dans `.runtime/lag-compensation-release/.runtime/release-validation/`. Les manifests `ops/` décrivent le commit applicatif vérifié. L'intégration sur `main` du commit de preuves peut lancer un second build au contenu applicatif identique ; son SHA et ses ressources sont vérifiés séparément, sans redémarrer le serveur ni créer une boucle de commits de preuves.
+
 ## Publication du plein écran volontaire — 22 septembre 2026
 
 Le commit applicatif `b1d5afaefce9e68e6cb2a77531e930abafbe81e7`, poussé sur `main`, retire le plein écran automatique et ajoute **Fullscreen** / **Exit fullscreen** dans **Options**. La capture clavier est demandée seulement si le plein écran est déjà actif ; en fenêtre, Ctrl+Tab peut rester réservé au navigateur. Le chantier de cartes est conservé localement et exclu.

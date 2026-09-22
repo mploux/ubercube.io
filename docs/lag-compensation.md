@@ -1,6 +1,6 @@
 # Compensation des tirs AK/AWP — 22 septembre 2026
 
-Implémentation locale, **non publiée**, protocole 8. Le [diagnostic initial](combat-latency-20260922.md) reproduisait jusqu'à 1,049 bloc d'écart sur une cible en course à exactement 50 ms aller-retour. Le serveur vérifie maintenant les impacts AK/AWP sur les positions que le tireur voyait, avec un retour maximal de **250 ms**. L'interpolation, les vitesses et le transport restent identiques ; le ping et le délai de confirmation du tir ne diminuent pas.
+Publiée le 22 septembre 2026 côté client et serveur, **protocole 8**. [Preuve de publication](deployment.md#publication-de-la-compensation-des-tirs--22-septembre-2026). Le [diagnostic initial](combat-latency-20260922.md) reproduisait jusqu'à 1,049 bloc d'écart sur une cible en course à exactement 50 ms aller-retour. Le serveur vérifie maintenant les impacts AK/AWP sur les positions que le tireur voyait, avec un retour maximal de **250 ms**. L'interpolation, les vitesses et le transport restent identiques ; le ping et le délai de confirmation du tir ne diminuent pas.
 
 ## Contrat et autorité
 
@@ -75,11 +75,11 @@ Ces bancs visent au torse depuis une position fixe, sur terrain plat, avec visé
 
 TypeScript et build client passent. Les **568 tests sélectionnés dans 49 fichiers** passent : 567 directement, puis le seul test `client-build` relancé inchangé avec les permissions d'exécution adaptées après un blocage `EPERM` de son sous-processus Bun. Les 41 tests de compensation serveur totalisent 297 assertions. `bun run check` intégral n'est pas exécuté : les deux suites `release-prepare` et `release-vercel` utilisent Git et sont exclues conformément à la demande. Aucune commande Git n'est utilisée.
 
-Les sensations avec plusieurs joueurs humains, les machines distinctes, le WAN, les navigateurs/GPU et la charge prolongée restent à valider. Une publication devra associer client et serveur du protocole 8 ; les empreintes `ops/` conservent l'état de production enregistré.
+Les sensations avec plusieurs joueurs humains, les machines distinctes, le WAN, les navigateurs/GPU et la charge prolongée restent à valider. La publication associe client et serveur du protocole 8 ; les empreintes `ops/` enregistrent cette version vérifiée.
 
 ## Fichiers concernés
 
-La publication est préparée dans un checkout isolé issu de la version publique, sans le chantier d'import/rotation des cartes. Ce checkout passe `bun run check` intégral : **563 tests, 23 221 assertions**, TypeScript et build. Les 41 tests serveur conservent leurs 297 assertions. Le banc déterministe y repasse ses **1 152 essais**, sans violation ; les tirs centrés à 50 ms restent à 24/24 par arme et vitesse. Les fixtures utilisent désormais `VoxelWorld.set` pour préparer le sol, sans dépendance aux cartes importées. Le script de charge réutilisable emploie le terrain généré et les apparitions normales ; les chiffres à 100 joueurs ci-dessus restent ceux du banc initial sur terrain plat et ne sont pas attribués à ce nouveau scénario.
+La publication a été préparée dans un checkout isolé issu de la version publique, sans le chantier d'import/rotation des cartes. Ce checkout passe `bun run check` intégral : **563 tests, 23 221 assertions**, TypeScript et build. Les 41 tests serveur conservent leurs 297 assertions. Le banc déterministe y repasse ses **1 152 essais**, sans violation ; les tirs centrés à 50 ms restent à 24/24 par arme et vitesse. Les fixtures utilisent désormais `VoxelWorld.set` pour préparer le sol, sans dépendance aux cartes importées. Le script de charge réutilisable emploie le terrain généré et les apparitions normales ; les chiffres à 100 joueurs ci-dessus restent ceux du banc initial sur terrain plat et ne sont pas attribués à ce nouveau scénario.
 
 - `src/shared/game.ts` : validation, historiques et résolution autoritaire ; `src/shared/voxel.ts` : raycast acceptant une vue du terrain en lecture seule ; `src/shared/protocol.ts` : trio de métadonnées et protocole 8.
 - `src/client/remote-players.ts` : expose les ticks de l'image échantillonnée ; `src/client/main.ts` : les joint aux commandes multijoueurs.

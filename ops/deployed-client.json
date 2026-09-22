@@ -286,8 +286,8 @@
   },
   {
     "file": "src/client/main.ts",
-    "sha": "9c6c7dd8840e8244130834f1f68a502d7bb36a99",
-    "size": 48211
+    "sha": "db6cc512bfb6e9aca25c3aa1fda89969ac6a5d97",
+    "size": 48594
   },
   {
     "file": "src/client/minimap.ts",
@@ -321,8 +321,8 @@
   },
   {
     "file": "src/client/remote-players.ts",
-    "sha": "a82ee64eee68a2ea10022ee5fb990265ad13e9b4",
-    "size": 3317
+    "sha": "4f6d73ccf612cfc1bd9de7b52214dfe35e8c2677",
+    "size": 3646
   },
   {
     "file": "src/client/rocket-visuals.ts",
@@ -406,8 +406,8 @@
   },
   {
     "file": "src/shared/game.ts",
-    "sha": "229984911f69378240cf23d60d8967f8463b411f",
-    "size": 39564
+    "sha": "17689d3c19bba9e5b32336201bf03c565bebaa2e",
+    "size": 47064
   },
   {
     "file": "src/shared/grenade.ts",
@@ -421,8 +421,8 @@
   },
   {
     "file": "src/shared/protocol.ts",
-    "sha": "39f565a05ebeee4c4532a3627cff2189a183de08",
-    "size": 3542
+    "sha": "5b8650f90f857204aafb1ca788e8f56342e614d9",
+    "size": 3612
   },
   {
     "file": "src/shared/ruin-model.ts",
@@ -441,8 +441,8 @@
   },
   {
     "file": "src/shared/voxel.ts",
-    "sha": "3d2f2b251465ac1fbdf9977a5868b2c48c44c4c3",
-    "size": 10547
+    "sha": "84130fc4d54aa8caffae0ebcf4fa38407f9f4454",
+    "size": 10571
   },
   {
     "file": "src/shared/weapon-pose.ts",

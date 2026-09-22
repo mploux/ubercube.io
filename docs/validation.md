@@ -2,15 +2,15 @@
 
 Le jeu est publié sur Vercel et Hetzner. Cette page distingue les vérifications locales et celles de production ; la parité des sensations avec le Java, la tenue prolongée sur Internet et les grandes distances d'affichage ne sont pas encore entièrement validées.
 
-## Compensation des tirs AK/AWP — 22 septembre 2026, locale
+## Compensation des tirs AK/AWP — 22 septembre 2026, publiée
 
-La [compensation historique](lag-compensation.md) est implémentée, **non publiée**, protocole 8. Le serveur utilise l'image des joueurs affichée au tireur, avec un retour maximal de 250 ms et vérification des couvertures actuelles et reçues. L'interpolation reste identique.
+La [compensation historique](lag-compensation.md) est publiée côté client et serveur, **protocole 8**. Le serveur utilise l'image des joueurs affichée au tireur, avec un retour maximal de 250 ms et vérification des couvertures actuelles et reçues. L'interpolation reste identique.
 
 Deux matrices de **1 152 essais** conservent exactement le résultat initial sans métadonnées et montrent, à 50 ms RTT, **0/24 → 24/24** tirs centrés sur les cibles en marche/course, pour chaque arme. Deux clients WebSocket confirment 260 tirs ; les cibles en course sont touchées 25/25 fois à l'AK et 10/10 à l'AWP, avec environ 63 ms RTT réellement mesuré. Ces résultats concernent la géométrie contrôlée du banc.
 
 Le contrôle à 100 clients actifs passe en combat puis après reset : acquittements, déplacements, tirs, PV et terrain observés pour valider l'activité ; aucune erreur, aucun input/tick abandonné, connexions toutes fermées. Avec compensation, p99 stock 3,641 ms pendant les 20 s de combat et 3,352 ms après reset. Client et serveur partagent le processus Windows ; RTT réel 81–95 ms et pas de qualification de capacité production. Les deux bras collectent les historiques, donc la comparaison n'isole pas leur coût total.
 
-TypeScript, build et **568 tests hors fixtures Git** passent, dont le test de build relancé inchangé après `EPERM`. Ni `bun run check` intégral, ni Git, ni publication, ni validation humaine/GPU/WAN. [Paramètres, résultats et empreintes](benchmarks/2026-09-22-lag-compensation.json).
+La validation initiale donne **568 tests hors fixtures Git**. Pour publier le checkout isolé sans le chantier cartes, `bun run check` intégral passe : **563 tests**, TypeScript et build. Les **222 tests Linux** du staging serveur et le smoke Internet à deux joueurs passent. Le navigateur public rejoint la partie sans erreur console ; la capture souris refusée limite le contrôle du maniement. [Preuve de publication](deployment.md#publication-de-la-compensation-des-tirs--22-septembre-2026). [Paramètres, résultats et empreintes](benchmarks/2026-09-22-lag-compensation.json).
 
 ## Décalage de visée à 50 ms — 22 septembre 2026, avant correction
 

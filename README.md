@@ -16,13 +16,13 @@ Publié le 22 septembre 2026 : pointeur conservé pendant les deux caméras et k
 
 Ajustement publié le 22 septembre 2026 : le plein écran automatique est retiré. Le bouton **Fullscreen** dans **Options** permet de l'activer ou de le quitter volontairement ; entrer en jeu, réapparaître et reprendre n'y basculent jamais. En fenêtre, les raccourcis réservés comme Ctrl+Tab peuvent rester gérés par le navigateur. [Preuve de publication](docs/deployment.md#publication-du-plein-écran-volontaire--22-septembre-2026).
 
-Implémenté localement le 22 septembre 2026, **non publié** : les impacts AK/AWP compensent jusqu'à 250 ms de retard à partir de l'image des joueurs affichée au tireur. Le lissage reste identique ; les couvertures actuelles et celles du terrain reçu bloquent les tirs. Le contrat local passe au protocole **8**, à publier avec client et serveur ensemble. [Fonctionnement et validation](docs/lag-compensation.md).
+Publié le 22 septembre 2026 : les impacts AK/AWP compensent jusqu'à 250 ms de retard à partir de l'image des joueurs affichée au tireur. Le lissage reste identique ; les couvertures actuelles et celles du terrain reçu bloquent les tirs. Client et serveur utilisent ensemble le protocole **8**. [Fonctionnement et validation](docs/lag-compensation.md).
 
 ## Reprendre le projet
 
 Nouveau développeur ou agent : lire [AGENTS.md](AGENTS.md), puis le [guide de démarrage](docs/agent-start.md). Il donne les points d'entrée du code, les décisions produit, les vérifications et les accès de publication sans dépendre d'un historique de discussion.
 
-Le site est [www.ubercube.io](https://www.ubercube.io/), le serveur de partie [game.ubercube.io](https://game.ubercube.io/health). Client Vercel, serveur Bun permanent sur Hetzner, protocole 6. Le dernier état publié **enregistré** est dans [ops/production.json](ops/production.json) avec ses empreintes client/serveur ; il doit être revérifié avant une publication.
+Le site est [www.ubercube.io](https://www.ubercube.io/), le serveur de partie [game.ubercube.io](https://game.ubercube.io/health). Client Vercel, serveur Bun permanent sur Hetzner, protocole 8. Le dernier état publié **enregistré** est dans [ops/production.json](ops/production.json) avec ses empreintes client/serveur ; il doit être revérifié avant une publication.
 
 Chaque nouvelle publication Vercel doit provenir d'un **commit poussé sur GitHub**, normalement par le déploiement automatique de `main`. Terminer et tester le travail, créer des commits ciblés, puis pousser lorsqu'une publication est demandée. Vérifier ensuite le SHA réellement publié. Les anciennes publications depuis des fichiers locaux sont conservées comme faits historiques dans [docs/deployment.md](docs/deployment.md) ; elles ne constituent plus une procédure de publication.
 
@@ -177,7 +177,7 @@ Les résultats et leurs limites figurent dans [docs/validation.md](docs/validati
 ## Travaux restants
 
 - Validation des sensations face au Java et essais avec plusieurs joueurs humains.
-- Validation humaine et publication coordonnée de la [compensation de latence AK/AWP](docs/lag-compensation.md), implémentée localement.
+- Validation humaine prolongée de la [compensation de latence AK/AWP](docs/lag-compensation.md), publiée le 22 septembre 2026.
 - Validation de charge prolongée sur machines distinctes et matériel cible, réseau dégradé, consommation GPU et grandes distances.
 - Réplication spatiale, terrain lointain et adaptation des budgets selon les mesures.
 - Supervision et alertes prolongées sur l'hébergement déjà en ligne ; Vercel et HTTPS/WSS sur Hetzner sont opérationnels.
