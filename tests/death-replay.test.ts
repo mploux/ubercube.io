@@ -26,7 +26,7 @@ function recordHistory(replay: DeathReplay): void {
   for (let tick = 0; tick < 180; tick += 3) replay.recordSnapshot(snapshot(tick, [player(1, tick / 45), player(2, tick / 30)]));
 }
 
-test('replays server time at normal speed, includes the fatal shot once, and holds death for the final 300 ms', () => {
+test('replays normal speed through two seconds after death, emits each event once, and holds the final 300 ms', () => {
   const replay = new DeathReplay();
   recordHistory(replay);
   replay.recordEvent(shot(90));
@@ -34,6 +34,9 @@ test('replays server time at normal speed, includes the fatal shot once, and hol
   const fatal = death();
   replay.recordEvent(fatal);
   expect(replay.start(fatal, 1)).toBe(true);
+  for (let tick = 183; tick <= 360; tick += 3) replay.recordSnapshot(snapshot(tick, [fatal.death!.player, player(2, tick / 30)]));
+  replay.recordEvent(shot(210));
+  replay.recordEvent(shot(301));
   expect(replay.sample(0)!.tick).toBe(18);
   const middle = replay.sample(1.2)!;
   expect(middle.tick).toBe(90);
@@ -45,7 +48,69 @@ test('replays server time at normal speed, includes the fatal shot once, and hol
   expect(last.events.map(event => event.event)).toEqual(['shot', 'death']);
   expect(last.players.find(player => player.id === 1)).toMatchObject({ alive: false, health: 0, deaths: 1 });
   expect(replay.sample(2.99)!.events).toEqual([]);
+  const continuation = replay.sample(3.2)!;
+  expect(continuation.tick).toBe(210);
+  expect(continuation.killer.position.x).toBe(7);
+  expect(continuation.events.map(event => event.tick)).toEqual([210]);
+  expect(replay.sample(4.7)!.killer.position.x).toBe(10);
+  const held = replay.sample(4.99)!;
+  expect(held.tick).toBe(300);
+  expect(held.killer.position.x).toBe(10);
+  expect(held.events).toEqual([]);
+  expect(DEATH_REPLAY_SECONDS).toBe(5);
   expect(replay.sample(DEATH_REPLAY_SECONDS)).toBeNull();
+});
+
+test('captures immutable continuation during death cam and stops accepting it once playback begins', () => {
+  const replay = new DeathReplay();
+  recordHistory(replay);
+  expect(replay.start(death(), 1)).toBe(true);
+  const source = snapshot(240, [player(1), player(2, 8)]);
+  const event = shot(240);
+  replay.recordSnapshot(source);
+  replay.recordEvent(event);
+  source.players[1].position.x = 100;
+  event.position.x = 100;
+  replay.sample(0);
+  replay.recordSnapshot(snapshot(270, [player(1), player(2, 100)]));
+  replay.recordEvent(shot(260));
+  const continuation = replay.sample(3.7)!;
+  expect(continuation.killer.position.x).toBe(8);
+  expect(continuation.events.find(event => event.tick === 240)!.position.x).toBe(0);
+  continuation.killer.position.x = 100;
+  const end = replay.sample(4.7)!;
+  expect(end.killer.position.x).toBe(8);
+  expect(end.events).toEqual([]);
+});
+
+test('holds the killer death pose instead of following its respawn during continuation', () => {
+  const replay = new DeathReplay();
+  recordHistory(replay);
+  expect(replay.start(death(), 1)).toBe(true);
+  replay.recordSnapshot(snapshot(192, [player(1), player(2, 7)]));
+  const killerDeath = death(195, { shooterId: 3, targetId: 2 });
+  killerDeath.death!.player = player(2, 7.1, { alive: false, health: 0, deaths: 1 });
+  replay.recordEvent(killerDeath);
+  replay.recordSnapshot(snapshot(240, [player(1), player(2, 100, { deaths: 1 })]));
+  expect(replay.sample(3)!.killer).toEqual(killerDeath.death!.player);
+  expect(replay.sample(4.7)!.killer).toEqual(killerDeath.death!.player);
+  replay.resetPlayback();
+  const fatal = death(240);
+  fatal.death!.killer = killerDeath.death!.player;
+  expect(replay.start(fatal, 1)).toBe(true);
+  replay.recordSnapshot(snapshot(243, [player(1), player(2, 100, { deaths: 1 })]));
+  expect(replay.sample(4.7)!.killer).toEqual(killerDeath.death!.player);
+});
+
+test('holds the last recorded killer pose on disconnect instead of following a later identity', () => {
+  const replay = new DeathReplay();
+  recordHistory(replay);
+  expect(replay.start(death(), 1)).toBe(true);
+  replay.recordSnapshot(snapshot(210, [player(1), player(2, 7)]));
+  replay.recordSnapshot(snapshot(213, [player(1)]));
+  replay.recordSnapshot(snapshot(240, [player(1), player(2, 100)]));
+  expect(replay.sample(3.7)!.killer.position.x).toBe(7);
+  expect(replay.sample(4.7)!.killer.position.x).toBe(7);
 });
 
 test('interpolates shortest yaw, position and velocity without borrowing future discrete state', () => {
@@ -223,10 +288,15 @@ test('keeps exact fatal killer and victim even when the server exceeds the 100-p
   fatal.death!.killer = player(999);
   fatal.death!.player = player(1000, 4, { alive: false, health: 0, deaths: 1 });
   expect(replay.start(fatal, 1000)).toBe(true);
+  replay.recordSnapshot(snapshot(240, Array.from({ length: 1000 }, (_, index) => player(index + 1, 3))));
   const frame = replay.sample(2.7)!;
   expect(frame.killer.id).toBe(999);
   expect(frame.players.find(player => player.id === 1000)!.alive).toBe(false);
   expect(frame.players.length).toBe(100);
+  const continuation = replay.sample(3.7)!;
+  expect(continuation.killer.position.x).toBe(3);
+  expect(continuation.players.find(player => player.id === 1000)!.alive).toBe(false);
+  expect(continuation.players.length).toBe(100);
 });
 
 test('bounds dense histories, players, projectiles and event bursts', () => {
@@ -243,6 +313,27 @@ test('bounds dense histories, players, projectiles and event bursts', () => {
   const last = replay.sample(2.7)!;
   expect(last.events.length).toBeLessThanOrEqual(4096);
   expect(last.events.at(-1)!.event).toBe('death');
+});
+
+test('bounds continuation snapshots and event bursts without discarding the fatal event', () => {
+  const replay = new DeathReplay();
+  recordHistory(replay);
+  const fatal = death();
+  expect(replay.start(fatal, 1)).toBe(true);
+  replay.recordEvent(fatal);
+  for (let tick = 181; tick < 500; tick++) {
+    replay.recordSnapshot(snapshot(tick, [fatal.death!.player, player(2, tick / 30)]));
+    replay.recordSnapshot(snapshot(tick, [fatal.death!.player, player(2, tick / 30)]));
+  }
+  for (let id = 0; id < 5000; id++) replay.recordEvent(shot(240, { projectileId: id }));
+  const before = replay.sample(0)!;
+  expect(before.killer.position.x).toBe(.6);
+  const frame = replay.sample(4.7)!;
+  expect(frame.tick).toBe(300);
+  expect(frame.killer.position.x).toBe(10);
+  expect(frame.events.length).toBe(4096);
+  expect(frame.events.filter(event => event.event === 'death').length).toBe(1);
+  expect(replay.sample(4.99)!.events).toEqual([]);
 });
 
 test('resetPlayback keeps history while clear, round changes and old round traffic cannot leak a replay', () => {

@@ -29,6 +29,8 @@ document.body.classList.toggle('touch-mode', touchMode);
 
 const element = <T extends HTMLElement = HTMLElement>(id: string): T => document.getElementById(id) as T;
 const canvas = element<HTMLCanvasElement>('viewport');
+const keyboard = (navigator as Navigator & { keyboard?: { lock(): Promise<void>; unlock(): void } }).keyboard;
+let keyboardCaptureRequested = false;
 const nickname = element<HTMLInputElement>('nickname');
 const joinButton = element<HTMLButtonElement>('join-button');
 const sensitivityInput = element<HTMLInputElement>('sensitivity');
@@ -234,7 +236,8 @@ function showScreen(next: Screen): void {
   paused = false;
   clearInput();
   updateTouchControls();
-  if (next !== 'game' && document.pointerLockElement === canvas) document.exitPointerLock?.();
+  if (next !== 'game' && next !== 'death' && next !== 'killcam' && document.pointerLockElement === canvas) document.exitPointerLock?.();
+  if (next !== 'game' && next !== 'death' && next !== 'killcam') unlockKeyboard();
   audio.setEnabled((next === 'game' || next === 'death' || next === 'killcam') && document.hasFocus() && !muted);
   if (next === 'lobby') weaponView.setWeapon(KITS[selectedKit][0]);
 }
@@ -247,18 +250,44 @@ function setPaused(value: boolean): void {
   element('graphics-panel').hidden = true;
   clearInput();
   updateTouchControls();
+  if (value) unlockKeyboard();
   audio.setEnabled(!value && document.hasFocus() && !muted);
+}
+
+function unlockKeyboard(): void {
+  keyboardCaptureRequested = false;
+  keyboard?.unlock();
 }
 
 function lockPointer(): void {
   if (terrain?.stats.error) { toast(terrain.stats.error); return; }
   audio.activate();
   if (touchMode) { setPaused(false); return; }
-  if (document.pointerLockElement === canvas) { setPaused(false); return; }
   try {
-    const result = canvas.requestPointerLock();
-    if (result) void result.catch(() => { setPaused(true); toast('Ce navigateur a refusé la capture de la souris. Ouvrez le jeu dans Chrome, Firefox ou Edge.'); });
-  } catch { setPaused(true); toast('Ce navigateur a refusé la capture de la souris. Ouvrez le jeu dans Chrome, Firefox ou Edge.'); }
+    if (document.pointerLockElement === canvas) setPaused(false);
+    else {
+      const result = canvas.requestPointerLock();
+      if (result) void result.catch(() => { unlockKeyboard(); setPaused(true); toast('Ce navigateur a refusé la capture de la souris. Ouvrez le jeu dans Chrome, Firefox ou Edge.'); });
+    }
+  } catch { unlockKeyboard(); setPaused(true); toast('Ce navigateur a refusé la capture de la souris. Ouvrez le jeu dans Chrome, Firefox ou Edge.'); return; }
+  // Fullscreen consumes the click's activation, so request pointer/keyboard capture first.
+  if (keyboard?.lock) {
+    keyboardCaptureRequested = true;
+    void keyboard.lock().then(() => {
+      if (!keyboardCaptureRequested || touchMode || !document.hasFocus()
+        || (!spawning && screen !== 'game' && screen !== 'death' && screen !== 'killcam')) unlockKeyboard();
+    }).catch(() => {
+      if (keyboardCaptureRequested) toast('Capture clavier refusée : certains raccourcis du navigateur restent actifs.');
+    });
+  } else toast('Capture clavier indisponible : Ctrl+Tab reste réservé au navigateur.');
+  if (!document.fullscreenElement) {
+    if (document.documentElement.requestFullscreen) {
+      void document.documentElement.requestFullscreen().catch(() => {
+        unlockKeyboard();
+        toast('Plein écran refusé : certains raccourcis du navigateur restent actifs.');
+      });
+    } else { unlockKeyboard(); toast('Plein écran indisponible : certains raccourcis du navigateur restent actifs.'); }
+  }
 }
 
 function send(message: ClientMessage): boolean {
@@ -790,27 +819,49 @@ for (const key of ['snow', 'shadows', 'ssaa'] as const) element<HTMLInputElement
   applyGraphics();
 });
 document.addEventListener('pointerlockchange', () => {
+  if (document.pointerLockElement !== canvas) unlockKeyboard();
   if (touchMode) return;
   if (screen === 'game') setPaused(document.pointerLockElement !== canvas);
   else clearInput();
 });
 document.addEventListener('pointerlockerror', () => {
+  unlockKeyboard();
   if (touchMode) return;
   if (screen === 'game') setPaused(true);
   toast('Ce navigateur a refusé la capture de la souris. Ouvrez le jeu dans Chrome, Firefox ou Edge.');
+});
+document.addEventListener('fullscreenchange', () => {
+  if (document.fullscreenElement) return;
+  unlockKeyboard();
+  if (document.pointerLockElement === canvas) document.exitPointerLock?.();
+  clearInput();
+  if (screen === 'game') setPaused(true);
 });
 document.addEventListener('mousemove', (event) => {
   if (touchMode || document.pointerLockElement !== canvas) return;
   rotateView(event.movementX, event.movementY);
 });
 document.addEventListener('keydown', (event) => {
-  if (screen !== 'game' || event.target instanceof HTMLInputElement) return;
+  if (screen !== 'game' && screen !== 'death' && screen !== 'killcam') return;
+  if (event.target instanceof HTMLElement && event.target.closest('input, textarea, select, [contenteditable="true"]')) return;
+  if (!paused) event.preventDefault();
+  if (event.code === 'Escape') {
+    clearInput(); unlockKeyboard();
+    if (document.pointerLockElement === canvas) document.exitPointerLock?.();
+    if (screen === 'game') setPaused(true);
+    return;
+  }
+  if (screen !== 'game') return;
   if (event.code === 'F1') { event.preventDefault(); muted = !muted; audio.setEnabled(!muted && !paused && document.hasFocus()); updateUI(); return; }
   if (event.code === 'Tab') { event.preventDefault(); if (!paused) element('score-screen').hidden = false; return; }
-  if (event.code === 'Escape') { clearInput(); if (document.pointerLockElement !== canvas) setPaused(true); return; }
   if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'Space', 'ShiftLeft', 'ShiftRight', 'ControlLeft', 'ControlRight'].includes(event.code)) { event.preventDefault(); if (!paused) keys.add(event.code); }
 });
-document.addEventListener('keyup', (event) => { keys.delete(event.code); if (event.code === 'Tab') { event.preventDefault(); element('score-screen').hidden = true; } });
+document.addEventListener('keyup', (event) => {
+  keys.delete(event.code);
+  if ((screen === 'game' || screen === 'death' || screen === 'killcam') && !paused
+    && !(event.target instanceof HTMLElement && event.target.closest('input, textarea, select, [contenteditable="true"]'))) event.preventDefault();
+  if (event.code === 'Tab') element('score-screen').hidden = true;
+});
 document.addEventListener('mousedown', (event) => {
   if (touchMode || document.pointerLockElement !== canvas || screen !== 'game' || paused) return;
   if (event.button === 0) fireButton.set(true);
@@ -821,16 +872,20 @@ document.addEventListener('mouseup', (event) => {
   if (event.button === 0) fireButton.set(false);
   if (event.button === 2) { rightMouse = false; altButton.set(false); }
 });
-document.addEventListener('contextmenu', (event) => { if (screen === 'game') event.preventDefault(); });
+document.addEventListener('contextmenu', (event) => { if (screen === 'game' || screen === 'death' || screen === 'killcam') event.preventDefault(); });
 document.addEventListener('wheel', (event) => {
-  if (screen !== 'game' || paused || document.pointerLockElement !== canvas) return;
+  if ((screen !== 'game' && screen !== 'death' && screen !== 'killcam') || paused || document.pointerLockElement !== canvas) return;
   event.preventDefault();
-  cycleWeapon(event.deltaY);
+  if (screen === 'game') cycleWeapon(event.deltaY);
 }, { passive: false });
-window.addEventListener('blur', () => { clearInput(); audio.setEnabled(false); if (screen === 'game') { document.exitPointerLock?.(); setPaused(true); } });
+window.addEventListener('blur', () => {
+  clearInput(); unlockKeyboard(); audio.setEnabled(false);
+  if (screen === 'game' || screen === 'death' || screen === 'killcam') document.exitPointerLock?.();
+  if (screen === 'game') setPaused(true);
+});
 document.addEventListener('visibilitychange', () => {
   clearInput(); lastFrame = performance.now(); accumulator = 0;
-  if (document.hidden) { audio.setEnabled(false); if (screen === 'game') setPaused(true); }
+  if (document.hidden) { unlockKeyboard(); audio.setEnabled(false); if (screen === 'game') setPaused(true); }
   updateTouchControls();
 });
 function resize(): void {
@@ -842,6 +897,7 @@ window.visualViewport?.addEventListener('resize', resize);
 function useTouchControls(enabled: boolean): void {
   if (touchMode === enabled) return;
   touchMode = enabled; document.body.classList.toggle('touch-mode', enabled);
+  if (enabled) { unlockKeyboard(); if (document.pointerLockElement === canvas) document.exitPointerLock?.(); }
   clearInput(); updateTouchControls(); applyGraphics();
   if (!enabled && screen === 'game') setPaused(true);
 }

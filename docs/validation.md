@@ -1,6 +1,16 @@
-# Validation du 11 au 21 septembre 2026
+# Validation du 11 au 22 septembre 2026
 
 Le jeu est publié sur Vercel et Hetzner. Cette page distingue les vérifications locales et celles de production ; la parité des sensations avec le Java, la tenue prolongée sur Internet et les grandes distances d'affichage ne sont pas encore entièrement validées.
+
+## Captures souris/clavier et continuation de kill cam — 22 septembre 2026, local non publié
+
+Le pointeur reste capturé entre jeu, death cam et kill cam. Le clic droit et la molette sont neutralisés pendant les caméras. La kill cam dure 5 s : 2,7 s avant la mort, 2 s d'action enregistrée après celle-ci, 0,3 s de maintien final ; la death cam reste à 3 s. Sur ordinateur, le choix du kit et la reprise demandent le plein écran et Keyboard Lock afin de recevoir Ctrl+Tab. Échap, les pertes de focus/capture et le retour au lobby libèrent le clavier. Le mobile conserve son parcours.
+
+`bun run doctor`, TypeScript et build réussis (11 sorties). Suite locale hors `release-prepare.test.ts` et `release-vercel.test.ts` : **513 tests / 22 089 assertions**, aucun échec, journal `.runtime/controls-check-20260922.log`. Ces deux fichiers exécutent Git et sont exclus pour respecter l'interdiction de cette session ; ce résultat n'est donc pas un `bun run check` complet. Le blocage `EPERM` du sous-processus de compilation a disparu avec les permissions d'exécution adaptées, sans modification de son test.
+
+Après la dernière correction du timing de reprise, les **28 tests de contrôles / 177 assertions** et TypeScript repassent. Ils exécutent les fonctions et événements de production dans un DOM simulé : Ctrl maintenu pendant Tab, actions neutralisées dans les caméras, champs éditables, sortie des captures, API absentes/refusées et autorisations asynchrones. La revue a corrigé une capture clavier reçue après Échap et une capture clavier reçue avant la souris lors d'une reprise. Les **18 tests de replay / 216 assertions** couvrent la continuation, les événements uniques, le décès/départ du tueur, les mutations, budgets et resets.
+
+Parcours navigateur local vérifié : pseudo → lobby → assaut → jeu/menu → déconnexion, retour à zéro joueur. Le navigateur intégré refuse la capture souris ; la capture native de Ctrl+Tab en Chrome/Edge n'a donc pas été vérifiée. Les tests de DOM ne prouvent pas l'interception des raccourcis du navigateur. Aucune commande Git, publication ou charge de production. Serveur et onglet temporaires fermés.
 
 ## Caméras de mort, sneak, chutes et auto-soin — 21 septembre 2026
 

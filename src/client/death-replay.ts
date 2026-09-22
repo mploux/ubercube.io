@@ -1,7 +1,8 @@
 import { TICK_RATE, type GameEvent, type PlayerState, type ProjectileState, type ServerMessage, type Vec3 } from '../shared/protocol';
 
-export const DEATH_REPLAY_SECONDS = 3;
+export const DEATH_REPLAY_SECONDS = 5;
 const ACTION_SECONDS = 2.7;
+const FOLLOW_THROUGH_SECONDS = 2;
 const HISTORY_TICKS = 4 * TICK_RATE;
 const MAX_SNAPSHOTS = 100;
 const MAX_EVENTS = 4096;
@@ -12,6 +13,7 @@ interface Snapshot { tick: number; players: Map<number, PlayerState>; projectile
 interface Playback {
   snapshots: Snapshot[]; events: GameEvent[]; death: GameEvent; killer: PlayerState;
   startTick: number; endTick: number; tick: number; eventIndex: number; started: boolean;
+  killerEnd: { tick: number; player: PlayerState } | null;
 }
 export interface DeathReplayFrame {
   tick: number; players: PlayerState[]; projectiles: ProjectileState[]; killer: PlayerState; events: GameEvent[];
@@ -37,6 +39,19 @@ export class DeathReplay {
     };
     if (latest?.tick === message.tick) this.snapshots[this.snapshots.length - 1] = snapshot;
     else this.snapshots.push(snapshot);
+    const playback = this.playback;
+    if (playback && !playback.started && message.tick > playback.death.tick! && message.tick <= playback.endTick) {
+      for (const id of [playback.killer.id, playback.death.targetId!]) {
+        const player = message.players.find(player => player.id === id);
+        if (player) snapshot.players.set(id, copyState(player));
+      }
+      while (snapshot.players.size > MAX_PLAYERS) {
+        const id = [...snapshot.players.keys()].find(id => id !== playback.killer.id && id !== playback.death.targetId)!;
+        snapshot.players.delete(id);
+      }
+      if (playback.snapshots.at(-1)!.tick === message.tick) playback.snapshots[playback.snapshots.length - 1] = snapshot;
+      else playback.snapshots.push(snapshot);
+    }
     this.prune(message.tick);
   }
 
@@ -47,11 +62,11 @@ export class DeathReplay {
     const recorded = { ...structuredClone(event), tick };
     this.events.push(recorded);
     const playback = this.playback;
-    // Impact/explosion messages can follow the death in the same authoritative tick.
-    if (playback && !playback.started && tick === playback.endTick
-      && !(event.event === 'death' && event.targetId === playback.death.targetId)) {
+    // The death cam provides time to capture the killer's continuation before playback begins.
+    if (playback && !playback.started && tick >= playback.death.tick! && tick <= playback.endTick
+      && !(event.event === 'death' && event.targetId === playback.death.targetId && tick === playback.death.tick)) {
       playback.events.push(recorded);
-      if (playback.events.length > MAX_EVENTS) playback.events.shift();
+      if (playback.events.length > MAX_EVENTS) playback.events.splice(playback.events.findIndex(event => event !== playback.death), 1);
     }
     this.prune(Math.max(tick, this.snapshots.at(-1)?.tick ?? tick));
   }
@@ -85,14 +100,35 @@ export class DeathReplay {
     events.push(fatal);
     events.sort((a, b) => a.tick! - b.tick!);
     this.playback = { snapshots, events: events.slice(-MAX_EVENTS), death: fatal, killer: copyState(killer),
-      startTick, endTick: tick, tick: startTick, eventIndex: 0, started: false };
+      startTick, endTick: tick + FOLLOW_THROUGH_SECONDS * TICK_RATE, tick: startTick, eventIndex: 0, started: false, killerEnd: null };
     return true;
   }
 
   sample(elapsedSeconds: number): DeathReplayFrame | null {
     const playback = this.playback;
     if (!playback || !Number.isFinite(elapsedSeconds) || elapsedSeconds >= DEATH_REPLAY_SECONDS) return null;
-    playback.started = true;
+    if (!playback.started) {
+      playback.events.sort((a, b) => a.tick! - b.tick!);
+      let killer = playback.killer;
+      if (!killer.alive) playback.killerEnd = { tick: playback.death.tick!, player: killer };
+      else {
+        for (const snapshot of playback.snapshots) {
+          if (snapshot.tick <= playback.death.tick!) continue;
+          const next = snapshot.players.get(killer.id);
+          if (!next || !next.alive || next.deaths !== killer.deaths) {
+            playback.killerEnd = { tick: snapshot.tick,
+              player: next && !next.alive && next.deaths === killer.deaths + 1 ? next : killer };
+            break;
+          }
+          killer = next;
+        }
+        const death = playback.events.find(event => event.tick! >= playback.death.tick!
+          && event.tick! <= (playback.killerEnd?.tick ?? playback.endTick)
+          && event.death?.player.id === killer.id && event.death.player.deaths === playback.killer.deaths + 1);
+        if (death) playback.killerEnd = { tick: death.tick!, player: death.death!.player };
+      }
+      playback.started = true;
+    }
     const tick = Math.max(playback.tick, Math.min(playback.endTick,
       playback.startTick + Math.max(0, elapsedSeconds) * TICK_RATE));
     playback.tick = tick;
@@ -138,6 +174,7 @@ export class DeathReplay {
       }
       killer ??= copyState(playback.killer);
     }
+    if (playback.killerEnd && tick >= playback.killerEnd.tick) killer = copyState(playback.killerEnd.player);
     const projectiles = [...before.projectiles.values()].map(previous => {
       const next = after.projectiles.get(previous.id);
       return next && next.owner === previous.owner && next.weapon === previous.weapon
