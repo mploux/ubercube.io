@@ -1,4 +1,4 @@
-export const PROTOCOL_VERSION = 6;
+export const PROTOCOL_VERSION = 8;
 export const TICK_RATE = 60;
 export const DT = 1 / TICK_RATE;
 export type Mode = 'tdm' | 'ffa';
@@ -17,6 +17,7 @@ export interface PlayerState extends MotionState {
   ammo: number; grenades: number; lastSeq: number;
 }
 export interface InputFrame {
+  viewTick?: number; viewLatestTick?: number; worldRevision?: number;
   seq: number; roundId: number; moveX: number; moveZ: number;
   yaw: number; pitch: number; jump: boolean; sprint: boolean;
   fire: boolean; alt: boolean; weapon: WeaponId;

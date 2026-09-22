@@ -28,6 +28,10 @@ interface InitialWorld {
   deltas: WorldMessage[];
   deltaEdits: number;
 }
+interface HitSnapshot {
+  tick: number;
+  players: Map<number, { position: Vec3; alive: boolean; deaths: number }>;
+}
 export interface Connection {
   readonly peer: Peer;
   player: PlayerState | null;
@@ -49,11 +53,13 @@ export interface Connection {
   fallPeakY: number | null;
   magazines: { ak47: number; awp: number; rpg: number };
   initial: InitialWorld | null;
+  hitSnapshots: HitSnapshot[];
 }
 interface Projectile extends ProjectileState, GrenadeFlight { damage: number; expires: number }
 interface Shot {
   id: number; owner: number; weapon: 'ak47' | 'awp' | 'rpg'; inputSeq: number;
   eye: Vec3; origin: Vec3; direction: Vec3;
+  viewTick?: number; viewLatestTick?: number; worldRevision?: number; snapshots: readonly HitSnapshot[];
 }
 
 const INPUT_KEYS = ['seq', 'roundId', 'moveX', 'moveZ', 'yaw', 'pitch', 'jump', 'sprint', 'fire', 'alt', 'weapon'];
@@ -63,6 +69,8 @@ const STREAM_BUFFER = 64 * 1024;
 const MAX_INPUT_QUEUE = 12;
 const SAFE_FALL_HEIGHT = 6;
 const FATAL_FALL_HEIGHT = 20;
+const MAX_REWIND_TICKS = TICK_RATE / 4;
+const MAX_HISTORY_BLOCKS = 32768;
 
 function record(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -80,8 +88,13 @@ function kit(value: unknown): value is Kit {
   return typeof value === 'string' && Object.hasOwn(KITS, value);
 }
 function inputFrame(value: unknown): value is InputFrame {
-  return record(value) && keys(value, [...INPUT_KEYS, ...['cancelActions', 'sneak'].filter(key => Object.hasOwn(value, key))])
+  return record(value) && keys(value, [...INPUT_KEYS, ...['cancelActions', 'sneak', 'viewTick', 'viewLatestTick', 'worldRevision'].filter(key => Object.hasOwn(value, key))])
     && ['cancelActions', 'sneak'].every(key => !Object.hasOwn(value, key) || typeof value[key] === 'boolean')
+    && (Object.hasOwn(value, 'viewTick') === Object.hasOwn(value, 'worldRevision'))
+    && (Object.hasOwn(value, 'viewTick') === Object.hasOwn(value, 'viewLatestTick'))
+    && (!Object.hasOwn(value, 'viewTick') || (number(value.viewTick, 0, Number.MAX_SAFE_INTEGER)
+      && number(value.viewLatestTick, 0, Number.MAX_SAFE_INTEGER) && Number.isSafeInteger(value.viewLatestTick)
+      && number(value.worldRevision, 0, Number.MAX_SAFE_INTEGER) && Number.isSafeInteger(value.worldRevision)))
     && number(value.seq, 1, Number.MAX_SAFE_INTEGER) && Number.isSafeInteger(value.seq)
     && number(value.roundId, 1, Number.MAX_SAFE_INTEGER) && Number.isSafeInteger(value.roundId)
     && number(value.moveX, -1, 1) && number(value.moveZ, -1, 1)
@@ -111,6 +124,11 @@ export class GameServer {
   private readonly shots: Shot[] = [];
   private randomState: number;
   private edits = new Map<string, VoxelEdit>();
+  private readonly previousBlocks = new Map<string, number>();
+  private pendingHistoryComplete = true;
+  private readonly terrainHistory: { tick: number; revision: number; before: Map<string, number> }[] = [];
+  private terrainHistorySize = 0;
+  private oldestTerrainRevision = 0;
   private baseline: { revision: number; edits: VoxelEdit[] } | null = null;
 
   constructor(options: Partial<GameOptions> = {}, private readonly publish?: (data: string | Uint8Array) => void) {
@@ -137,7 +155,7 @@ export class GameServer {
       peer, player: null, closed: false, connectedAt: this.tick, rateTick: this.tick, messages: 0, frames: 0,
       invalid: 0, lastMessage: this.tick, queue: [], input: null, highestSeq: 0, lastInputTick: this.tick,
       previousFire: false, previousAlt: false, weaponPoses: new Map(), weaponMotion: { x: 0, y: 0, z: 0 },
-      magazines: { ak47: 30, awp: 5, rpg: 30 }, initial: null, fallPeakY: null,
+      magazines: { ak47: 30, awp: 5, rpg: 30 }, initial: null, fallPeakY: null, hitSnapshots: [],
     };
     this.connections.add(connection);
     return connection;
@@ -152,6 +170,7 @@ export class GameServer {
     connection.queue = [];
     connection.initial = null;
     connection.input = null;
+    connection.hitSnapshots.length = 0;
   }
 
   private fail(connection: Connection, message: string, fatal = false): void {
@@ -278,6 +297,7 @@ export class GameServer {
       connection.weaponPoses.set(player.weapon, pose);
       connection.weaponMotion = { x: 0, y: 0, z: 0 };
       connection.fallPeakY = null;
+      connection.hitSnapshots.length = 0;
       this.sendSnapshot(connection);
       return;
     }
@@ -288,6 +308,13 @@ export class GameServer {
     }
     const frames = message.frames as InputFrame[];
     if (frames.some(frame => frame.roundId !== this.roundId)) return;
+    if (frames.some(frame => frame.viewTick !== undefined && (frame.viewTick > this.tick
+      || frame.viewTick > frame.viewLatestTick! || frame.viewLatestTick! > (connection.hitSnapshots.at(-1)?.tick ?? -1)
+      || (frame.viewLatestTick! >= (connection.hitSnapshots[0]?.tick ?? Infinity)
+        && !connection.hitSnapshots.some(snapshot => snapshot.tick === frame.viewLatestTick))
+      || frame.worldRevision! > this.revision))) {
+      this.fail(connection, 'Temps de visée ou révision future.'); return;
+    }
     let seq = connection.highestSeq;
     for (const frame of frames) {
       if (frame.seq <= seq || !KITS[player.kit].includes(frame.weapon)) { this.fail(connection, 'Séquence ou arme invalide.'); return; }
@@ -342,9 +369,15 @@ export class GameServer {
 
   private mutate(x: number, y: number, z: number, value: number): void {
     if (y <= 0 || x < 0 || z < 0 || x >= this.options.world.size || z >= this.options.world.size || y >= this.options.world.height) return;
-    if (this.world.get(x, y, z) === value) return;
+    const previous = this.world.get(x, y, z);
+    if (previous === value) return;
+    const key = `${x},${y},${z}`;
+    if (!this.previousBlocks.has(key)) {
+      if (this.previousBlocks.size < MAX_HISTORY_BLOCKS) this.previousBlocks.set(key, previous);
+      else this.pendingHistoryComplete = false;
+    }
     this.world.set(x, y, z, value);
-    this.edits.set(`${x},${y},${z}`, [x, y, z, value]);
+    this.edits.set(key, [x, y, z, value]);
   }
 
   private flushWorld(): void {
@@ -353,6 +386,17 @@ export class GameServer {
     this.edits.clear();
     for (let offset = 0; offset < edits.length; offset += WORLD_BATCH) {
       const message: WorldMessage = { type: 'world', roundId: this.roundId, revision: ++this.revision, edits: edits.slice(offset, offset + WORLD_BATCH) };
+      if (this.pendingHistoryComplete) {
+        const before = new Map(message.edits.map(([x, y, z]) => {
+          const key = `${x},${y},${z}`; return [key, this.previousBlocks.get(key)!];
+        }));
+        this.terrainHistory.push({ tick: this.tick, revision: this.revision, before });
+        this.terrainHistorySize += before.size;
+      } else {
+        this.terrainHistory.length = 0;
+        this.terrainHistorySize = 0;
+        this.oldestTerrainRevision = this.revision;
+      }
       const encoded = encodeServerMessage(message);
       for (const connection of this.connections) {
         if (!connection.player) continue;
@@ -362,6 +406,18 @@ export class GameServer {
         } else if (!this.publish) this.send(connection, encoded);
       }
       this.publish?.(encoded);
+    }
+    this.previousBlocks.clear();
+    this.pendingHistoryComplete = true;
+    this.pruneTerrainHistory();
+  }
+
+  private pruneTerrainHistory(): void {
+    while (this.terrainHistory.length && (this.terrainHistory[0].tick < this.tick - MAX_REWIND_TICKS
+      || this.terrainHistorySize > MAX_HISTORY_BLOCKS)) {
+      const removed = this.terrainHistory.shift()!;
+      this.terrainHistorySize -= removed.before.size;
+      this.oldestTerrainRevision = removed.revision;
     }
   }
 
@@ -394,14 +450,17 @@ export class GameServer {
     return this.randomState / 0x100000000;
   }
 
-  private playerHit(origin: Vec3, direction: Vec3, distance: number, owner: number): { player: PlayerState; distance: number; point: Vec3 } | null {
-    let closest: { player: PlayerState; distance: number; point: Vec3 } | null = null;
+  private playerHit(origin: Vec3, direction: Vec3, distance: number, owner: number,
+    positions?: ReadonlyMap<number, Vec3>): { player: PlayerState; position: Vec3; distance: number; point: Vec3 } | null {
+    let closest: { player: PlayerState; position: Vec3; distance: number; point: Vec3 } | null = null;
     for (const player of this.players.values()) {
       if (!player.alive || player.id === owner) continue;
+      const position = positions ? positions.get(player.id) : player.position;
+      if (!position) continue;
       let near = 0, far = closest?.distance ?? distance;
       for (const axis of ['x', 'y', 'z'] as const) {
-        const min = player.position[axis] - (axis === 'y' ? 0 : PLAYER_RADIUS);
-        const max = player.position[axis] + (axis === 'y' ? PLAYER_HEIGHT : PLAYER_RADIUS);
+        const min = position[axis] - (axis === 'y' ? 0 : PLAYER_RADIUS);
+        const max = position[axis] + (axis === 'y' ? PLAYER_HEIGHT : PLAYER_RADIUS);
         if (Math.abs(direction[axis]) < 1e-8) {
           if (origin[axis] < min || origin[axis] > max) { far = -1; break; }
         } else {
@@ -412,7 +471,7 @@ export class GameServer {
         if (far < near) break;
       }
       if (far >= near && near <= distance) {
-        closest = { player, distance: near, point: { x: origin.x + direction.x * near, y: origin.y + direction.y * near, z: origin.z + direction.z * near } };
+        closest = { player, position, distance: near, point: { x: origin.x + direction.x * near, y: origin.y + direction.y * near, z: origin.z + direction.z * near } };
       }
     }
     return closest;
@@ -490,7 +549,9 @@ export class GameServer {
       const length = Math.hypot(direction.x, direction.y, direction.z);
       this.shots.push({ id: this.nextProjectile++, owner: player.id, weapon: player.weapon, inputSeq: player.lastSeq, eye,
         origin: { x: eye.x + offset.x, y: eye.y + offset.y, z: eye.z + offset.z },
-        direction: { x: direction.x / length, y: direction.y / length, z: direction.z / length } });
+        direction: { x: direction.x / length, y: direction.y / length, z: direction.z / length },
+        viewTick: frame.viewTick, viewLatestTick: frame.viewLatestTick,
+        worldRevision: frame.worldRevision, snapshots: connection.hitSnapshots });
       connection.magazines[player.weapon]--;
       if (connection.magazines[player.weapon] < 0) connection.magazines[player.weapon] = WEAPONS[player.weapon].magazine;
       player.ammo = connection.magazines[player.weapon];
@@ -573,15 +634,59 @@ export class GameServer {
     this.event('explosion', position, { shooterId: projectile.owner, weapon: projectile.weapon, projectileId: projectile.id });
   }
 
+  private shotHistory(shot: Shot): { positions: ReadonlyMap<number, Vec3>; world: Pick<VoxelWorld, 'config' | 'get'> } | null {
+    const { viewTick, viewLatestTick, worldRevision, snapshots } = shot;
+    if (shot.weapon === 'rpg' || viewTick === undefined || worldRevision === undefined
+      || viewTick > this.tick || viewTick < this.tick - MAX_REWIND_TICKS || !this.pendingHistoryComplete
+      || worldRevision < this.oldestTerrainRevision || worldRevision > this.revision) return null;
+    const first = snapshots[0], latest = snapshots.find(snapshot => snapshot.tick === viewLatestTick);
+    if (!first || !latest || viewTick < first.tick || viewTick > latest.tick) return null;
+    let before = first, after = latest;
+    for (const snapshot of snapshots) {
+      if (snapshot.tick > latest.tick) break;
+      if (snapshot.tick <= viewTick) before = snapshot;
+      if (snapshot.tick >= viewTick) { after = snapshot; break; }
+    }
+    const fraction = before === after ? 1 : (viewTick - before.tick) / (after.tick - before.tick);
+    const positions = new Map<number, Vec3>();
+    for (const player of this.players.values()) {
+      const a = before.players.get(player.id), b = after.players.get(player.id), last = latest.players.get(player.id);
+      if (!player.alive || !last?.alive || last.deaths !== player.deaths
+        || Math.hypot(player.position.x - last.position.x, player.position.y - last.position.y, player.position.z - last.position.z) > 15) continue;
+      if (!a?.alive || !b?.alive || a.deaths !== last.deaths || b.deaths !== last.deaths
+        || Math.hypot(last.position.x - a.position.x, last.position.y - a.position.y, last.position.z - a.position.z) > 15) {
+        positions.set(player.id, last.position);
+        continue;
+      }
+      positions.set(player.id, {
+        x: a.position.x + (b.position.x - a.position.x) * fraction,
+        y: a.position.y + (b.position.y - a.position.y) * fraction,
+        z: a.position.z + (b.position.z - a.position.z) * fraction,
+      });
+    }
+    if (worldRevision === this.revision && !this.previousBlocks.size) return { positions, world: this.world };
+    const previous = new Map(this.previousBlocks);
+    for (let index = this.terrainHistory.length - 1; index >= 0; index--) {
+      const change = this.terrainHistory[index];
+      if (change.revision <= worldRevision) break;
+      for (const [key, value] of change.before) previous.set(key, value);
+    }
+    // Both the cover seen by the shooter and cover built since then stop a compensated ray.
+    return { positions, world: { config: this.world.config,
+      get: (x, y, z) => this.world.get(x, y, z) || previous.get(`${x},${y},${z}`) || 0 } };
+  }
+
   private resolveShots(): void {
     for (const shot of this.shots) {
       const { direction, weapon, owner, id } = shot;
+      const history = this.shotHistory(shot);
+      const world = history?.world ?? this.world;
       const offset = { x: shot.origin.x - shot.eye.x, y: shot.origin.y - shot.eye.y, z: shot.origin.z - shot.eye.z };
       const muzzleDistance = Math.hypot(offset.x, offset.y, offset.z);
-      let block = raycast(this.world, shot.eye, offset, muzzleDistance);
+      let block = raycast(world, shot.eye, offset, muzzleDistance);
       let target = muzzleDistance > 0 ? this.playerHit(shot.eye,
         { x: offset.x / muzzleDistance, y: offset.y / muzzleDistance, z: offset.z / muzzleDistance },
-        block?.distance ?? muzzleDistance, owner) : null;
+        block?.distance ?? muzzleDistance, owner, history?.positions) : null;
       // Resolve an overlapping barrel's first contact before tracing beyond its muzzle.
       const origin = target ? target.point : block ? {
         x: block.point.x + block.normal.x * .001, y: block.point.y + block.normal.y * .001,
@@ -605,23 +710,28 @@ export class GameServer {
           if (direction[axis] !== 0) distance = Math.min(distance,
             Math.max(0, ((direction[axis] > 0 ? bounds[axis] : 0) - origin[axis]) / direction[axis]));
         }
-        block = raycast(this.world, origin, direction, distance);
-        target = this.playerHit(origin, direction, block?.distance ?? distance, owner);
+        block = raycast(world, origin, direction, distance);
+        target = this.playerHit(origin, direction, block?.distance ?? distance, owner, history?.positions);
       }
       const endPosition = target?.point ?? block?.point ?? {
         x: origin.x + direction.x * distance, y: origin.y + direction.y * distance, z: origin.z + direction.z * distance,
       };
       this.event('shot', origin, { shooterId: owner, weapon, projectileId: id, inputSeq: shot.inputSeq, endPosition });
       if (target) {
-        const headshot = target.point.y - target.player.position.y >= PLAYER_HEIGHT / 2 + .813;
+        const headshot = target.point.y - target.position.y >= PLAYER_HEIGHT / 2 + .813;
         const corpseImpulse = weapon === 'awp' ? 80 : 48;
+        const currentHitPoint = { x: target.point.x + (target.player.position.x - target.position.x),
+          y: target.point.y + (target.player.position.y - target.position.y),
+          z: target.point.z + (target.player.position.z - target.position.z) };
         this.hurt(target.player, headshot ? 100 : WEAPONS[weapon].damage, owner, headshot,
-          { weapon, point: target.point,
+          { weapon, point: currentHitPoint,
             impulse: { x: direction.x * corpseImpulse, y: direction.y * corpseImpulse, z: direction.z * corpseImpulse } });
         this.event('impact', target.point, { shooterId: owner, targetId: target.player.id, weapon, headshot, projectileId: id });
       } else if (block) {
         const blockColor = block.value & 0xffffff;
-        this.mutate(block.x, block.y, block.z, damageBlock(block.value, WEAPONS[weapon].damage / 200));
+        if (this.world.get(block.x, block.y, block.z) === block.value) {
+          this.mutate(block.x, block.y, block.z, damageBlock(block.value, WEAPONS[weapon].damage / 200));
+        }
         this.event('impact', block.point, { shooterId: owner, weapon, blockColor, projectileId: id });
       }
     }
@@ -676,6 +786,7 @@ export class GameServer {
   }
   step(): void {
     this.tick++;
+    this.pruneTerrainHistory();
     if (this.options.roundSeconds > 0 && this.tick - this.roundStart >= this.options.roundSeconds * TICK_RATE) this.resetRound();
     for (const connection of this.connections) {
       if ((!connection.player && this.tick - connection.connectedAt > 5 * TICK_RATE) || this.tick - connection.lastMessage > 30 * TICK_RATE) {
@@ -736,7 +847,17 @@ export class GameServer {
       scores: this.scores,
       remaining: this.options.roundSeconds ? Math.max(0, this.options.roundSeconds - (this.tick - this.roundStart) * DT) : null,
     };
-    if (only) this.send(only, snapshot, true); else this.broadcast(snapshot);
+    const encoded = encodeServerMessage(snapshot);
+    let recipients = only ? [only] : [...this.connections].filter(connection => connection.player && !connection.initial);
+    if (!only && this.publish) this.publish(encoded);
+    else recipients = recipients.filter(connection => this.send(connection, encoded, true));
+    const history: HitSnapshot = { tick: this.tick, players: new Map(snapshot.players.map(player => [player.id,
+      { position: { ...player.position }, alive: player.alive, deaths: player.deaths }])) };
+    for (const connection of recipients) {
+      if (connection.hitSnapshots.at(-1)?.tick === this.tick) connection.hitSnapshots.pop();
+      connection.hitSnapshots.push(history);
+      while (connection.hitSnapshots.length > 1 && connection.hitSnapshots[1].tick < this.tick - MAX_REWIND_TICKS) connection.hitSnapshots.shift();
+    }
   }
 
   resetRound(): void {
@@ -745,12 +866,18 @@ export class GameServer {
     this.world = new VoxelWorld(this.options.world);
     this.revision = 0;
     this.edits.clear();
+    this.previousBlocks.clear();
+    this.pendingHistoryComplete = true;
+    this.terrainHistory.length = 0;
+    this.terrainHistorySize = 0;
+    this.oldestTerrainRevision = 0;
     this.baseline = null;
     this.projectiles.clear();
     this.shots.length = 0;
     this.scores = [0, 0];
     for (const connection of this.connections) {
       connection.queue = [];
+      connection.hitSnapshots.length = 0;
       connection.input = null;
       connection.highestSeq = 0;
       connection.weaponPoses.clear();

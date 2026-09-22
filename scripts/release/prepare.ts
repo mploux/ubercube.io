@@ -7,7 +7,7 @@ export const RELEASE_ID = /^\d{8}-\d{6}$/;
 export const VALIDATION_FILES = [
   ...['buildings', 'terrain-generation', 'terrain-colors', 'server', 'transport', 'lifecycle', 'wire', 'movement',
     'grenade-flight', 'input-backlog', 'input-button', 'deployment-origins', 'death-events', 'rpg', 'rpg-network',
-    'gameplay-actions', 'gameplay-network'].map(name => `tests/${name}.test.ts`),
+    'gameplay-actions', 'gameplay-network', 'lag-compensation'].map(name => `tests/${name}.test.ts`),
   'src/client/terrain.worker.ts', 'src/client/input-button.ts',
 ];
 const BUILD_FILES = ['scripts/build.ts', 'package.json', 'bun.lock', 'tsconfig.json', 'vercel.json'];

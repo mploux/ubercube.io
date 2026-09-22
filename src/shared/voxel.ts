@@ -185,7 +185,7 @@ export interface VoxelHit {
   x: number; y: number; z: number; normal: Vec3; distance: number; point: Vec3; value: number;
 }
 
-export function raycast(world: VoxelWorld, origin: Vec3, direction: Vec3, maxDistance: number): VoxelHit | null {
+export function raycast(world: Pick<VoxelWorld, 'config' | 'get'>, origin: Vec3, direction: Vec3, maxDistance: number): VoxelHit | null {
   const length = Math.hypot(direction.x, direction.y, direction.z);
   if (!Number.isFinite(length) || !length || !Number.isFinite(maxDistance) || maxDistance < 0
     || ![origin.x, origin.y, origin.z].every(Number.isFinite)) return null;

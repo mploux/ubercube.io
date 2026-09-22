@@ -16,6 +16,8 @@ Publié le 22 septembre 2026 : pointeur conservé pendant les deux caméras et k
 
 Ajustement publié le 22 septembre 2026 : le plein écran automatique est retiré. Le bouton **Fullscreen** dans **Options** permet de l'activer ou de le quitter volontairement ; entrer en jeu, réapparaître et reprendre n'y basculent jamais. En fenêtre, les raccourcis réservés comme Ctrl+Tab peuvent rester gérés par le navigateur. [Preuve de publication](docs/deployment.md#publication-du-plein-écran-volontaire--22-septembre-2026).
 
+Implémenté localement le 22 septembre 2026, **non publié** : les impacts AK/AWP compensent jusqu'à 250 ms de retard à partir de l'image des joueurs affichée au tireur. Le lissage reste identique ; les couvertures actuelles et celles du terrain reçu bloquent les tirs. Le contrat local passe au protocole **8**, à publier avec client et serveur ensemble. [Fonctionnement et validation](docs/lag-compensation.md).
+
 ## Reprendre le projet
 
 Nouveau développeur ou agent : lire [AGENTS.md](AGENTS.md), puis le [guide de démarrage](docs/agent-start.md). Il donne les points d'entrée du code, les décisions produit, les vérifications et les accès de publication sans dépendre d'un historique de discussion.
@@ -175,7 +177,7 @@ Les résultats et leurs limites figurent dans [docs/validation.md](docs/validati
 ## Travaux restants
 
 - Validation des sensations face au Java et essais avec plusieurs joueurs humains.
-- Compensation de latence du combat : les tirs sont actuellement résolus au temps serveur, sans historique des joueurs et du terrain.
+- Validation humaine et publication coordonnée de la [compensation de latence AK/AWP](docs/lag-compensation.md), implémentée localement.
 - Validation de charge prolongée sur machines distinctes et matériel cible, réseau dégradé, consommation GPU et grandes distances.
 - Réplication spatiale, terrain lointain et adaptation des budgets selon les mesures.
 - Supervision et alertes prolongées sur l'hébergement déjà en ligne ; Vercel et HTTPS/WSS sur Hetzner sont opérationnels.

@@ -8,6 +8,13 @@ export class RemotePlayers {
   private clockOffset = 0;
   private interval = 3;
   private renderTick = -Infinity;
+  private sampledLatestTick: number | undefined;
+
+  get viewTick(): number | undefined {
+    return Number.isFinite(this.renderTick) ? this.renderTick : undefined;
+  }
+
+  get viewLatestTick(): number | undefined { return this.sampledLatestTick; }
 
   snapshot(tick: number, players: readonly PlayerState[], now: number): void {
     if (!Number.isInteger(tick) || tick < 0 || !Number.isFinite(now)) return;
@@ -30,6 +37,7 @@ export class RemotePlayers {
     const first = this.snapshots[0], latest = this.snapshots.at(-1);
     if (!latest || !Number.isFinite(now)) return [];
     this.renderTick = Math.max(this.renderTick, first.tick, Math.min(latest.tick, (now - this.clockOffset) / TICK_MS - this.interval));
+    this.sampledLatestTick = latest.tick;
     let before = first, after = latest;
     for (const snapshot of this.snapshots) {
       if (snapshot.tick <= this.renderTick) before = snapshot;
@@ -57,5 +65,6 @@ export class RemotePlayers {
     this.clockOffset = 0;
     this.interval = 3;
     this.renderTick = -Infinity;
+    this.sampledLatestTick = undefined;
   }
 }

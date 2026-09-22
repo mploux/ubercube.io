@@ -604,6 +604,11 @@ function simulate(): void {
     fire: active && fireButton.sample(), alt: active && altButton.sample(), weapon: selectedWeapon,
     cancelActions: !active,
   };
+  // Inputs refer to the image already displayed, before this frame advances interpolation.
+  const viewTick = remotePlayers.viewTick, viewLatestTick = remotePlayers.viewLatestTick;
+  if (socket instanceof WebSocket && viewTick !== undefined && viewLatestTick !== undefined) {
+    frame.viewTick = viewTick; frame.viewLatestTick = viewLatestTick; frame.worldRevision = revision;
+  }
   const groundedBefore = predicted.grounded;
   const throwMuzzle = selectedWeapon === 'grenade' ? getWeaponMuzzle(weaponView.pose) : null;
   const actions = weaponView.tick({

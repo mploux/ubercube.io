@@ -21,6 +21,8 @@ test('steady 20 Hz snapshots need 50 ms of buffering, with smooth motion at 30, 
       }
       const rendered = remote.sample(1000 + time)[0];
       expect(rendered.position.x).toBeCloseTo(Math.max(0, time - 50) * .006, 5);
+      expect(remote.viewTick).toBeCloseTo(Math.max(0, time - 50) * .06, 5);
+      expect(remote.viewLatestTick).toBe(tick - 3);
     }
   }
 });
@@ -46,6 +48,8 @@ test('growing jitter never reverses playback and stalled packets never extrapola
   remote.snapshot(6, [player(.6)], 1130);
   expect(remote.sample(1130)[0].position.x).toBeGreaterThanOrEqual(before);
   expect(remote.sample(3000)[0].position.x).toBeCloseTo(.6);
+  expect(remote.viewTick).toBe(6);
+  expect(remote.viewLatestTick).toBe(6);
   remote.snapshot(12, [player(1.2)], 3010);
   expect(remote.sample(3010)[0].position.x).toBeGreaterThanOrEqual(.6);
   expect(remote.sample(4000)[0].position.x).toBeCloseTo(1.2);
@@ -122,9 +126,42 @@ test('clearing the world or connection discards its clock and history even if th
   const remote = new RemotePlayers();
   remote.snapshot(600, [player(6)], 11000);
   remote.sample(11500);
+  expect(remote.viewTick).toBe(600);
+  expect(remote.viewLatestTick).toBe(600);
   remote.clear();
+  expect(remote.viewTick).toBeUndefined();
+  expect(remote.viewLatestTick).toBeUndefined();
   expect(remote.sample(11500)).toEqual([]);
   remote.snapshot(0, [player(0)], 12000);
   remote.snapshot(3, [player(.3)], 12050);
+  expect(remote.viewTick).toBeUndefined();
+  expect(remote.viewLatestTick).toBeUndefined();
   expect(remote.sample(12075)[0].position.x).toBeCloseTo(.15);
+  expect(remote.viewTick).toBeCloseTo(1.5);
+  expect(remote.viewLatestTick).toBe(3);
+});
+
+test('the visible tick and latest snapshot change only when sampling a finite render time, never on packet arrival', () => {
+  const remote = new RemotePlayers();
+  expect(remote.viewTick).toBeUndefined();
+  expect(remote.viewLatestTick).toBeUndefined();
+  remote.snapshot(0, [player(0)], 1000);
+  remote.snapshot(3, [player(.3)], 1050);
+  expect(remote.viewTick).toBeUndefined();
+  expect(remote.viewLatestTick).toBeUndefined();
+  expect(remote.sample(NaN)).toEqual([]);
+  expect(remote.viewTick).toBeUndefined();
+  expect(remote.viewLatestTick).toBeUndefined();
+  remote.sample(1075);
+  expect(remote.viewTick).toBeCloseTo(1.5);
+  expect(remote.viewLatestTick).toBe(3);
+  remote.snapshot(6, [player(.6)], 1100);
+  expect(remote.viewTick).toBeCloseTo(1.5);
+  expect(remote.viewLatestTick).toBe(3);
+  expect(remote.sample(Infinity)).toEqual([]);
+  expect(remote.viewTick).toBeCloseTo(1.5);
+  expect(remote.viewLatestTick).toBe(3);
+  remote.sample(1125);
+  expect(remote.viewTick).toBeCloseTo(4.5);
+  expect(remote.viewLatestTick).toBe(6);
 });

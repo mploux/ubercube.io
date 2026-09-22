@@ -1,0 +1,2928 @@
+{
+  "deterministic": {
+    "createdAt": "2026-09-22T14:59:03.959Z",
+    "kind": "deterministic virtual clock transport simulation",
+    "protocol": 7,
+    "description": "Real GameServer, movement, muzzle, hitscan, health effects, codec and RemotePlayers. Ordered virtual uplink/downlink with symmetric RTT. No real sockets, browser frames, jitter, packet loss or production access.",
+    "fixture": {
+      "flatSize": 128,
+      "targetZ": 60,
+      "shooterZ": 100,
+      "shooterEyeHeight": 2.4,
+      "hitboxWidth": 0.6,
+      "aiming": true,
+      "warmupFrames": 180,
+      "shotsPerTrial": 1,
+      "seeds": [
+        12345,
+        54321
+      ],
+      "inputTickPhaseMs": [
+        0.5,
+        4.5,
+        8.5,
+        12.5
+      ],
+      "snapshotPhases": [
+        0,
+        1,
+        2
+      ],
+      "note": "Initial positions are set once. Thereafter positions and health change only through GameServer. Visible target sampling at input time is idealized and excludes an extra previous-render-frame delay. Lead uses known virtual transport and tick phase; it is an explanatory control, not implemented lag compensation."
+    },
+    "trialCount": 1152,
+    "wallTimeMs": 2407.4608,
+    "sourceSha256": {
+      "src/shared/game.ts": "a9d0786ef7aa75d76309e38b91fdee084599bf7d98cc4a6d9699a52abb6cfb5f",
+      "src/shared/movement.ts": "87102e51b9c09e267730953c1adb5e278e4aef948bd2270909d6085248be2ffb",
+      "src/shared/protocol.ts": "e488391947ec3e16aa53cd6751c9335a864c84825f21d2942eecc8437f9bf98d",
+      "src/shared/weapon-pose.ts": "a3b442e7454f8bcf83acee1e7770ce520870a000dc7b665419adc5e39528a5f5",
+      "src/shared/wire.ts": "7c0a57379bf8f5db8c0d561936cf1cd40f5e789e9be28853f3fa4372b88647d7",
+      "src/client/remote-players.ts": "e532cca019bcddda18588725201ce2de7af9d7f712c2e1a544d424571f4549d3"
+    },
+    "rowsSha256": "d1edfb14ef0df272ac84bb7efac722ac8ab76e2c173876e0a73e47844e48d8c5",
+    "invariantFailures": 0,
+    "summary": [
+      {
+        "rttMs": 0,
+        "speedBlocksPerSecond": 0,
+        "weapon": "ak47",
+        "aim": "visible center",
+        "trials": 24,
+        "hits": 24,
+        "hitRate": 1,
+        "damageTotal": 480,
+        "renderedAgeMs": null,
+        "inputToResolveMs": {
+          "min": 4.166666666666515,
+          "median": 10.166666666666742,
+          "p95": 16.16666666666697,
+          "max": 16.16666666666697
+        },
+        "effectiveTargetAgeMs": null,
+        "targetShiftBlocks": {
+          "min": 0,
+          "median": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "rayErrorToCurrentTargetBlocks": {
+          "min": 0,
+          "median": 0,
+          "p95": 0,
+          "max": 0
+        }
+      },
+      {
+        "rttMs": 0,
+        "speedBlocksPerSecond": 0,
+        "weapon": "ak47",
+        "aim": "lead RTT + 50ms + server tick phase",
+        "trials": 24,
+        "hits": 24,
+        "hitRate": 1,
+        "damageTotal": 480,
+        "renderedAgeMs": null,
+        "inputToResolveMs": {
+          "min": 4.166666666666515,
+          "median": 10.166666666666742,
+          "p95": 16.16666666666697,
+          "max": 16.16666666666697
+        },
+        "effectiveTargetAgeMs": null,
+        "targetShiftBlocks": {
+          "min": 0,
+          "median": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "rayErrorToCurrentTargetBlocks": {
+          "min": 0,
+          "median": 0,
+          "p95": 0,
+          "max": 0
+        }
+      },
+      {
+        "rttMs": 0,
+        "speedBlocksPerSecond": 0,
+        "weapon": "awp",
+        "aim": "visible center",
+        "trials": 24,
+        "hits": 24,
+        "hitRate": 1,
+        "damageTotal": 1680,
+        "renderedAgeMs": null,
+        "inputToResolveMs": {
+          "min": 4.166666666666515,
+          "median": 10.166666666666742,
+          "p95": 16.16666666666697,
+          "max": 16.16666666666697
+        },
+        "effectiveTargetAgeMs": null,
+        "targetShiftBlocks": {
+          "min": 0,
+          "median": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "rayErrorToCurrentTargetBlocks": {
+          "min": -7.105427357601002e-15,
+          "median": -7.105427357601002e-15,
+          "p95": -7.105427357601002e-15,
+          "max": -7.105427357601002e-15
+        }
+      },
+      {
+        "rttMs": 0,
+        "speedBlocksPerSecond": 0,
+        "weapon": "awp",
+        "aim": "lead RTT + 50ms + server tick phase",
+        "trials": 24,
+        "hits": 24,
+        "hitRate": 1,
+        "damageTotal": 1680,
+        "renderedAgeMs": null,
+        "inputToResolveMs": {
+          "min": 4.166666666666515,
+          "median": 10.166666666666742,
+          "p95": 16.16666666666697,
+          "max": 16.16666666666697
+        },
+        "effectiveTargetAgeMs": null,
+        "targetShiftBlocks": {
+          "min": 0,
+          "median": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "rayErrorToCurrentTargetBlocks": {
+          "min": -7.105427357601002e-15,
+          "median": -7.105427357601002e-15,
+          "p95": -7.105427357601002e-15,
+          "max": -7.105427357601002e-15
+        }
+      },
+      {
+        "rttMs": 0,
+        "speedBlocksPerSecond": 3,
+        "weapon": "ak47",
+        "aim": "visible center",
+        "trials": 24,
+        "hits": 24,
+        "hitRate": 1,
+        "damageTotal": 480,
+        "renderedAgeMs": {
+          "min": 50.000042385355755,
+          "median": 50.00027296261305,
+          "p95": 50.00050353987035,
+          "max": 50.00050353987035
+        },
+        "inputToResolveMs": {
+          "min": 4.166666666666515,
+          "median": 10.166666666666742,
+          "p95": 16.16666666666697,
+          "max": 16.16666666666697
+        },
+        "effectiveTargetAgeMs": {
+          "min": 54.16670905202227,
+          "median": 60.166939629279796,
+          "p95": 66.16717020653732,
+          "max": 66.16717020653732
+        },
+        "targetShiftBlocks": {
+          "min": 0.16250012715605777,
+          "median": 0.18050081888782898,
+          "p95": 0.1985015106196002,
+          "max": 0.1985015106196002
+        },
+        "rayErrorToCurrentTargetBlocks": {
+          "min": -0.1985015106196073,
+          "median": -0.18050081888783254,
+          "p95": -0.16250012715606488,
+          "max": -0.16250012715606488
+        }
+      },
+      {
+        "rttMs": 0,
+        "speedBlocksPerSecond": 3,
+        "weapon": "ak47",
+        "aim": "lead RTT + 50ms + server tick phase",
+        "trials": 24,
+        "hits": 24,
+        "hitRate": 1,
+        "damageTotal": 480,
+        "renderedAgeMs": {
+          "min": 50.000042385355755,
+          "median": 50.00027296261305,
+          "p95": 50.00050353987035,
+          "max": 50.00050353987035
+        },
+        "inputToResolveMs": {
+          "min": 4.166666666666515,
+          "median": 10.166666666666742,
+          "p95": 16.16666666666697,
+          "max": 16.16666666666697
+        },
+        "effectiveTargetAgeMs": {
+          "min": 54.16670905202227,
+          "median": 60.166939629279796,
+          "p95": 66.16717020653732,
+          "max": 66.16717020653732
+        },
+        "targetShiftBlocks": {
+          "min": 0.16250012715605777,
+          "median": 0.18050081888782898,
+          "p95": 0.1985015106196002,
+          "max": 0.1985015106196002
+        },
+        "rayErrorToCurrentTargetBlocks": {
+          "min": -0.000001510619597411278,
+          "median": -8.188878304338232e-7,
+          "p95": -1.2715605635094107e-7,
+          "max": -1.2715605635094107e-7
+        }
+      },
+      {
+        "rttMs": 0,
+        "speedBlocksPerSecond": 3,
+        "weapon": "awp",
+        "aim": "visible center",
+        "trials": 24,
+        "hits": 24,
+        "hitRate": 1,
+        "damageTotal": 1680,
+        "renderedAgeMs": {
+          "min": 50.000042385355755,
+          "median": 50.00027296261305,
+          "p95": 50.00050353987035,
+          "max": 50.00050353987035
+        },
+        "inputToResolveMs": {
+          "min": 4.166666666666515,
+          "median": 10.166666666666742,
+          "p95": 16.16666666666697,
+          "max": 16.16666666666697
+        },
+        "effectiveTargetAgeMs": {
+          "min": 54.16670905202227,
+          "median": 60.166939629279796,
+          "p95": 66.16717020653732,
+          "max": 66.16717020653732
+        },
+        "targetShiftBlocks": {
+          "min": 0.16250012715605777,
+          "median": 0.18050081888782898,
+          "p95": 0.1985015106196002,
+          "max": 0.1985015106196002
+        },
+        "rayErrorToCurrentTargetBlocks": {
+          "min": -0.1985015106195931,
+          "median": -0.18050081888782898,
+          "p95": -0.16250012715606488,
+          "max": -0.16250012715606488
+        }
+      },
+      {
+        "rttMs": 0,
+        "speedBlocksPerSecond": 3,
+        "weapon": "awp",
+        "aim": "lead RTT + 50ms + server tick phase",
+        "trials": 24,
+        "hits": 24,
+        "hitRate": 1,
+        "damageTotal": 1680,
+        "renderedAgeMs": {
+          "min": 50.000042385355755,
+          "median": 50.00027296261305,
+          "p95": 50.00050353987035,
+          "max": 50.00050353987035
+        },
+        "inputToResolveMs": {
+          "min": 4.166666666666515,
+          "median": 10.166666666666742,
+          "p95": 16.16666666666697,
+          "max": 16.16666666666697
+        },
+        "effectiveTargetAgeMs": {
+          "min": 54.16670905202227,
+          "median": 60.166939629279796,
+          "p95": 66.16717020653732,
+          "max": 66.16717020653732
+        },
+        "targetShiftBlocks": {
+          "min": 0.16250012715605777,
+          "median": 0.18050081888782898,
+          "p95": 0.1985015106196002,
+          "max": 0.1985015106196002
+        },
+        "rayErrorToCurrentTargetBlocks": {
+          "min": -0.000001510619597411278,
+          "median": -8.188878268811095e-7,
+          "p95": -1.2715605635094107e-7,
+          "max": -1.2715605635094107e-7
+        }
+      },
+      {
+        "rttMs": 0,
+        "speedBlocksPerSecond": 6,
+        "weapon": "ak47",
+        "aim": "visible center",
+        "trials": 24,
+        "hits": 6,
+        "hitRate": 0.25,
+        "damageTotal": 120,
+        "renderedAgeMs": {
+          "min": 49.999874115032526,
+          "median": 49.99993175934651,
+          "p95": 49.99998940366186,
+          "max": 49.99998940366186
+        },
+        "inputToResolveMs": {
+          "min": 4.166666666666515,
+          "median": 10.166666666666742,
+          "p95": 16.16666666666697,
+          "max": 16.16666666666697
+        },
+        "effectiveTargetAgeMs": {
+          "min": 54.166571299277166,
+          "median": 60.166598426013934,
+          "p95": 66.16662555274888,
+          "max": 66.16662555274888
+        },
+        "targetShiftBlocks": {
+          "min": 0.3249994277956674,
+          "median": 0.3609995905560872,
+          "p95": 0.39699975331649995,
+          "max": 0.39699975331649995
+        },
+        "rayErrorToCurrentTargetBlocks": {
+          "min": -0.39699975331649995,
+          "median": -0.3609995905560872,
+          "p95": -0.3249994277956745,
+          "max": -0.3249994277956745
+        }
+      },
+      {
+        "rttMs": 0,
+        "speedBlocksPerSecond": 6,
+        "weapon": "ak47",
+        "aim": "lead RTT + 50ms + server tick phase",
+        "trials": 24,
+        "hits": 24,
+        "hitRate": 1,
+        "damageTotal": 480,
+        "renderedAgeMs": {
+          "min": 49.999874115032526,
+          "median": 49.99993175934651,
+          "p95": 49.99998940366186,
+          "max": 49.99998940366186
+        },
+        "inputToResolveMs": {
+          "min": 4.166666666666515,
+          "median": 10.166666666666742,
+          "p95": 16.16666666666697,
+          "max": 16.16666666666697
+        },
+        "effectiveTargetAgeMs": {
+          "min": 54.166571299277166,
+          "median": 60.166598426013934,
+          "p95": 66.16662555274888,
+          "max": 66.16662555274888
+        },
+        "targetShiftBlocks": {
+          "min": 0.3249994277956674,
+          "median": 0.3609995905560872,
+          "p95": 0.39699975331649995,
+          "max": 0.39699975331649995
+        },
+        "rayErrorToCurrentTargetBlocks": {
+          "min": 6.357802107004318e-8,
+          "median": 4.0944391344055475e-7,
+          "p95": 7.55309798705639e-7,
+          "max": 7.55309798705639e-7
+        }
+      },
+      {
+        "rttMs": 0,
+        "speedBlocksPerSecond": 6,
+        "weapon": "awp",
+        "aim": "visible center",
+        "trials": 24,
+        "hits": 6,
+        "hitRate": 0.25,
+        "damageTotal": 420,
+        "renderedAgeMs": {
+          "min": 49.999874115032526,
+          "median": 49.99993175934651,
+          "p95": 49.99998940366186,
+          "max": 49.99998940366186
+        },
+        "inputToResolveMs": {
+          "min": 4.166666666666515,
+          "median": 10.166666666666742,
+          "p95": 16.16666666666697,
+          "max": 16.16666666666697
+        },
+        "effectiveTargetAgeMs": {
+          "min": 54.166571299277166,
+          "median": 60.166598426013934,
+          "p95": 66.16662555274888,
+          "max": 66.16662555274888
+        },
+        "targetShiftBlocks": {
+          "min": 0.3249994277956674,
+          "median": 0.3609995905560872,
+          "p95": 0.39699975331649995,
+          "max": 0.39699975331649995
+        },
+        "rayErrorToCurrentTargetBlocks": {
+          "min": -0.39699975331649995,
+          "median": -0.3609995905560872,
+          "p95": -0.3249994277956674,
+          "max": -0.3249994277956674
+        }
+      },
+      {
+        "rttMs": 0,
+        "speedBlocksPerSecond": 6,
+        "weapon": "awp",
+        "aim": "lead RTT + 50ms + server tick phase",
+        "trials": 24,
+        "hits": 24,
+        "hitRate": 1,
+        "damageTotal": 1680,
+        "renderedAgeMs": {
+          "min": 49.999874115032526,
+          "median": 49.99993175934651,
+          "p95": 49.99998940366186,
+          "max": 49.99998940366186
+        },
+        "inputToResolveMs": {
+          "min": 4.166666666666515,
+          "median": 10.166666666666742,
+          "p95": 16.16666666666697,
+          "max": 16.16666666666697
+        },
+        "effectiveTargetAgeMs": {
+          "min": 54.166571299277166,
+          "median": 60.166598426013934,
+          "p95": 66.16662555274888,
+          "max": 66.16662555274888
+        },
+        "targetShiftBlocks": {
+          "min": 0.3249994277956674,
+          "median": 0.3609995905560872,
+          "p95": 0.39699975331649995,
+          "max": 0.39699975331649995
+        },
+        "rayErrorToCurrentTargetBlocks": {
+          "min": 6.357802107004318e-8,
+          "median": 4.0944391344055475e-7,
+          "p95": 7.55309798705639e-7,
+          "max": 7.55309798705639e-7
+        }
+      },
+      {
+        "rttMs": 0,
+        "speedBlocksPerSecond": 9,
+        "weapon": "ak47",
+        "aim": "visible center",
+        "trials": 24,
+        "hits": 0,
+        "hitRate": 0,
+        "damageTotal": 0,
+        "renderedAgeMs": {
+          "min": 49.99966430662607,
+          "median": 49.99981802479783,
+          "p95": 49.99997174297005,
+          "max": 49.99997174297005
+        },
+        "inputToResolveMs": {
+          "min": 4.166666666666515,
+          "median": 10.166666666666742,
+          "p95": 16.16666666666697,
+          "max": 16.16666666666697
+        },
+        "effectiveTargetAgeMs": {
+          "min": 54.16641235350153,
+          "median": 60.166484691465485,
+          "p95": 66.16655702942717,
+          "max": 66.16655702942717
+        },
+        "targetShiftBlocks": {
+          "min": 0.4874977111815326,
+          "median": 0.5414983622232086,
+          "p95": 0.5954990132648703,
+          "max": 0.5954990132648703
+        },
+        "rayErrorToCurrentTargetBlocks": {
+          "min": -0.5954990132648703,
+          "median": -0.5414983622232086,
+          "p95": -0.48749771118154683,
+          "max": -0.48749771118154683
+        }
+      },
+      {
+        "rttMs": 0,
+        "speedBlocksPerSecond": 9,
+        "weapon": "ak47",
+        "aim": "lead RTT + 50ms + server tick phase",
+        "trials": 24,
+        "hits": 24,
+        "hitRate": 1,
+        "damageTotal": 480,
+        "renderedAgeMs": {
+          "min": 49.99966430662607,
+          "median": 49.99981802479783,
+          "p95": 49.99997174297005,
+          "max": 49.99997174297005
+        },
+        "inputToResolveMs": {
+          "min": 4.166666666666515,
+          "median": 10.166666666666742,
+          "p95": 16.16666666666697,
+          "max": 16.16666666666697
+        },
+        "effectiveTargetAgeMs": {
+          "min": 54.16641235350153,
+          "median": 60.166484691465485,
+          "p95": 66.16655702942717,
+          "max": 66.16655702942717
+        },
+        "targetShiftBlocks": {
+          "min": 0.4874977111815326,
+          "median": 0.5414983622232086,
+          "p95": 0.5954990132648703,
+          "max": 0.5954990132648703
+        },
+        "rayErrorToCurrentTargetBlocks": {
+          "min": 2.5431324957025936e-7,
+          "median": 0.0000016377767977360236,
+          "p95": 0.000003021240345901788,
+          "max": 0.000003021240345901788
+        }
+      },
+      {
+        "rttMs": 0,
+        "speedBlocksPerSecond": 9,
+        "weapon": "awp",
+        "aim": "visible center",
+        "trials": 24,
+        "hits": 0,
+        "hitRate": 0,
+        "damageTotal": 0,
+        "renderedAgeMs": {
+          "min": 49.99966430662607,
+          "median": 49.99981802479783,
+          "p95": 49.99997174297005,
+          "max": 49.99997174297005
+        },
+        "inputToResolveMs": {
+          "min": 4.166666666666515,
+          "median": 10.166666666666742,
+          "p95": 16.16666666666697,
+          "max": 16.16666666666697
+        },
+        "effectiveTargetAgeMs": {
+          "min": 54.16641235350153,
+          "median": 60.166484691465485,
+          "p95": 66.16655702942717,
+          "max": 66.16655702942717
+        },
+        "targetShiftBlocks": {
+          "min": 0.4874977111815326,
+          "median": 0.5414983622232086,
+          "p95": 0.5954990132648703,
+          "max": 0.5954990132648703
+        },
+        "rayErrorToCurrentTargetBlocks": {
+          "min": -0.5954990132648703,
+          "median": -0.5414983622232086,
+          "p95": -0.4874977111815326,
+          "max": -0.4874977111815326
+        }
+      },
+      {
+        "rttMs": 0,
+        "speedBlocksPerSecond": 9,
+        "weapon": "awp",
+        "aim": "lead RTT + 50ms + server tick phase",
+        "trials": 24,
+        "hits": 24,
+        "hitRate": 1,
+        "damageTotal": 1680,
+        "renderedAgeMs": {
+          "min": 49.99966430662607,
+          "median": 49.99981802479783,
+          "p95": 49.99997174297005,
+          "max": 49.99997174297005
+        },
+        "inputToResolveMs": {
+          "min": 4.166666666666515,
+          "median": 10.166666666666742,
+          "p95": 16.16666666666697,
+          "max": 16.16666666666697
+        },
+        "effectiveTargetAgeMs": {
+          "min": 54.16641235350153,
+          "median": 60.166484691465485,
+          "p95": 66.16655702942717,
+          "max": 66.16655702942717
+        },
+        "targetShiftBlocks": {
+          "min": 0.4874977111815326,
+          "median": 0.5414983622232086,
+          "p95": 0.5954990132648703,
+          "max": 0.5954990132648703
+        },
+        "rayErrorToCurrentTargetBlocks": {
+          "min": 2.5431324957025936e-7,
+          "median": 0.0000016377767977360236,
+          "p95": 0.0000030212403601126425,
+          "max": 0.0000030212403601126425
+        }
+      },
+      {
+        "rttMs": 50,
+        "speedBlocksPerSecond": 0,
+        "weapon": "ak47",
+        "aim": "visible center",
+        "trials": 24,
+        "hits": 24,
+        "hitRate": 1,
+        "damageTotal": 480,
+        "renderedAgeMs": null,
+        "inputToResolveMs": {
+          "min": 28.83333333333303,
+          "median": 35.16666666666674,
+          "p95": 41.5,
+          "max": 41.5
+        },
+        "effectiveTargetAgeMs": null,
+        "targetShiftBlocks": {
+          "min": 0,
+          "median": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "rayErrorToCurrentTargetBlocks": {
+          "min": 0,
+          "median": 0,
+          "p95": 0,
+          "max": 0
+        }
+      },
+      {
+        "rttMs": 50,
+        "speedBlocksPerSecond": 0,
+        "weapon": "ak47",
+        "aim": "lead RTT + 50ms + server tick phase",
+        "trials": 24,
+        "hits": 24,
+        "hitRate": 1,
+        "damageTotal": 480,
+        "renderedAgeMs": null,
+        "inputToResolveMs": {
+          "min": 28.83333333333303,
+          "median": 35.16666666666674,
+          "p95": 41.5,
+          "max": 41.5
+        },
+        "effectiveTargetAgeMs": null,
+        "targetShiftBlocks": {
+          "min": 0,
+          "median": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "rayErrorToCurrentTargetBlocks": {
+          "min": 0,
+          "median": 0,
+          "p95": 0,
+          "max": 0
+        }
+      },
+      {
+        "rttMs": 50,
+        "speedBlocksPerSecond": 0,
+        "weapon": "awp",
+        "aim": "visible center",
+        "trials": 24,
+        "hits": 24,
+        "hitRate": 1,
+        "damageTotal": 1680,
+        "renderedAgeMs": null,
+        "inputToResolveMs": {
+          "min": 28.83333333333303,
+          "median": 35.16666666666674,
+          "p95": 41.5,
+          "max": 41.5
+        },
+        "effectiveTargetAgeMs": null,
+        "targetShiftBlocks": {
+          "min": 0,
+          "median": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "rayErrorToCurrentTargetBlocks": {
+          "min": -7.105427357601002e-15,
+          "median": -7.105427357601002e-15,
+          "p95": -7.105427357601002e-15,
+          "max": -7.105427357601002e-15
+        }
+      },
+      {
+        "rttMs": 50,
+        "speedBlocksPerSecond": 0,
+        "weapon": "awp",
+        "aim": "lead RTT + 50ms + server tick phase",
+        "trials": 24,
+        "hits": 24,
+        "hitRate": 1,
+        "damageTotal": 1680,
+        "renderedAgeMs": null,
+        "inputToResolveMs": {
+          "min": 28.83333333333303,
+          "median": 35.16666666666674,
+          "p95": 41.5,
+          "max": 41.5
+        },
+        "effectiveTargetAgeMs": null,
+        "targetShiftBlocks": {
+          "min": 0,
+          "median": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "rayErrorToCurrentTargetBlocks": {
+          "min": -7.105427357601002e-15,
+          "median": -7.105427357601002e-15,
+          "p95": -7.105427357601002e-15,
+          "max": -7.105427357601002e-15
+        }
+      },
+      {
+        "rttMs": 50,
+        "speedBlocksPerSecond": 3,
+        "weapon": "ak47",
+        "aim": "visible center",
+        "trials": 24,
+        "hits": 24,
+        "hitRate": 1,
+        "damageTotal": 480,
+        "renderedAgeMs": {
+          "min": 74.99978807228126,
+          "median": 75.00006103507349,
+          "p95": 75.00019582105415,
+          "max": 75.00019582105415
+        },
+        "inputToResolveMs": {
+          "min": 28.83333333333303,
+          "median": 35.16666666666674,
+          "p95": 41.5,
+          "max": 41.5
+        },
+        "effectiveTargetAgeMs": {
+          "min": 103.83327484123674,
+          "median": 110.16664293068993,
+          "p95": 116.50016784658783,
+          "max": 116.50016784658783
+        },
+        "targetShiftBlocks": {
+          "min": 0.3114998245236933,
+          "median": 0.3304999287920509,
+          "p95": 0.34950050353974405,
+          "max": 0.34950050353974405
+        },
+        "rayErrorToCurrentTargetBlocks": {
+          "min": -0.34950050353973694,
+          "median": -0.3304999287920509,
+          "p95": -0.3114998245236933,
+          "max": -0.3114998245236933
+        }
+      },
+      {
+        "rttMs": 50,
+        "speedBlocksPerSecond": 3,
+        "weapon": "ak47",
+        "aim": "lead RTT + 50ms + server tick phase",
+        "trials": 24,
+        "hits": 24,
+        "hitRate": 1,
+        "damageTotal": 480,
+        "renderedAgeMs": {
+          "min": 74.99978807228126,
+          "median": 75.00006103507349,
+          "p95": 75.00019582105415,
+          "max": 75.00019582105415
+        },
+        "inputToResolveMs": {
+          "min": 28.83333333333303,
+          "median": 35.16666666666674,
+          "p95": 41.5,
+          "max": 41.5
+        },
+        "effectiveTargetAgeMs": {
+          "min": 103.83327484123674,
+          "median": 110.16664293068993,
+          "p95": 116.50016784658783,
+          "max": 116.50016784658783
+        },
+        "targetShiftBlocks": {
+          "min": 0.3114998245236933,
+          "median": 0.3304999287920509,
+          "p95": 0.34950050353974405,
+          "max": 0.34950050353974405
+        },
+        "rayErrorToCurrentTargetBlocks": {
+          "min": -5.874631483493431e-7,
+          "median": -1.8310520033537614e-7,
+          "p95": 6.357831736636399e-7,
+          "max": 6.357831736636399e-7
+        }
+      },
+      {
+        "rttMs": 50,
+        "speedBlocksPerSecond": 3,
+        "weapon": "awp",
+        "aim": "visible center",
+        "trials": 24,
+        "hits": 24,
+        "hitRate": 1,
+        "damageTotal": 1680,
+        "renderedAgeMs": {
+          "min": 74.99978807228126,
+          "median": 75.00006103507349,
+          "p95": 75.00019582105415,
+          "max": 75.00019582105415
+        },
+        "inputToResolveMs": {
+          "min": 28.83333333333303,
+          "median": 35.16666666666674,
+          "p95": 41.5,
+          "max": 41.5
+        },
+        "effectiveTargetAgeMs": {
+          "min": 103.83327484123674,
+          "median": 110.16664293068993,
+          "p95": 116.50016784658783,
+          "max": 116.50016784658783
+        },
+        "targetShiftBlocks": {
+          "min": 0.3114998245236933,
+          "median": 0.3304999287920509,
+          "p95": 0.34950050353974405,
+          "max": 0.34950050353974405
+        },
+        "rayErrorToCurrentTargetBlocks": {
+          "min": -0.34950050353973694,
+          "median": -0.3304999287920509,
+          "p95": -0.3114998245236933,
+          "max": -0.3114998245236933
+        }
+      },
+      {
+        "rttMs": 50,
+        "speedBlocksPerSecond": 3,
+        "weapon": "awp",
+        "aim": "lead RTT + 50ms + server tick phase",
+        "trials": 24,
+        "hits": 24,
+        "hitRate": 1,
+        "damageTotal": 1680,
+        "renderedAgeMs": {
+          "min": 74.99978807228126,
+          "median": 75.00006103507349,
+          "p95": 75.00019582105415,
+          "max": 75.00019582105415
+        },
+        "inputToResolveMs": {
+          "min": 28.83333333333303,
+          "median": 35.16666666666674,
+          "p95": 41.5,
+          "max": 41.5
+        },
+        "effectiveTargetAgeMs": {
+          "min": 103.83327484123674,
+          "median": 110.16664293068993,
+          "p95": 116.50016784658783,
+          "max": 116.50016784658783
+        },
+        "targetShiftBlocks": {
+          "min": 0.3114998245236933,
+          "median": 0.3304999287920509,
+          "p95": 0.34950050353974405,
+          "max": 0.34950050353974405
+        },
+        "rayErrorToCurrentTargetBlocks": {
+          "min": -5.874631412439157e-7,
+          "median": -1.8310520388808982e-7,
+          "p95": 6.357831665582125e-7,
+          "max": 6.357831665582125e-7
+        }
+      },
+      {
+        "rttMs": 50,
+        "speedBlocksPerSecond": 6,
+        "weapon": "ak47",
+        "aim": "visible center",
+        "trials": 24,
+        "hits": 0,
+        "hitRate": 0,
+        "damageTotal": 0,
+        "renderedAgeMs": {
+          "min": 74.9999580383519,
+          "median": 75.00008837384075,
+          "p95": 75.00024456449864,
+          "max": 75.00024456449864
+        },
+        "inputToResolveMs": {
+          "min": 28.83333333333303,
+          "median": 35.16666666666674,
+          "p95": 41.5,
+          "max": 41.5
+        },
+        "effectiveTargetAgeMs": {
+          "min": 103.83345709908554,
+          "median": 110.16676796809179,
+          "p95": 116.50004280940311,
+          "max": 116.50004280940311
+        },
+        "targetShiftBlocks": {
+          "min": 0.6230007425945203,
+          "median": 0.6610006078085604,
+          "p95": 0.6990002568564293,
+          "max": 0.6990002568564293
+        },
+        "rayErrorToCurrentTargetBlocks": {
+          "min": -0.6990002568564293,
+          "median": -0.6610006078085604,
+          "p95": -0.6230007425945274,
+          "max": -0.6230007425945274
+        }
+      },
+      {
+        "rttMs": 50,
+        "speedBlocksPerSecond": 6,
+        "weapon": "ak47",
+        "aim": "lead RTT + 50ms + server tick phase",
+        "trials": 24,
+        "hits": 24,
+        "hitRate": 1,
+        "damageTotal": 480,
+        "renderedAgeMs": {
+          "min": 74.9999580383519,
+          "median": 75.00008837384075,
+          "p95": 75.00024456449864,
+          "max": 75.00024456449864
+        },
+        "inputToResolveMs": {
+          "min": 28.83333333333303,
+          "median": 35.16666666666674,
+          "p95": 41.5,
+          "max": 41.5
+        },
+        "effectiveTargetAgeMs": {
+          "min": 103.83345709908554,
+          "median": 110.16676796809179,
+          "p95": 116.50004280940311,
+          "max": 116.50004280940311
+        },
+        "targetShiftBlocks": {
+          "min": 0.6230007425945203,
+          "median": 0.6610006078085604,
+          "p95": 0.6990002568564293,
+          "max": 0.6990002568564293
+        },
+        "rayErrorToCurrentTargetBlocks": {
+          "min": -0.0000014673869941361772,
+          "median": -5.302430530207403e-7,
+          "p95": 2.5176988316388815e-7,
+          "max": 2.5176988316388815e-7
+        }
+      },
+      {
+        "rttMs": 50,
+        "speedBlocksPerSecond": 6,
+        "weapon": "awp",
+        "aim": "visible center",
+        "trials": 24,
+        "hits": 0,
+        "hitRate": 0,
+        "damageTotal": 0,
+        "renderedAgeMs": {
+          "min": 74.9999580383519,
+          "median": 75.00008837384075,
+          "p95": 75.00024456449864,
+          "max": 75.00024456449864
+        },
+        "inputToResolveMs": {
+          "min": 28.83333333333303,
+          "median": 35.16666666666674,
+          "p95": 41.5,
+          "max": 41.5
+        },
+        "effectiveTargetAgeMs": {
+          "min": 103.83345709908554,
+          "median": 110.16676796809179,
+          "p95": 116.50004280940311,
+          "max": 116.50004280940311
+        },
+        "targetShiftBlocks": {
+          "min": 0.6230007425945203,
+          "median": 0.6610006078085604,
+          "p95": 0.6990002568564293,
+          "max": 0.6990002568564293
+        },
+        "rayErrorToCurrentTargetBlocks": {
+          "min": -0.6990002568564222,
+          "median": -0.6610006078085604,
+          "p95": -0.6230007425945203,
+          "max": -0.6230007425945203
+        }
+      },
+      {
+        "rttMs": 50,
+        "speedBlocksPerSecond": 6,
+        "weapon": "awp",
+        "aim": "lead RTT + 50ms + server tick phase",
+        "trials": 24,
+        "hits": 24,
+        "hitRate": 1,
+        "damageTotal": 1680,
+        "renderedAgeMs": {
+          "min": 74.9999580383519,
+          "median": 75.00008837384075,
+          "p95": 75.00024456449864,
+          "max": 75.00024456449864
+        },
+        "inputToResolveMs": {
+          "min": 28.83333333333303,
+          "median": 35.16666666666674,
+          "p95": 41.5,
+          "max": 41.5
+        },
+        "effectiveTargetAgeMs": {
+          "min": 103.83345709908554,
+          "median": 110.16676796809179,
+          "p95": 116.50004280940311,
+          "max": 116.50004280940311
+        },
+        "targetShiftBlocks": {
+          "min": 0.6230007425945203,
+          "median": 0.6610006078085604,
+          "p95": 0.6990002568564293,
+          "max": 0.6990002568564293
+        },
+        "rayErrorToCurrentTargetBlocks": {
+          "min": -0.0000014673870012416046,
+          "median": -5.302430530207403e-7,
+          "p95": 2.517698760584608e-7,
+          "max": 2.517698760584608e-7
+        }
+      },
+      {
+        "rttMs": 50,
+        "speedBlocksPerSecond": 9,
+        "weapon": "ak47",
+        "aim": "visible center",
+        "trials": 24,
+        "hits": 0,
+        "hitRate": 0,
+        "damageTotal": 0,
+        "renderedAgeMs": {
+          "min": 74.99986945258252,
+          "median": 74.99995930989394,
+          "p95": 75.00014128507928,
+          "max": 75.00014128507928
+        },
+        "inputToResolveMs": {
+          "min": 28.83333333333303,
+          "median": 35.16666666666674,
+          "p95": 41.5,
+          "max": 41.5
+        },
+        "effectiveTargetAgeMs": {
+          "min": 103.83320278591555,
+          "median": 110.1666641235322,
+          "p95": 116.50011415834342,
+          "max": 116.50011415834342
+        },
+        "targetShiftBlocks": {
+          "min": 0.9344988250732769,
+          "median": 0.9914999771118289,
+          "p95": 1.0485010274251323,
+          "max": 1.0485010274251323
+        },
+        "rayErrorToCurrentTargetBlocks": {
+          "min": -1.0485010274251323,
+          "median": -0.9914999771118289,
+          "p95": -0.9344988250732769,
+          "max": -0.9344988250732769
+        }
+      },
+      {
+        "rttMs": 50,
+        "speedBlocksPerSecond": 9,
+        "weapon": "ak47",
+        "aim": "lead RTT + 50ms + server tick phase",
+        "trials": 24,
+        "hits": 24,
+        "hitRate": 1,
+        "damageTotal": 480,
+        "renderedAgeMs": {
+          "min": 74.99986945258252,
+          "median": 74.99995930989394,
+          "p95": 75.00014128507928,
+          "max": 75.00014128507928
+        },
+        "inputToResolveMs": {
+          "min": 28.83333333333303,
+          "median": 35.16666666666674,
+          "p95": 41.5,
+          "max": 41.5
+        },
+        "effectiveTargetAgeMs": {
+          "min": 103.83320278591555,
+          "median": 110.1666641235322,
+          "p95": 116.50011415834342,
+          "max": 116.50011415834342
+        },
+        "targetShiftBlocks": {
+          "min": 0.9344988250732769,
+          "median": 0.9914999771118289,
+          "p95": 1.0485010274251323,
+          "max": 1.0485010274251323
+        },
+        "rayErrorToCurrentTargetBlocks": {
+          "min": -0.0000012715657646822365,
+          "median": 3.662109193669494e-7,
+          "p95": 0.0000011749267230243277,
+          "max": 0.0000011749267230243277
+        }
+      },
+      {
+        "rttMs": 50,
+        "speedBlocksPerSecond": 9,
+        "weapon": "awp",
+        "aim": "visible center",
+        "trials": 24,
+        "hits": 0,
+        "hitRate": 0,
+        "damageTotal": 0,
+        "renderedAgeMs": {
+          "min": 74.99986945258252,
+          "median": 74.99995930989394,
+          "p95": 75.00014128507928,
+          "max": 75.00014128507928
+        },
+        "inputToResolveMs": {
+          "min": 28.83333333333303,
+          "median": 35.16666666666674,
+          "p95": 41.5,
+          "max": 41.5
+        },
+        "effectiveTargetAgeMs": {
+          "min": 103.83320278591555,
+          "median": 110.1666641235322,
+          "p95": 116.50011415834342,
+          "max": 116.50011415834342
+        },
+        "targetShiftBlocks": {
+          "min": 0.9344988250732769,
+          "median": 0.9914999771118289,
+          "p95": 1.0485010274251323,
+          "max": 1.0485010274251323
+        },
+        "rayErrorToCurrentTargetBlocks": {
+          "min": -1.0485010274251323,
+          "median": -0.9914999771118289,
+          "p95": -0.9344988250732769,
+          "max": -0.9344988250732769
+        }
+      },
+      {
+        "rttMs": 50,
+        "speedBlocksPerSecond": 9,
+        "weapon": "awp",
+        "aim": "lead RTT + 50ms + server tick phase",
+        "trials": 24,
+        "hits": 24,
+        "hitRate": 1,
+        "damageTotal": 1680,
+        "renderedAgeMs": {
+          "min": 74.99986945258252,
+          "median": 74.99995930989394,
+          "p95": 75.00014128507928,
+          "max": 75.00014128507928
+        },
+        "inputToResolveMs": {
+          "min": 28.83333333333303,
+          "median": 35.16666666666674,
+          "p95": 41.5,
+          "max": 41.5
+        },
+        "effectiveTargetAgeMs": {
+          "min": 103.83320278591555,
+          "median": 110.1666641235322,
+          "p95": 116.50011415834342,
+          "max": 116.50011415834342
+        },
+        "targetShiftBlocks": {
+          "min": 0.9344988250732769,
+          "median": 0.9914999771118289,
+          "p95": 1.0485010274251323,
+          "max": 1.0485010274251323
+        },
+        "rayErrorToCurrentTargetBlocks": {
+          "min": -0.0000012715657504713818,
+          "median": 3.662109193669494e-7,
+          "p95": 0.0000011749267230243277,
+          "max": 0.0000011749267230243277
+        }
+      },
+      {
+        "rttMs": 100,
+        "speedBlocksPerSecond": 0,
+        "weapon": "ak47",
+        "aim": "visible center",
+        "trials": 24,
+        "hits": 24,
+        "hitRate": 1,
+        "damageTotal": 480,
+        "renderedAgeMs": null,
+        "inputToResolveMs": {
+          "min": 54.166666666666515,
+          "median": 60.16666666666674,
+          "p95": 66.16666666666697,
+          "max": 66.16666666666697
+        },
+        "effectiveTargetAgeMs": null,
+        "targetShiftBlocks": {
+          "min": 0,
+          "median": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "rayErrorToCurrentTargetBlocks": {
+          "min": 0,
+          "median": 0,
+          "p95": 0,
+          "max": 0
+        }
+      },
+      {
+        "rttMs": 100,
+        "speedBlocksPerSecond": 0,
+        "weapon": "ak47",
+        "aim": "lead RTT + 50ms + server tick phase",
+        "trials": 24,
+        "hits": 24,
+        "hitRate": 1,
+        "damageTotal": 480,
+        "renderedAgeMs": null,
+        "inputToResolveMs": {
+          "min": 54.166666666666515,
+          "median": 60.16666666666674,
+          "p95": 66.16666666666697,
+          "max": 66.16666666666697
+        },
+        "effectiveTargetAgeMs": null,
+        "targetShiftBlocks": {
+          "min": 0,
+          "median": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "rayErrorToCurrentTargetBlocks": {
+          "min": 0,
+          "median": 0,
+          "p95": 0,
+          "max": 0
+        }
+      },
+      {
+        "rttMs": 100,
+        "speedBlocksPerSecond": 0,
+        "weapon": "awp",
+        "aim": "visible center",
+        "trials": 24,
+        "hits": 24,
+        "hitRate": 1,
+        "damageTotal": 1680,
+        "renderedAgeMs": null,
+        "inputToResolveMs": {
+          "min": 54.166666666666515,
+          "median": 60.16666666666674,
+          "p95": 66.16666666666697,
+          "max": 66.16666666666697
+        },
+        "effectiveTargetAgeMs": null,
+        "targetShiftBlocks": {
+          "min": 0,
+          "median": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "rayErrorToCurrentTargetBlocks": {
+          "min": -7.105427357601002e-15,
+          "median": -7.105427357601002e-15,
+          "p95": -7.105427357601002e-15,
+          "max": -7.105427357601002e-15
+        }
+      },
+      {
+        "rttMs": 100,
+        "speedBlocksPerSecond": 0,
+        "weapon": "awp",
+        "aim": "lead RTT + 50ms + server tick phase",
+        "trials": 24,
+        "hits": 24,
+        "hitRate": 1,
+        "damageTotal": 1680,
+        "renderedAgeMs": null,
+        "inputToResolveMs": {
+          "min": 54.166666666666515,
+          "median": 60.16666666666674,
+          "p95": 66.16666666666697,
+          "max": 66.16666666666697
+        },
+        "effectiveTargetAgeMs": null,
+        "targetShiftBlocks": {
+          "min": 0,
+          "median": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "rayErrorToCurrentTargetBlocks": {
+          "min": -7.105427357601002e-15,
+          "median": -7.105427357601002e-15,
+          "p95": -7.105427357601002e-15,
+          "max": -7.105427357601002e-15
+        }
+      },
+      {
+        "rttMs": 100,
+        "speedBlocksPerSecond": 3,
+        "weapon": "ak47",
+        "aim": "visible center",
+        "trials": 24,
+        "hits": 0,
+        "hitRate": 0,
+        "damageTotal": 0,
+        "renderedAgeMs": {
+          "min": 99.99978807229081,
+          "median": 100.00001864954834,
+          "p95": 100.00024922680586,
+          "max": 100.00024922680586
+        },
+        "inputToResolveMs": {
+          "min": 54.166666666666515,
+          "median": 60.16666666666674,
+          "p95": 66.16666666666697,
+          "max": 66.16666666666697
+        },
+        "effectiveTargetAgeMs": {
+          "min": 154.16645473895733,
+          "median": 160.16668531621508,
+          "p95": 166.16691589347283,
+          "max": 166.16691589347283
+        },
+        "targetShiftBlocks": {
+          "min": 0.46249936421684623,
+          "median": 0.48050005594861744,
+          "p95": 0.49850074768038866,
+          "max": 0.49850074768038866
+        },
+        "rayErrorToCurrentTargetBlocks": {
+          "min": -0.49850074768039576,
+          "median": -0.480500055948621,
+          "p95": -0.46249936421685334,
+          "max": -0.46249936421685334
+        }
+      },
+      {
+        "rttMs": 100,
+        "speedBlocksPerSecond": 3,
+        "weapon": "ak47",
+        "aim": "lead RTT + 50ms + server tick phase",
+        "trials": 24,
+        "hits": 24,
+        "hitRate": 1,
+        "damageTotal": 480,
+        "renderedAgeMs": {
+          "min": 99.99978807229081,
+          "median": 100.00001864954834,
+          "p95": 100.00024922680586,
+          "max": 100.00024922680586
+        },
+        "inputToResolveMs": {
+          "min": 54.166666666666515,
+          "median": 60.16666666666674,
+          "p95": 66.16666666666697,
+          "max": 66.16666666666697
+        },
+        "effectiveTargetAgeMs": {
+          "min": 154.16645473895733,
+          "median": 160.16668531621508,
+          "p95": 166.16691589347283,
+          "max": 166.16691589347283
+        },
+        "targetShiftBlocks": {
+          "min": 0.46249936421684623,
+          "median": 0.48050005594861744,
+          "p95": 0.49850074768038866,
+          "max": 0.49850074768038866
+        },
+        "rayErrorToCurrentTargetBlocks": {
+          "min": -7.47680388712979e-7,
+          "median": -5.5948618182810606e-8,
+          "p95": 6.357831523473578e-7,
+          "max": 6.357831523473578e-7
+        }
+      },
+      {
+        "rttMs": 100,
+        "speedBlocksPerSecond": 3,
+        "weapon": "awp",
+        "aim": "visible center",
+        "trials": 24,
+        "hits": 0,
+        "hitRate": 0,
+        "damageTotal": 0,
+        "renderedAgeMs": {
+          "min": 99.99978807229081,
+          "median": 100.00001864954834,
+          "p95": 100.00024922680586,
+          "max": 100.00024922680586
+        },
+        "inputToResolveMs": {
+          "min": 54.166666666666515,
+          "median": 60.16666666666674,
+          "p95": 66.16666666666697,
+          "max": 66.16666666666697
+        },
+        "effectiveTargetAgeMs": {
+          "min": 154.16645473895733,
+          "median": 160.16668531621508,
+          "p95": 166.16691589347283,
+          "max": 166.16691589347283
+        },
+        "targetShiftBlocks": {
+          "min": 0.46249936421684623,
+          "median": 0.48050005594861744,
+          "p95": 0.49850074768038866,
+          "max": 0.49850074768038866
+        },
+        "rayErrorToCurrentTargetBlocks": {
+          "min": -0.49850074768038866,
+          "median": -0.48050005594861744,
+          "p95": -0.46249936421685334,
+          "max": -0.46249936421685334
+        }
+      },
+      {
+        "rttMs": 100,
+        "speedBlocksPerSecond": 3,
+        "weapon": "awp",
+        "aim": "lead RTT + 50ms + server tick phase",
+        "trials": 24,
+        "hits": 24,
+        "hitRate": 1,
+        "damageTotal": 1680,
+        "renderedAgeMs": {
+          "min": 99.99978807229081,
+          "median": 100.00001864954834,
+          "p95": 100.00024922680586,
+          "max": 100.00024922680586
+        },
+        "inputToResolveMs": {
+          "min": 54.166666666666515,
+          "median": 60.16666666666674,
+          "p95": 66.16666666666697,
+          "max": 66.16666666666697
+        },
+        "effectiveTargetAgeMs": {
+          "min": 154.16645473895733,
+          "median": 160.16668531621508,
+          "p95": 166.16691589347283,
+          "max": 166.16691589347283
+        },
+        "targetShiftBlocks": {
+          "min": 0.46249936421684623,
+          "median": 0.48050005594861744,
+          "p95": 0.49850074768038866,
+          "max": 0.49850074768038866
+        },
+        "rayErrorToCurrentTargetBlocks": {
+          "min": -7.47680388712979e-7,
+          "median": -5.5948621735524284e-8,
+          "p95": 6.357831452419305e-7,
+          "max": 6.357831452419305e-7
+        }
+      },
+      {
+        "rttMs": 100,
+        "speedBlocksPerSecond": 6,
+        "weapon": "ak47",
+        "aim": "visible center",
+        "trials": 24,
+        "hits": 0,
+        "hitRate": 0,
+        "damageTotal": 0,
+        "renderedAgeMs": {
+          "min": 99.99978807239859,
+          "median": 100.00001864965543,
+          "p95": 100.00024922691227,
+          "max": 100.00024922691227
+        },
+        "inputToResolveMs": {
+          "min": 54.166666666666515,
+          "median": 60.16666666666674,
+          "p95": 66.16666666666697,
+          "max": 66.16666666666697
+        },
+        "effectiveTargetAgeMs": {
+          "min": 154.1664547390651,
+          "median": 160.16668531632195,
+          "p95": 166.16691589357924,
+          "max": 166.16691589357924
+        },
+        "targetShiftBlocks": {
+          "min": 0.924998728434403,
+          "median": 0.9610001118979454,
+          "p95": 0.9970014953614879,
+          "max": 0.9970014953614879
+        },
+        "rayErrorToCurrentTargetBlocks": {
+          "min": -0.9970014953614879,
+          "median": -0.961000111897949,
+          "p95": -0.924998728434403,
+          "max": -0.924998728434403
+        }
+      },
+      {
+        "rttMs": 100,
+        "speedBlocksPerSecond": 6,
+        "weapon": "ak47",
+        "aim": "lead RTT + 50ms + server tick phase",
+        "trials": 24,
+        "hits": 24,
+        "hitRate": 1,
+        "damageTotal": 480,
+        "renderedAgeMs": {
+          "min": 99.99978807239859,
+          "median": 100.00001864965543,
+          "p95": 100.00024922691227,
+          "max": 100.00024922691227
+        },
+        "inputToResolveMs": {
+          "min": 54.166666666666515,
+          "median": 60.16666666666674,
+          "p95": 66.16666666666697,
+          "max": 66.16666666666697
+        },
+        "effectiveTargetAgeMs": {
+          "min": 154.1664547390651,
+          "median": 160.16668531632195,
+          "p95": 166.16691589357924,
+          "max": 166.16691589357924
+        },
+        "targetShiftBlocks": {
+          "min": 0.924998728434403,
+          "median": 0.9610001118979454,
+          "p95": 0.9970014953614879,
+          "max": 0.9970014953614879
+        },
+        "rayErrorToCurrentTargetBlocks": {
+          "min": -0.0000014953614879686938,
+          "median": -1.1189794690835697e-7,
+          "p95": 0.00000127156559415198,
+          "max": 0.00000127156559415198
+        }
+      },
+      {
+        "rttMs": 100,
+        "speedBlocksPerSecond": 6,
+        "weapon": "awp",
+        "aim": "visible center",
+        "trials": 24,
+        "hits": 0,
+        "hitRate": 0,
+        "damageTotal": 0,
+        "renderedAgeMs": {
+          "min": 99.99978807239859,
+          "median": 100.00001864965543,
+          "p95": 100.00024922691227,
+          "max": 100.00024922691227
+        },
+        "inputToResolveMs": {
+          "min": 54.166666666666515,
+          "median": 60.16666666666674,
+          "p95": 66.16666666666697,
+          "max": 66.16666666666697
+        },
+        "effectiveTargetAgeMs": {
+          "min": 154.1664547390651,
+          "median": 160.16668531632195,
+          "p95": 166.16691589357924,
+          "max": 166.16691589357924
+        },
+        "targetShiftBlocks": {
+          "min": 0.924998728434403,
+          "median": 0.9610001118979454,
+          "p95": 0.9970014953614879,
+          "max": 0.9970014953614879
+        },
+        "rayErrorToCurrentTargetBlocks": {
+          "min": -0.9970014953614879,
+          "median": -0.961000111897949,
+          "p95": -0.924998728434403,
+          "max": -0.924998728434403
+        }
+      },
+      {
+        "rttMs": 100,
+        "speedBlocksPerSecond": 6,
+        "weapon": "awp",
+        "aim": "lead RTT + 50ms + server tick phase",
+        "trials": 24,
+        "hits": 24,
+        "hitRate": 1,
+        "damageTotal": 1680,
+        "renderedAgeMs": {
+          "min": 99.99978807239859,
+          "median": 100.00001864965543,
+          "p95": 100.00024922691227,
+          "max": 100.00024922691227
+        },
+        "inputToResolveMs": {
+          "min": 54.166666666666515,
+          "median": 60.16666666666674,
+          "p95": 66.16666666666697,
+          "max": 66.16666666666697
+        },
+        "effectiveTargetAgeMs": {
+          "min": 154.1664547390651,
+          "median": 160.16668531632195,
+          "p95": 166.16691589357924,
+          "max": 166.16691589357924
+        },
+        "targetShiftBlocks": {
+          "min": 0.924998728434403,
+          "median": 0.9610001118979454,
+          "p95": 0.9970014953614879,
+          "max": 0.9970014953614879
+        },
+        "rayErrorToCurrentTargetBlocks": {
+          "min": -0.0000014953614950741212,
+          "median": -1.1189794690835697e-7,
+          "p95": 0.00000127156559415198,
+          "max": 0.00000127156559415198
+        }
+      },
+      {
+        "rttMs": 100,
+        "speedBlocksPerSecond": 9,
+        "weapon": "ak47",
+        "aim": "visible center",
+        "trials": 24,
+        "hits": 0,
+        "hitRate": 0,
+        "damageTotal": 0,
+        "renderedAgeMs": {
+          "min": 99.99983384873713,
+          "median": 99.99998756690889,
+          "p95": 100.0001412850811,
+          "max": 100.0001412850811
+        },
+        "inputToResolveMs": {
+          "min": 54.166666666666515,
+          "median": 60.16666666666674,
+          "p95": 66.16666666666697,
+          "max": 66.16666666666697
+        },
+        "effectiveTargetAgeMs": {
+          "min": 154.16658189561258,
+          "median": 160.16665423357654,
+          "p95": 166.16672657153867,
+          "max": 166.16672657153867
+        },
+        "targetShiftBlocks": {
+          "min": 1.3874992370605668,
+          "median": 1.4414998881022427,
+          "p95": 1.4955005391439045,
+          "max": 1.4955005391439045
+        },
+        "rayErrorToCurrentTargetBlocks": {
+          "min": -1.4955005391439045,
+          "median": -1.4414998881022427,
+          "p95": -1.3874992370605668,
+          "max": -1.3874992370605668
+        }
+      },
+      {
+        "rttMs": 100,
+        "speedBlocksPerSecond": 9,
+        "weapon": "ak47",
+        "aim": "lead RTT + 50ms + server tick phase",
+        "trials": 24,
+        "hits": 24,
+        "hitRate": 1,
+        "damageTotal": 480,
+        "renderedAgeMs": {
+          "min": 99.99983384873713,
+          "median": 99.99998756690889,
+          "p95": 100.0001412850811,
+          "max": 100.0001412850811
+        },
+        "inputToResolveMs": {
+          "min": 54.166666666666515,
+          "median": 60.16666666666674,
+          "p95": 66.16666666666697,
+          "max": 66.16666666666697
+        },
+        "effectiveTargetAgeMs": {
+          "min": 154.16658189561258,
+          "median": 160.16665423357654,
+          "p95": 166.16672657153867,
+          "max": 166.16672657153867
+        },
+        "targetShiftBlocks": {
+          "min": 1.3874992370605668,
+          "median": 1.4414998881022427,
+          "p95": 1.4955005391439045,
+          "max": 1.4955005391439045
+        },
+        "rayErrorToCurrentTargetBlocks": {
+          "min": -0.000001271565793103946,
+          "median": 1.1189776927267303e-7,
+          "p95": 0.0000014953613174384373,
+          "max": 0.0000014953613174384373
+        }
+      },
+      {
+        "rttMs": 100,
+        "speedBlocksPerSecond": 9,
+        "weapon": "awp",
+        "aim": "visible center",
+        "trials": 24,
+        "hits": 0,
+        "hitRate": 0,
+        "damageTotal": 0,
+        "renderedAgeMs": {
+          "min": 99.99983384873713,
+          "median": 99.99998756690889,
+          "p95": 100.0001412850811,
+          "max": 100.0001412850811
+        },
+        "inputToResolveMs": {
+          "min": 54.166666666666515,
+          "median": 60.16666666666674,
+          "p95": 66.16666666666697,
+          "max": 66.16666666666697
+        },
+        "effectiveTargetAgeMs": {
+          "min": 154.16658189561258,
+          "median": 160.16665423357654,
+          "p95": 166.16672657153867,
+          "max": 166.16672657153867
+        },
+        "targetShiftBlocks": {
+          "min": 1.3874992370605668,
+          "median": 1.4414998881022427,
+          "p95": 1.4955005391439045,
+          "max": 1.4955005391439045
+        },
+        "rayErrorToCurrentTargetBlocks": {
+          "min": -1.4955005391439045,
+          "median": -1.4414998881022356,
+          "p95": -1.3874992370605668,
+          "max": -1.3874992370605668
+        }
+      },
+      {
+        "rttMs": 100,
+        "speedBlocksPerSecond": 9,
+        "weapon": "awp",
+        "aim": "lead RTT + 50ms + server tick phase",
+        "trials": 24,
+        "hits": 24,
+        "hitRate": 1,
+        "damageTotal": 1680,
+        "renderedAgeMs": {
+          "min": 99.99983384873713,
+          "median": 99.99998756690889,
+          "p95": 100.0001412850811,
+          "max": 100.0001412850811
+        },
+        "inputToResolveMs": {
+          "min": 54.166666666666515,
+          "median": 60.16666666666674,
+          "p95": 66.16666666666697,
+          "max": 66.16666666666697
+        },
+        "effectiveTargetAgeMs": {
+          "min": 154.16658189561258,
+          "median": 160.16665423357654,
+          "p95": 166.16672657153867,
+          "max": 166.16672657153867
+        },
+        "targetShiftBlocks": {
+          "min": 1.3874992370605668,
+          "median": 1.4414998881022427,
+          "p95": 1.4955005391439045,
+          "max": 1.4955005391439045
+        },
+        "rayErrorToCurrentTargetBlocks": {
+          "min": -0.0000012715657788930912,
+          "median": 1.1189776927267303e-7,
+          "p95": 0.000001495361331649292,
+          "max": 0.000001495361331649292
+        }
+      }
+    ]
+  },
+  "websocket": {
+    "recordedAt": "2026-09-22T15:01:18.683Z",
+    "protocol": 7,
+    "bun": "1.3.11",
+    "sourceHashes": {
+      "src/client/remote-players.ts": "e532cca019bcddda18588725201ce2de7af9d7f712c2e1a544d424571f4549d3",
+      "src/shared/game.ts": "a9d0786ef7aa75d76309e38b91fdee084599bf7d98cc4a6d9699a52abb6cfb5f",
+      "src/shared/movement.ts": "87102e51b9c09e267730953c1adb5e278e4aef948bd2270909d6085248be2ffb",
+      "src/shared/weapon-pose.ts": "a3b442e7454f8bcf83acee1e7770ce520870a000dc7b665419adc5e39528a5f5",
+      "src/shared/protocol.ts": "e488391947ec3e16aa53cd6751c9335a864c84825f21d2942eecc8437f9bf98d",
+      "src/shared/wire.ts": "7c0a57379bf8f5db8c0d561936cf1cd40f5e789e9be28853f3fa4372b88647d7",
+      "src/server/index.ts": "8a21c8b80c86ac9422f7df3f9c377e38f4d7b2eb64b9c25ad1c562de295ed636"
+    },
+    "method": "Two real local WebSocket clients; stock server tick scheduler and RemotePlayers; RTT/2 delay on sends and receives; synthetic body-center aim scheduled at <=60Hz (OS timers may reduce cadence); ADS; 75ms trigger hold every 400ms AK / 1200ms AWP; flat fixture and restored health. Lead uses rendered velocity times explicit lead-ms (150ms default, from this Windows baseline; not an implemented compensation). Turns excluded from steady subset. No GPU, WAN, production or human input latency measurement.",
+    "results": [
+      {
+        "config": {
+          "rtt": 0,
+          "speed": 9,
+          "lead": false,
+          "weapon": "ak47"
+        },
+        "leadMs": 0,
+        "seconds": 12,
+        "measuredRttMs": {
+          "count": 58,
+          "min": 0.145,
+          "p50": 0.268,
+          "p95": 0.955,
+          "max": 1.668
+        },
+        "measuredInputHz": 59.98456208128597,
+        "attemptedShots": 30,
+        "confirmedShots": 30,
+        "steadyShots": 25,
+        "steadyHits": 0,
+        "steadyHitPercent": 0,
+        "visualGapBlocks": {
+          "count": 25,
+          "min": 0.295,
+          "p50": 0.361,
+          "p95": 0.427,
+          "max": 0.429
+        },
+        "resolutionGapBlocks": {
+          "count": 25,
+          "min": 0.595,
+          "p50": 0.666,
+          "p95": 0.828,
+          "max": 0.83
+        },
+        "resolutionGapMs": {
+          "count": 25,
+          "min": 66.13,
+          "p50": 74.031,
+          "p95": 92.036,
+          "max": 92.257
+        },
+        "inputToResolutionMs": {
+          "count": 30,
+          "min": 15.442,
+          "p50": 16.406,
+          "p95": 32.645,
+          "max": 34.667
+        },
+        "inputToConfirmationMs": {
+          "count": 30,
+          "min": 15.525,
+          "p50": 16.49,
+          "p95": 32.839,
+          "max": 34.748
+        },
+        "pressToConfirmationMs": {
+          "count": 30,
+          "min": 30.864,
+          "p50": 32.33,
+          "p95": 47.417,
+          "max": 48.191
+        },
+        "serverWaitMs": {
+          "count": 30,
+          "min": 15.32,
+          "p50": 16.247,
+          "p95": 32.457,
+          "max": 34.501
+        },
+        "metrics": {
+          "ok": true,
+          "mode": "ffa",
+          "maxPlayers": 100,
+          "players": 2,
+          "world": {
+            "seed": 12345,
+            "size": 256,
+            "height": 128
+          },
+          "roundId": 1,
+          "roundSeconds": 0,
+          "tick": 892,
+          "tickWork": {
+            "p50": 0.04400000000077853,
+            "p95": 0.1518999999999835,
+            "p99": 1.1240999999999985,
+            "max": 3.487199999999575,
+            "samples": 892
+          },
+          "pendingInput": 2,
+          "lateTicks": 0,
+          "droppedInputs": 0,
+          "rss": 203710464,
+          "projectiles": 0
+        },
+        "maxRayAimErrorBlocks": 1.4210854715202004e-14
+      },
+      {
+        "config": {
+          "rtt": 50,
+          "speed": 0,
+          "lead": false,
+          "weapon": "ak47"
+        },
+        "leadMs": 0,
+        "seconds": 12,
+        "measuredRttMs": {
+          "count": 58,
+          "min": 61.158,
+          "p50": 62.72,
+          "p95": 77.375,
+          "max": 78.138
+        },
+        "measuredInputHz": 60.102356469205404,
+        "attemptedShots": 30,
+        "confirmedShots": 30,
+        "steadyShots": 30,
+        "steadyHits": 30,
+        "steadyHitPercent": 100,
+        "visualGapBlocks": {
+          "count": 30,
+          "min": 0,
+          "p50": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "resolutionGapBlocks": {
+          "count": 30,
+          "min": 0,
+          "p50": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "resolutionGapMs": {
+          "count": 0,
+          "min": null,
+          "p50": null,
+          "p95": null,
+          "max": null
+        },
+        "inputToResolutionMs": {
+          "count": 30,
+          "min": 46.22,
+          "p50": 47.233,
+          "p95": 62.116,
+          "max": 62.173
+        },
+        "inputToConfirmationMs": {
+          "count": 30,
+          "min": 77.127,
+          "p50": 78.401,
+          "p95": 93.571,
+          "max": 93.831
+        },
+        "pressToConfirmationMs": {
+          "count": 30,
+          "min": 78.896,
+          "p50": 94.906,
+          "p95": 110.247,
+          "max": 123.693
+        },
+        "serverWaitMs": {
+          "count": 30,
+          "min": 14.597,
+          "p50": 15.807,
+          "p95": 31.254,
+          "max": 31.29
+        },
+        "metrics": {
+          "ok": true,
+          "mode": "ffa",
+          "maxPlayers": 100,
+          "players": 2,
+          "world": {
+            "seed": 12345,
+            "size": 256,
+            "height": 128
+          },
+          "roundId": 1,
+          "roundSeconds": 0,
+          "tick": 902,
+          "tickWork": {
+            "p50": 0.02170000000114669,
+            "p95": 0.10090000000127475,
+            "p99": 0.19549999999799184,
+            "max": 2.6669999999976426,
+            "samples": 902
+          },
+          "pendingInput": 2,
+          "lateTicks": 0,
+          "droppedInputs": 0,
+          "rss": 206413824,
+          "projectiles": 0
+        },
+        "maxRayAimErrorBlocks": 0
+      },
+      {
+        "config": {
+          "rtt": 50,
+          "speed": 3,
+          "lead": false,
+          "weapon": "ak47"
+        },
+        "leadMs": 0,
+        "seconds": 12,
+        "measuredRttMs": {
+          "count": 58,
+          "min": 61.053,
+          "p50": 62.672,
+          "p95": 63.763,
+          "max": 64.131
+        },
+        "measuredInputHz": 60.02365861808911,
+        "attemptedShots": 30,
+        "confirmedShots": 30,
+        "steadyShots": 28,
+        "steadyHits": 8,
+        "steadyHitPercent": 28.571428571428573,
+        "visualGapBlocks": {
+          "count": 28,
+          "min": 0.194,
+          "p50": 0.214,
+          "p95": 0.238,
+          "max": 0.24
+        },
+        "resolutionGapBlocks": {
+          "count": 28,
+          "min": 0.385,
+          "p50": 0.406,
+          "p95": 0.471,
+          "max": 0.474
+        },
+        "resolutionGapMs": {
+          "count": 28,
+          "min": 128.279,
+          "p50": 135.314,
+          "p95": 156.967,
+          "max": 157.85
+        },
+        "inputToResolutionMs": {
+          "count": 30,
+          "min": 46.595,
+          "p50": 47.835,
+          "p95": 62.801,
+          "max": 62.861
+        },
+        "inputToConfirmationMs": {
+          "count": 30,
+          "min": 77.638,
+          "p50": 78.821,
+          "p95": 93.63,
+          "max": 93.879
+        },
+        "pressToConfirmationMs": {
+          "count": 30,
+          "min": 92.765,
+          "p50": 94.358,
+          "p95": 110.48,
+          "max": 124.621
+        },
+        "serverWaitMs": {
+          "count": 30,
+          "min": 15.198,
+          "p50": 16.109,
+          "p95": 31.612,
+          "max": 31.862
+        },
+        "metrics": {
+          "ok": true,
+          "mode": "ffa",
+          "maxPlayers": 100,
+          "players": 2,
+          "world": {
+            "seed": 12345,
+            "size": 256,
+            "height": 128
+          },
+          "roundId": 1,
+          "roundSeconds": 0,
+          "tick": 901,
+          "tickWork": {
+            "p50": 0.02809999999590218,
+            "p95": 0.0812999999980093,
+            "p99": 0.6191999999937252,
+            "max": 3.780400000003283,
+            "samples": 901
+          },
+          "pendingInput": 2,
+          "lateTicks": 0,
+          "droppedInputs": 0,
+          "rss": 208904192,
+          "projectiles": 0
+        },
+        "maxRayAimErrorBlocks": 1.4210854715202004e-14
+      },
+      {
+        "config": {
+          "rtt": 50,
+          "speed": 6,
+          "lead": false,
+          "weapon": "ak47"
+        },
+        "leadMs": 0,
+        "seconds": 12,
+        "measuredRttMs": {
+          "count": 58,
+          "min": 61.305,
+          "p50": 62.516,
+          "p95": 63.59,
+          "max": 64.399
+        },
+        "measuredInputHz": 60.02777527605905,
+        "attemptedShots": 30,
+        "confirmedShots": 30,
+        "steadyShots": 27,
+        "steadyHits": 0,
+        "steadyHitPercent": 0,
+        "visualGapBlocks": {
+          "count": 27,
+          "min": 0.395,
+          "p50": 0.434,
+          "p95": 0.48,
+          "max": 0.482
+        },
+        "resolutionGapBlocks": {
+          "count": 27,
+          "min": 0.768,
+          "p50": 0.8,
+          "p95": 0.843,
+          "max": 0.856
+        },
+        "resolutionGapMs": {
+          "count": 27,
+          "min": 127.936,
+          "p50": 133.332,
+          "p95": 140.449,
+          "max": 142.604
+        },
+        "inputToResolutionMs": {
+          "count": 30,
+          "min": 46.028,
+          "p50": 47.255,
+          "p95": 49.429,
+          "max": 50.084
+        },
+        "inputToConfirmationMs": {
+          "count": 30,
+          "min": 77.378,
+          "p50": 78.064,
+          "p95": 79.325,
+          "max": 80.018
+        },
+        "pressToConfirmationMs": {
+          "count": 30,
+          "min": 77.775,
+          "p50": 94.202,
+          "p95": 110.609,
+          "max": 111.06
+        },
+        "serverWaitMs": {
+          "count": 30,
+          "min": 14.888,
+          "p50": 15.975,
+          "p95": 18.019,
+          "max": 19.048
+        },
+        "metrics": {
+          "ok": true,
+          "mode": "ffa",
+          "maxPlayers": 100,
+          "players": 2,
+          "world": {
+            "seed": 12345,
+            "size": 256,
+            "height": 128
+          },
+          "roundId": 1,
+          "roundSeconds": 0,
+          "tick": 901,
+          "tickWork": {
+            "p50": 0.0341000000044005,
+            "p95": 0.11950000000069849,
+            "p99": 0.8609999999971478,
+            "max": 4.0983999999953085,
+            "samples": 901
+          },
+          "pendingInput": 2,
+          "lateTicks": 0,
+          "droppedInputs": 0,
+          "rss": 206458880,
+          "projectiles": 0
+        },
+        "maxRayAimErrorBlocks": 0
+      },
+      {
+        "config": {
+          "rtt": 50,
+          "speed": 9,
+          "lead": false,
+          "weapon": "ak47"
+        },
+        "leadMs": 0,
+        "seconds": 12,
+        "measuredRttMs": {
+          "count": 58,
+          "min": 61.37,
+          "p50": 62.948,
+          "p95": 64.153,
+          "max": 78.719
+        },
+        "measuredInputHz": 60.00592139240461,
+        "attemptedShots": 30,
+        "confirmedShots": 30,
+        "steadyShots": 25,
+        "steadyHits": 0,
+        "steadyHitPercent": 0,
+        "visualGapBlocks": {
+          "count": 25,
+          "min": 0.474,
+          "p50": 0.656,
+          "p95": 0.725,
+          "max": 0.73
+        },
+        "resolutionGapBlocks": {
+          "count": 25,
+          "min": 1.153,
+          "p50": 1.23,
+          "p95": 1.39,
+          "max": 1.411
+        },
+        "resolutionGapMs": {
+          "count": 25,
+          "min": 128.09,
+          "p50": 136.712,
+          "p95": 154.44,
+          "max": 156.727
+        },
+        "inputToResolutionMs": {
+          "count": 30,
+          "min": 46.182,
+          "p50": 47.371,
+          "p95": 62.064,
+          "max": 62.258
+        },
+        "inputToConfirmationMs": {
+          "count": 30,
+          "min": 77.251,
+          "p50": 78.489,
+          "p95": 93.048,
+          "max": 94.165
+        },
+        "pressToConfirmationMs": {
+          "count": 30,
+          "min": 78.649,
+          "p50": 94.317,
+          "p95": 108.961,
+          "max": 110.181
+        },
+        "serverWaitMs": {
+          "count": 30,
+          "min": 14.836,
+          "p50": 15.816,
+          "p95": 30.944,
+          "max": 31.502
+        },
+        "metrics": {
+          "ok": true,
+          "mode": "ffa",
+          "maxPlayers": 100,
+          "players": 2,
+          "world": {
+            "seed": 12345,
+            "size": 256,
+            "height": 128
+          },
+          "roundId": 1,
+          "roundSeconds": 0,
+          "tick": 901,
+          "tickWork": {
+            "p50": 0.03389999999490101,
+            "p95": 0.10529999999562278,
+            "p99": 1.0812000000005355,
+            "max": 2.5665999999982887,
+            "samples": 901
+          },
+          "pendingInput": 4,
+          "lateTicks": 0,
+          "droppedInputs": 0,
+          "rss": 203698176,
+          "projectiles": 0
+        },
+        "maxRayAimErrorBlocks": 2.842170943040401e-14
+      },
+      {
+        "config": {
+          "rtt": 50,
+          "speed": 6,
+          "lead": true,
+          "weapon": "ak47"
+        },
+        "leadMs": 150,
+        "seconds": 12,
+        "measuredRttMs": {
+          "count": 58,
+          "min": 61.147,
+          "p50": 62.499,
+          "p95": 64.167,
+          "max": 79.353
+        },
+        "measuredInputHz": 59.990622072048616,
+        "attemptedShots": 30,
+        "confirmedShots": 30,
+        "steadyShots": 27,
+        "steadyHits": 27,
+        "steadyHitPercent": 100,
+        "visualGapBlocks": {
+          "count": 27,
+          "min": 0.383,
+          "p50": 0.439,
+          "p95": 0.479,
+          "max": 0.481
+        },
+        "resolutionGapBlocks": {
+          "count": 27,
+          "min": 0.772,
+          "p50": 0.804,
+          "p95": 0.851,
+          "max": 0.852
+        },
+        "resolutionGapMs": {
+          "count": 27,
+          "min": 128.67,
+          "p50": 134.071,
+          "p95": 141.863,
+          "max": 141.995
+        },
+        "inputToResolutionMs": {
+          "count": 30,
+          "min": 46.161,
+          "p50": 47.24,
+          "p95": 48.997,
+          "max": 50.596
+        },
+        "inputToConfirmationMs": {
+          "count": 30,
+          "min": 77.282,
+          "p50": 78.18,
+          "p95": 79.223,
+          "max": 95.105
+        },
+        "pressToConfirmationMs": {
+          "count": 30,
+          "min": 78.18,
+          "p50": 93.999,
+          "p95": 110.074,
+          "max": 110.435
+        },
+        "serverWaitMs": {
+          "count": 30,
+          "min": 14.955,
+          "p50": 15.895,
+          "p95": 17.103,
+          "max": 18.909
+        },
+        "metrics": {
+          "ok": true,
+          "mode": "ffa",
+          "maxPlayers": 100,
+          "players": 2,
+          "world": {
+            "seed": 12345,
+            "size": 256,
+            "height": 128
+          },
+          "roundId": 1,
+          "roundSeconds": 0,
+          "tick": 903,
+          "tickWork": {
+            "p50": 0.024600000004284084,
+            "p95": 0.07749999999941792,
+            "p99": 0.3647999999957392,
+            "max": 3.677899999995134,
+            "samples": 903
+          },
+          "pendingInput": 2,
+          "lateTicks": 0,
+          "droppedInputs": 0,
+          "rss": 208973824,
+          "projectiles": 0
+        },
+        "maxRayAimErrorBlocks": 2.842170943040401e-14
+      },
+      {
+        "config": {
+          "rtt": 50,
+          "speed": 9,
+          "lead": true,
+          "weapon": "ak47"
+        },
+        "leadMs": 150,
+        "seconds": 12,
+        "measuredRttMs": {
+          "count": 58,
+          "min": 61.024,
+          "p50": 62.642,
+          "p95": 63.817,
+          "max": 63.904
+        },
+        "measuredInputHz": 60.03835662605946,
+        "attemptedShots": 30,
+        "confirmedShots": 30,
+        "steadyShots": 25,
+        "steadyHits": 25,
+        "steadyHitPercent": 100,
+        "visualGapBlocks": {
+          "count": 25,
+          "min": 0.592,
+          "p50": 0.649,
+          "p95": 0.715,
+          "max": 0.723
+        },
+        "resolutionGapBlocks": {
+          "count": 25,
+          "min": 1.153,
+          "p50": 1.209,
+          "p95": 1.278,
+          "max": 1.291
+        },
+        "resolutionGapMs": {
+          "count": 25,
+          "min": 128.161,
+          "p50": 134.283,
+          "p95": 142.054,
+          "max": 143.491
+        },
+        "inputToResolutionMs": {
+          "count": 30,
+          "min": 45.977,
+          "p50": 47.147,
+          "p95": 49.539,
+          "max": 62.923
+        },
+        "inputToConfirmationMs": {
+          "count": 30,
+          "min": 76.213,
+          "p50": 78.192,
+          "p95": 79.603,
+          "max": 94.171
+        },
+        "pressToConfirmationMs": {
+          "count": 30,
+          "min": 78.164,
+          "p50": 93.778,
+          "p95": 110.206,
+          "max": 110.472
+        },
+        "serverWaitMs": {
+          "count": 30,
+          "min": 14.939,
+          "p50": 16.004,
+          "p95": 17.934,
+          "max": 30.11
+        },
+        "metrics": {
+          "ok": true,
+          "mode": "ffa",
+          "maxPlayers": 100,
+          "players": 2,
+          "world": {
+            "seed": 12345,
+            "size": 256,
+            "height": 128
+          },
+          "roundId": 1,
+          "roundSeconds": 0,
+          "tick": 901,
+          "tickWork": {
+            "p50": 0.022299999996903352,
+            "p95": 0.0610000000015134,
+            "p99": 0.5512000000016997,
+            "max": 2.6141000000061467,
+            "samples": 901
+          },
+          "pendingInput": 2,
+          "lateTicks": 0,
+          "droppedInputs": 0,
+          "rss": 209436672,
+          "projectiles": 0
+        },
+        "maxRayAimErrorBlocks": 2.842170943040401e-14
+      },
+      {
+        "config": {
+          "rtt": 100,
+          "speed": 9,
+          "lead": false,
+          "weapon": "ak47"
+        },
+        "leadMs": 0,
+        "seconds": 12,
+        "measuredRttMs": {
+          "count": 58,
+          "min": 109.758,
+          "p50": 125.079,
+          "p95": 127.343,
+          "max": 140.658
+        },
+        "measuredInputHz": 59.99593195368775,
+        "attemptedShots": 30,
+        "confirmedShots": 30,
+        "steadyShots": 25,
+        "steadyHits": 0,
+        "steadyHitPercent": 0,
+        "visualGapBlocks": {
+          "count": 25,
+          "min": 0.838,
+          "p50": 0.945,
+          "p95": 1.058,
+          "max": 1.079
+        },
+        "resolutionGapBlocks": {
+          "count": 25,
+          "min": 1.588,
+          "p50": 1.808,
+          "p95": 1.937,
+          "max": 1.986
+        },
+        "resolutionGapMs": {
+          "count": 25,
+          "min": 176.492,
+          "p50": 200.915,
+          "p95": 215.202,
+          "max": 220.707
+        },
+        "inputToResolutionMs": {
+          "count": 30,
+          "min": 63.174,
+          "p50": 78.692,
+          "p95": 94.062,
+          "max": 94.686
+        },
+        "inputToConfirmationMs": {
+          "count": 30,
+          "min": 125.472,
+          "p50": 140.679,
+          "p95": 156.169,
+          "max": 171.147
+        },
+        "pressToConfirmationMs": {
+          "count": 30,
+          "min": 140.851,
+          "p50": 156.45,
+          "p95": 187.99,
+          "max": 202.134
+        },
+        "serverWaitMs": {
+          "count": 30,
+          "min": 15.169,
+          "p50": 15.557,
+          "p95": 31.587,
+          "max": 32.429
+        },
+        "metrics": {
+          "ok": true,
+          "mode": "ffa",
+          "maxPlayers": 100,
+          "players": 2,
+          "world": {
+            "seed": 12345,
+            "size": 256,
+            "height": 128
+          },
+          "roundId": 1,
+          "roundSeconds": 0,
+          "tick": 911,
+          "tickWork": {
+            "p50": 0.023000000001047738,
+            "p95": 0.06650000000081491,
+            "p99": 0.21070000001054723,
+            "max": 3.5474000000103842,
+            "samples": 911
+          },
+          "pendingInput": 2,
+          "lateTicks": 0,
+          "droppedInputs": 0,
+          "rss": 206577664,
+          "projectiles": 0
+        },
+        "maxRayAimErrorBlocks": 2.842170943040401e-14
+      },
+      {
+        "config": {
+          "rtt": 50,
+          "speed": 9,
+          "lead": false,
+          "weapon": "awp"
+        },
+        "leadMs": 0,
+        "seconds": 12,
+        "measuredRttMs": {
+          "count": 58,
+          "min": 61.202,
+          "p50": 62.849,
+          "p95": 64.22,
+          "max": 76.778
+        },
+        "measuredInputHz": 60.045036203214465,
+        "attemptedShots": 10,
+        "confirmedShots": 10,
+        "steadyShots": 10,
+        "steadyHits": 0,
+        "steadyHitPercent": 0,
+        "visualGapBlocks": {
+          "count": 10,
+          "min": 0.589,
+          "p50": 0.673,
+          "p95": 0.722,
+          "max": 0.722
+        },
+        "resolutionGapBlocks": {
+          "count": 10,
+          "min": 1.163,
+          "p50": 1.246,
+          "p95": 1.318,
+          "max": 1.318
+        },
+        "resolutionGapMs": {
+          "count": 10,
+          "min": 129.169,
+          "p50": 138.47,
+          "p95": 146.442,
+          "max": 146.442
+        },
+        "inputToResolutionMs": {
+          "count": 10,
+          "min": 46.785,
+          "p50": 47.826,
+          "p95": 50.185,
+          "max": 50.185
+        },
+        "inputToConfirmationMs": {
+          "count": 10,
+          "min": 77.378,
+          "p50": 78.228,
+          "p95": 78.954,
+          "max": 78.954
+        },
+        "pressToConfirmationMs": {
+          "count": 10,
+          "min": 77.775,
+          "p50": 94.133,
+          "p95": 109.951,
+          "max": 109.951
+        },
+        "serverWaitMs": {
+          "count": 10,
+          "min": 15.466,
+          "p50": 16.536,
+          "p95": 18.146,
+          "max": 18.146
+        },
+        "metrics": {
+          "ok": true,
+          "mode": "ffa",
+          "maxPlayers": 100,
+          "players": 2,
+          "world": {
+            "seed": 12345,
+            "size": 256,
+            "height": 128
+          },
+          "roundId": 1,
+          "roundSeconds": 0,
+          "tick": 903,
+          "tickWork": {
+            "p50": 0.02599999999802094,
+            "p95": 0.0590000000083819,
+            "p99": 0.7342000000062399,
+            "max": 2.6604999999981374,
+            "samples": 903
+          },
+          "pendingInput": 0,
+          "lateTicks": 0,
+          "droppedInputs": 0,
+          "rss": 213733376,
+          "projectiles": 0
+        },
+        "maxRayAimErrorBlocks": 0
+      },
+      {
+        "config": {
+          "rtt": 50,
+          "speed": 9,
+          "lead": true,
+          "weapon": "awp"
+        },
+        "leadMs": 150,
+        "seconds": 12,
+        "measuredRttMs": {
+          "count": 58,
+          "min": 61.148,
+          "p50": 62.65,
+          "p95": 64.256,
+          "max": 76.798
+        },
+        "measuredInputHz": 60.038884173227224,
+        "attemptedShots": 10,
+        "confirmedShots": 10,
+        "steadyShots": 10,
+        "steadyHits": 10,
+        "steadyHitPercent": 100,
+        "visualGapBlocks": {
+          "count": 10,
+          "min": 0.581,
+          "p50": 0.683,
+          "p95": 0.828,
+          "max": 0.828
+        },
+        "resolutionGapBlocks": {
+          "count": 10,
+          "min": 1.163,
+          "p50": 1.253,
+          "p95": 1.326,
+          "max": 1.326
+        },
+        "resolutionGapMs": {
+          "count": 10,
+          "min": 129.226,
+          "p50": 139.222,
+          "p95": 147.297,
+          "max": 147.297
+        },
+        "inputToResolutionMs": {
+          "count": 10,
+          "min": 46.389,
+          "p50": 47.671,
+          "p95": 64.476,
+          "max": 64.476
+        },
+        "inputToConfirmationMs": {
+          "count": 10,
+          "min": 77.177,
+          "p50": 78.566,
+          "p95": 109.033,
+          "max": 109.033
+        },
+        "pressToConfirmationMs": {
+          "count": 10,
+          "min": 79.34,
+          "p50": 93.884,
+          "p95": 124.481,
+          "max": 124.481
+        },
+        "serverWaitMs": {
+          "count": 10,
+          "min": 14.899,
+          "p50": 15.774,
+          "p95": 18.276,
+          "max": 18.276
+        },
+        "metrics": {
+          "ok": true,
+          "mode": "ffa",
+          "maxPlayers": 100,
+          "players": 2,
+          "world": {
+            "seed": 12345,
+            "size": 256,
+            "height": 128
+          },
+          "roundId": 1,
+          "roundSeconds": 0,
+          "tick": 901,
+          "tickWork": {
+            "p50": 0.021500000002561137,
+            "p95": 0.056799999991199,
+            "p99": 0.20910000000731088,
+            "max": 2.6657999999879394,
+            "samples": 901
+          },
+          "pendingInput": 2,
+          "lateTicks": 0,
+          "droppedInputs": 0,
+          "rss": 209002496,
+          "projectiles": 0
+        },
+        "maxRayAimErrorBlocks": 2.842170943040401e-14
+      }
+    ],
+    "connectionsAfterEachCase": 0
+  },
+  "sourceEquivalence": {
+    "recordedDeployment": {
+      "projectId": "prj_CiVFE0SigqoArlQB5qUGZZviu7WN",
+      "teamId": "team_4JHu0tDU6wraJl1g3B47wbry",
+      "projectName": "ubercube-io",
+      "gitRepository": "mploux/ubercube.io",
+      "productionBranch": "main",
+      "frontendOrigin": "https://www.ubercube.io",
+      "frontendAliases": [
+        "www.ubercube.io",
+        "ubercube.io",
+        "ubercube-io.vercel.app"
+      ],
+      "gameOrigin": "https://game.ubercube.io",
+      "sshTarget": "codex@2.29.30.129",
+      "serverRoot": "/opt/ubercube",
+      "serviceName": "ubercube",
+      "bunVersion": "1.3.11",
+      "recordedAt": "2026-09-22T14:27:41.558Z",
+      "recordedDeploymentId": "dpl_EPZbF9wWF1zA9hcdFDhntBGQQWNM",
+      "recordedServerRelease": "20260921-231500",
+      "recordedProtocolVersion": 6,
+      "recordedClientCommit": "b1d5afaefce9e68e6cb2a77531e930abafbe81e7",
+      "recordedServerCommit": "e8ba02f1fdcd4efe05515b72d4058e6a8cb2cdad"
+    },
+    "archiveMatches": [
+      {
+        "file": "src/shared/game.ts",
+        "archiveMatchesRecorded": true
+      },
+      {
+        "file": "src/shared/protocol.ts",
+        "archiveMatchesRecorded": true
+      },
+      {
+        "file": "src/server/index.ts",
+        "archiveMatchesRecorded": true
+      }
+    ],
+    "clientMatches": [
+      {
+        "file": "src/client/remote-players.ts",
+        "matchesRecorded": true
+      },
+      {
+        "file": "src/shared/movement.ts",
+        "matchesRecorded": true
+      },
+      {
+        "file": "src/shared/weapon-pose.ts",
+        "matchesRecorded": true
+      }
+    ],
+    "comparedSegments": [
+      {
+        "name": "combat",
+        "identical": true,
+        "sha256": "53a96482bfa129a35d451cc2011913c81b3e2d8d9ef8bf9c143c03b45b8f0c95"
+      },
+      {
+        "name": "inputs",
+        "identical": true,
+        "sha256": "40422cca7fcb2b783125881a5b90ea3af72fb854c3f8aedfea6816f230de9018"
+      },
+      {
+        "name": "step movement and hits",
+        "identical": true,
+        "sha256": "b18d517dca21a99ddca926961c7a07a9c8aa5549fb66665a1fced6d06fd39865"
+      }
+    ],
+    "note": "Comparison with recorded deployment manifests and a matching local archived server. No live production verification."
+  }
+}
