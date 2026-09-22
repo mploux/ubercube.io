@@ -4,6 +4,16 @@
 
 Le client statique peut être servi par Vercel et permet de jouer seul sans hébergement supplémentaire. Pour le multijoueur, la simulation reste dans un processus Bun permanent, sur une seule instance pour la première version. Le serveur conserve le monde en mémoire : son redémarrage termine les sessions et réinitialise le terrain. Les connexions et instances temporaires des Vercel Functions ne conviennent pas au monde partagé actuel.
 
+## Publication des captures et de la kill cam prolongée — 22 septembre 2026
+
+Le commit applicatif `b25b90356092d3612debe28bca8572b8c79f91ee`, poussé sur `main`, conserve le pointeur pendant death cam/kill cam, demande le plein écran et Keyboard Lock pour Ctrl+Tab et prolonge le replay de 2 s après la mort (5 s au total). Le chantier d'import/rotation des cartes est conservé localement et exclu. La comparaison de la release `20260922-103500` avec les empreintes précédentes contient seulement `src/client/main.ts` et `src/client/death-replay.ts` ; aucun fichier serveur/partagé ne change.
+
+Depuis le checkout isolé : `bun run check` complet, **510 tests / 21 866 assertions**, TypeScript et 11 sorties de build. `doctor --server` réussit ; santé et empreintes de l'entrée serveur et du protocole actif conformes. Le protocole reste **6**, le serveur reste sur la release `20260921-231500` sans redémarrage. L'accès API Vercel expiré a été rétabli avec le renouvellement officiel de la session CLI privée.
+
+Le push Git déclenche le build Vercel `dpl_3HYeFcKq7wbiH45TP1defWLivNrW`. Provenance Git, SHA, trois domaines et **54 ressources publiques** vérifiés à **08:37:22 UTC**. Smoke Internet réussi avec deux joueurs temporaires, intentions acquittées et fermeture. Parcours public pseudo → lobby → assaut → jeu/menu → déconnexion ; terrain, arme, HUD et minicarte inspectés, sans diagnostic console, retour à zéro joueur. La capture souris est refusée par le navigateur intégré : ni l'interception native de Ctrl+Tab, ni une nouvelle partie humaine à plusieurs ne sont revendiquées.
+
+Preuves : `.runtime/controls-killcam-release/.runtime/releases/20260922-103500/` (`verification.json`, `smoke.json`, snapshot et manifests), `.runtime/controls-release-check.log`. Les empreintes `ops/` enregistrent ce commit applicatif vérifié. Le commit distinct de preuves peut déclencher un second build identique ; son SHA et ses ressources sont contrôlés séparément après le push, sans toucher au serveur.
+
 ## Publication des caméras et commandes de survie — 21 septembre 2026
 
 Le commit applicatif `e8ba02f1fdcd4efe05515b72d4058e6a8cb2cdad`, poussé sur `codex/gameplay-deathcam-release`, contient les caméras de mort/replay, Maj pour sneak, Ctrl pour courir, les réticules, les chutes entre 6 et 20 blocs et l'auto-soin du médic. Le chantier antérieur d'import/rotation des cartes est exclu et conservé dans le dossier principal. Le protocole **6** est publié sur les deux cibles ; les pages déjà ouvertes doivent être rechargées.

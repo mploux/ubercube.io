@@ -12,7 +12,7 @@ Publié le 21 septembre 2026 : le bazooka RPG est disponible dans le kit assaut,
 
 Publié le 21 septembre 2026 : death cam de 3 s puis kill cam de 3 s, sneak sur Maj, course sur Ctrl, réticules pour toutes les armes, dégâts de chute entre 6 et 20 blocs et auto-soin du médic au clic droit. Client et serveur sont publiés ensemble avec le protocole **6**. [Règles et limites du replay](docs/gameplay-client.md#ajouts-du-21-septembre-2026).
 
-Ajustements locaux du 22 septembre, non publiés : pointeur conservé pendant les deux caméras et kill cam portée à 5 s, avec 2 s d'action après la mort. Sur ordinateur, entrer en jeu ou reprendre demande le plein écran et la capture clavier pour courir avec Ctrl tout en affichant les scores avec Tab. Échap libère les captures ; les raccourcis réservés restent possibles si le navigateur refuse ou ne prend pas en charge la capture clavier.
+Publié le 22 septembre 2026 : pointeur conservé pendant les deux caméras et kill cam portée à 5 s, avec 2 s d'action après la mort. Sur ordinateur, entrer en jeu ou reprendre demande le plein écran et la capture clavier pour courir avec Ctrl tout en affichant les scores avec Tab. Échap libère les captures ; les raccourcis réservés restent possibles si le navigateur refuse ou ne prend pas en charge la capture clavier. [Preuve de publication](docs/deployment.md#publication-des-captures-et-de-la-kill-cam-prolongée--22-septembre-2026).
 
 ## Reprendre le projet
 
@@ -104,7 +104,7 @@ L'accueil conserve le panorama voxel animé. Le lobby utilise le fond original, 
 - Sneak : marche à 3 blocs/s, priorité sur la course et protection des bords au sol. Sauter quitte volontairement le support ; un bloc détruit sous les pieds ne peut plus retenir le joueur. La hitbox conserve sa hauteur.
 - Chutes : aucun dégât jusqu'à 6 blocs, puis `floor((hauteur − 6) × 100 / 14)` PV à l'atterrissage ; 13 blocs enlèvent 50 PV, 20 blocs ou davantage tue. Règles autoritaires communes avec le solo.
 - Médic : sac sélectionné, clic droit pour récupérer 10 PV par appui, plafond 100. Le maintien ne répète pas les soins. Le clic gauche soigne toujours les autres joueurs à portée.
-- Réapparition sur le terrain actuel : death cam de 3 s sur le corps, puis kill cam de 5 s dans la vue reconstruite du tueur, dont 2 s après la mort, avant le choix du kit (ajustement local non publié). Chute, suicide ou absence d'historique exploitable : death cam seule. Réticule pour chaque arme, y compris AK/AWP hors lunette ; la lunette garde son réticule spécifique.
+- Réapparition sur le terrain actuel : death cam de 3 s sur le corps, puis kill cam de 5 s dans la vue reconstruite du tueur, dont 2 s après la mort, avant le choix du kit. Chute, suicide ou absence d'historique exploitable : death cam seule. Réticule pour chaque arme, y compris AK/AWP hors lunette ; la lunette garde son réticule spécifique.
 - Réinitialisation du terrain, des projectiles et des scores entre les manches. Les anciens messages sont rejetés par leur identifiant de manche.
 - Relief enneigé du générateur Java, chênes et grands chênes avec leurs branches et couronnes d'origine. Ruines historiques et hangars avec portes, fenêtres et intérieurs, entièrement destructibles. Les apparitions recherchent le sol praticable sous la végétation. Références, adaptations et validation : [génération du terrain](docs/terrain-generation.md).
 

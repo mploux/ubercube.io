@@ -2,7 +2,11 @@
 
 Le jeu est publié sur Vercel et Hetzner. Cette page distingue les vérifications locales et celles de production ; la parité des sensations avec le Java, la tenue prolongée sur Internet et les grandes distances d'affichage ne sont pas encore entièrement validées.
 
-## Captures souris/clavier et continuation de kill cam — 22 septembre 2026, local non publié
+## Captures souris/clavier et continuation de kill cam — 22 septembre 2026
+
+Publication client vérifiée : commit `b25b90356092d3612debe28bca8572b8c79f91ee`, protocole 6, sans redémarrage du serveur. Dans le checkout isolé, excluant le chantier de cartes, **`bun run check` complet réussit : 510 tests / 21 866 assertions**, TypeScript et 11 sorties de build. Le SHA GitHub et Vercel, les trois domaines et **54 ressources publiques** sont vérifiés. Smoke Internet réussi avec deux joueurs et fermeture des connexions ; parcours public pseudo → lobby → assaut → jeu/menu → déconnexion, HUD/arme/minicarte inspectés et aucun diagnostic console. Le navigateur intégré refuse toujours la capture souris : l'interception native de Ctrl+Tab reste à confirmer dans Chrome/Edge. [Preuves de publication](deployment.md#publication-des-captures-et-de-la-kill-cam-prolongée--22-septembre-2026).
+
+Les contrôles ci-dessous décrivent la phase locale précédente, avant autorisation de publication.
 
 Le pointeur reste capturé entre jeu, death cam et kill cam. Le clic droit et la molette sont neutralisés pendant les caméras. La kill cam dure 5 s : 2,7 s avant la mort, 2 s d'action enregistrée après celle-ci, 0,3 s de maintien final ; la death cam reste à 3 s. Sur ordinateur, le choix du kit et la reprise demandent le plein écran et Keyboard Lock afin de recevoir Ctrl+Tab. Échap, les pertes de focus/capture et le retour au lobby libèrent le clavier. Le mobile conserve son parcours.
 

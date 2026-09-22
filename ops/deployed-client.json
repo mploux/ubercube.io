@@ -266,8 +266,8 @@
   },
   {
     "file": "src/client/death-replay.ts",
-    "sha": "6bdf4b3312fe048ebf4b89cf36341238c6349c54",
-    "size": 10374
+    "sha": "1648245e063df7a3a9fb6403863b295bae31877f",
+    "size": 12607
   },
   {
     "file": "src/client/grenade-visuals.ts",
@@ -286,8 +286,8 @@
   },
   {
     "file": "src/client/main.ts",
-    "sha": "43390cd81b8064de1aa8411879bb77ef3d962f68",
-    "size": 45452
+    "sha": "f8146224f2cb1a359bc64c5ee0d757bb3d91eebb",
+    "size": 48106
   },
   {
     "file": "src/client/minimap.ts",
