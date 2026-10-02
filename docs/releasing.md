@@ -16,11 +16,53 @@ Si cette session CLI a expiré et possède encore son renouvellement privé, `bu
 
 **Hetzner, poste de Marc** : depuis le 15 septembre 2026, les sessions du même compte Windows disposent du profil OpenSSH `ubercube-prod`, également applicable à `codex@2.29.30.129`. La configuration est dans `C:/Users/Marc/.ssh/config`, la clé dédiée dans `C:/Users/Marc/.ssh/ubercube_hetzner_ed25519`, hors du dépôt et protégée par les permissions Windows. Elle fonctionne sans mot de passe ni service `ssh-agent`. Le serveur autorise cette clé avec les restrictions OpenSSH `restrict` : pas de terminal interactif, de forwarding ou de transfert d'agent. Ne pas utiliser `ssh -t` pour ces déploiements.
 
-Le seul exécutable autorisé avec `sudo -n` est `/usr/local/libexec/ubercube-release`, copie revue de `scripts/release/server.sh`, détenue par root dans un dossier détenu par root. Il permet `check`, `activate` et `rollback` ; le staging reste exécuté sans sudo. Ne jamais autoriser `sudo bash`, ni exécuter avec sudo une copie modifiable par l'utilisateur SSH. Un changement de ce script exige une installation administrative revue ; la permission de publication ne permet pas de remplacer le script privilégié.
+Pour le compte de déploiement `codex`, le seul exécutable autorisé avec `sudo -n` est `/usr/local/libexec/ubercube-release`, copie revue de `scripts/release/server.sh`, détenue par root dans un dossier détenu par root. Il permet `check`, `activate` et `rollback` ; le staging reste exécuté sans sudo. Ne pas élargir cette règle à `sudo bash`, ni exécuter avec sudo une copie modifiable par l'utilisateur SSH. Une mise à jour nécessaire de ce script passe par le compte administratif distinct et la procédure ci-dessous, après revue et validation.
 
 Avant publication, exécuter `bun run doctor --server` et exiger `readyToDeployServer: true`. Le contrôle confirme l'authentification par clé, le sudo sans interaction, le service actif sous un utilisateur non root et l'empreinte du script installé par rapport au fichier local. Il ne valide ni le commit, ni les tests de la release, ni sa compatibilité réseau. Si le hash diffère, comprendre la différence avant une mise à jour administrative du script. Sur une autre machine ou un autre compte OS, faire provisionner une clé propre ; ne pas copier la clé privée dans le dépôt ni chercher un mot de passe dans un ancien chat. Conserver la vérification stricte de `known_hosts`.
 
 Si l'environnement bloque `ssh`, `scp` ou la création de sous-processus, employer son mécanisme normal d'approbation. Sur Windows, `Get-Command ssh,scp -All` peut montrer des scripts de refus dans `.sbx-denybin` ; cela ne prouve pas un refus du serveur. Les commandes PowerShell ci-dessous utilisent les exécutables OpenSSH `ssh.exe`/`scp.exe` (équivalents `ssh`/`scp` sous Linux), dans une exécution autorisée avec accès réseau. Ne pas supprimer les scripts de refus ou modifier les protections. Les droits de la machine ne sont pas définis par `AGENTS.md`.
+
+## Administration du serveur
+
+Depuis le 2 octobre 2026, Marc a autorisé le compte distinct **`codex-admin` avec sudo root complet sans mot de passe**. Sur son poste, le profil OpenSSH `ubercube-admin` pointe vers ce compte sur `2.29.30.129`, avec la clé dédiée `C:/Users/Marc/.ssh/ubercube_admin_ed25519`. Les autres sessions du même compte Windows peuvent l'utiliser. La clé privée reste hors dépôt, accessible uniquement à Marc et SYSTEM. Le mot de passe Linux est verrouillé et SSH impose l'authentification par clé pour ce compte ; l'entrée `authorized_keys` utilise `restrict` (aucun terminal ou forwarding).
+
+Vérification indépendante, sans modifier le serveur :
+
+```powershell
+ssh.exe ubercube-admin "sudo -n id -u"
+```
+
+Le résultat attendu est `0`. Utiliser cet accès pour les opérations administratives nécessaires à la tâche autorisée. Le compte de jeu reste non root ; `ubercube-prod` conserve son sudo limité pour les publications habituelles. Sur un autre poste ou compte Windows, provisionner une clé propre. Un refus du bac à sable se traite par son mécanisme d'approbation, comme pour l'accès normal.
+
+### Mettre à jour le script privilégié
+
+Un écart d'empreinte dans `doctor --server` exige d'abord de comprendre les changements entre le script installé et `scripts/release/server.sh`. Relire la version à installer, exécuter le [banc Linux isolé](#tester-loutillage-sans-publier) et vérifier sa compatibilité avec la release prévue. Ne pas synchroniser automatiquement une copie locale non validée. Cette maintenance ne redémarre pas le jeu et ne publie pas les sources applicatives.
+
+Depuis PowerShell, après cette validation, transférer uniquement le script revu dans un nouveau dossier privé :
+
+```powershell
+$maintenanceId = Get-Date -Format 'yyyyMMdd-HHmmss'
+$helperHash = (Get-FileHash scripts/release/server.sh -Algorithm SHA256).Hash.ToLowerInvariant()
+$helperStage = "/home/codex-admin/helper-$maintenanceId"
+ssh.exe ubercube-admin "mkdir -m 700 '$helperStage'"
+if ($LASTEXITCODE -ne 0) { throw 'Cannot create helper staging directory' }
+scp.exe scripts/release/server.sh "ubercube-admin:${helperStage}/server.sh"
+if ($LASTEXITCODE -ne 0) { throw 'Cannot transfer reviewed helper' }
+ssh.exe ubercube-admin "set -eu; cd '$helperStage'; bash -n server.sh; echo '$helperHash  server.sh' | sha256sum -c -"
+if ($LASTEXITCODE -ne 0) { throw 'Helper syntax or checksum mismatch' }
+```
+
+Sauvegarder la version installée sans écraser une ancienne sauvegarde, puis installer le script root:root, mode 755. Il reste non modifiable par les comptes de déploiement ordinaires :
+
+```powershell
+$helperBackup = "/usr/local/libexec/ubercube-release.before-$maintenanceId"
+ssh.exe ubercube-admin "set -eu; sudo -n test ! -e '$helperBackup'; sudo -n cp -p /usr/local/libexec/ubercube-release '$helperBackup'; sudo -n install -o root -g root -m 0755 '$helperStage/server.sh' /usr/local/libexec/ubercube-release"
+if ($LASTEXITCODE -ne 0) { throw 'Helper installation failed; inspect before retrying' }
+bun run doctor --server
+if ($LASTEXITCODE -ne 0) { throw 'Installed helper verification failed' }
+```
+
+Exiger `readyToDeployServer: true`, conserver l'empreinte et le chemin de sauvegarde dans la preuve de maintenance, puis retirer uniquement le fichier transféré et son dossier vide. En cas d'échec, inspecter la cause ; la sauvegarde permet de réinstaller l'ancien script avec les mêmes propriétaire et permissions. Ne pas redémarrer le service pour cette seule opération. Reprendre ensuite la publication normale avec `ubercube-prod`.
 
 ## Préparer une version vérifiable
 
