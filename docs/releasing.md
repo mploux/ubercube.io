@@ -36,7 +36,7 @@ $releaseCommit = git rev-parse HEAD
 bun run release:prepare "--id=$releaseId"
 ```
 
-La commande ne fait aucun appel réseau. Elle exige un arbre propre, enregistre le SHA et la branche, et vérifie que les octets des fichiers inclus correspondent au commit. Elle refuse un identifiant invalide, une sortie déjà existante ou des fichiers liés hors du périmètre. Elle produit `release.json`, `source/`, `manifest.json`, `source.sha256`, `server.sha256`, `changes.json`, `server.tar.gz`, `validation.tar.gz`, `archives.sha256` et `server.sh`. Seuls `src/`, `public/` et les cinq fichiers nécessaires au build client sont inclus dans le manifeste de comparaison. Les archives serveur excluent le client public et les secrets ; les tests Linux sélectionnés sont séparés.
+La commande ne fait aucun appel réseau. Elle exige un arbre propre, enregistre le SHA et la branche, et vérifie que les octets des fichiers inclus correspondent au commit. Elle refuse un identifiant invalide, une sortie déjà existante ou des fichiers liés hors du périmètre. Elle produit `release.json`, `source/`, `manifest.json`, `source.sha256`, `server.sha256`, `changes.json`, `server.tar.gz`, `validation.tar.gz`, `archives.sha256` et `server.sh`. Seuls `src/`, `public/` et les cinq fichiers nécessaires au build client sont inclus dans le manifeste de comparaison. L'archive serveur contient `src/server`, `src/shared`, les cartes de `public/maps` et les crédits, licences et sources correspondantes de `public/map-credits`, avec une liste de chemins autorisés stricte. Les autres assets client et les secrets sont exclus ; les tests Linux sélectionnés sont séparés.
 
 Inspecter `changes.json` et les fichiers modifiés par rapport à la production enregistrée, notamment toute suppression ou modification non liée à la tâche. Les archives serveur et les comparaisons utilisent les octets figés ; Vercel construit depuis le commit distant correspondant. Ne pas éditer `source/` ni installer ses dépendances : le build de comparaison retrouve le `node_modules` de la racine. En cas de changement, créer le commit nécessaire et préparer un nouvel identifiant. Les anciens dossiers `.runtime/*-release` sont des preuves, pas des procédures à recopier.
 
@@ -83,7 +83,7 @@ scp.exe -o BatchMode=yes -o StrictHostKeyChecking=yes "$releasePath/server.sh" "
 ssh.exe -o BatchMode=yes -o StrictHostKeyChecking=yes $sshTarget "bash /home/codex/ubercube-releases/$releaseId/server.sh stage $releaseId"
 ```
 
-Le staging tourne sans sudo : vérification des empreintes et chemins d'archives, extraction dans `staged/`, puis tests Linux avec sockets locales. Il laisse la production active. En cas d'échec, corriger et préparer une nouvelle release ; ne pas fabriquer les marqueurs de validation.
+Le staging tourne sans sudo : vérification des empreintes et chemins d'archives, extraction dans `staged/`, puis tests Linux avec sockets locales, catalogue complet et sources GPL. La liste exacte des fichiers est contrôlée pour refuser aussi les fichiers supplémentaires, liens et doublons. Il laisse la production active. En cas d'échec, corriger et préparer une nouvelle release ; ne pas fabriquer les marqueurs de validation.
 
 ### Staging Vercel depuis une branche déjà poussée
 
@@ -107,7 +107,7 @@ Quand les deux versions sont prêtes, activer le serveur si nécessaire :
 ssh.exe -o BatchMode=yes -o StrictHostKeyChecking=yes $sshTarget "sudo -n /usr/local/libexec/ubercube-release activate $releaseId /home/codex/ubercube-releases/$releaseId"
 ```
 
-L'activation préserve les sources précédentes dans `/opt/ubercube/releases/ID/previous-src`, vérifie à nouveau les fichiers testés, redémarre le service, vérifie les empreintes actives et `/health`. Un échec d'activation déclenche la restauration précédente. Lire le résultat réel ; si la restauration échoue aussi, réparer le service avant de promouvoir un client incompatible.
+L'activation préserve les sources précédentes dans `/opt/ubercube/releases/ID/previous-src` et les cartes/crédits dans `previous-public`. Elle vérifie à nouveau les fichiers testés, remplace ces seuls répertoires, redémarre le service, puis vérifie les empreintes actives et `/health`. Un échec d'activation déclenche la restauration précédente, y compris l'absence initiale de cartes. Les autres fichiers publics sont préservés. Lire le résultat réel ; si la restauration échoue aussi, réparer le service avant de promouvoir un client incompatible.
 
 Après confirmation que le serveur actif est compatible (ou qu'il n'a pas besoin de changer pour cette publication) :
 
@@ -165,6 +165,6 @@ Remplacer le nom par un utilisateur Linux non root existant. Sur le poste Window
 wsl -d Debian -u root -- bash /mnt/c/Users/Marc/Documents/Dev/ubercube.io/tests/release-server.sh --user=mploux
 ```
 
-Le banc utilise uniquement un dossier temporaire `/tmp/ubercube-server-test.*`, redirige les chemins du script dans ce dossier et simule Bun, systemd, curl et les attentes. Les fichiers, archives, empreintes et permissions restent réels. Il couvre staging, refus d'archive corrompue et de tests échoués, activation, rollback et restauration après échec de chacune de ces opérations. Le dossier est retiré à la fin. Il n'utilise ni le serveur de jeu, ni un service système réel, ni le réseau.
+Le banc utilise uniquement un dossier temporaire `/tmp/ubercube-server-test.*`, redirige les chemins du script dans ce dossier et simule Bun, systemd, curl et les attentes. Les fichiers, archives, empreintes et permissions restent réels. Il couvre staging, refus d'archives corrompues, chemins interdits, liens, fichiers supplémentaires, manifestes dupliqués, mutations après staging et tests échoués. Activation, rollback et restauration après échec sont vérifiés avec des assets préexistants et sans répertoire public initial. Le dossier est retiré à la fin. Il n'utilise ni le serveur de jeu, ni un service système réel, ni le réseau.
 
 Les résultats des publications réellement vérifiées sont datés dans [deployment.md](deployment.md). Le banc shell et les API simulées ne prouvent pas à eux seuls une publication réelle.

@@ -33,7 +33,7 @@ test('release snapshot and transfer archives contain only frozen allowlisted inp
     const manifest = await Bun.file(join(release, 'manifest.json')).json() as { file: string; sha: string; size: number }[];
     expect(manifest.map(row => row.file)).toEqual([
       'bun.lock', 'package.json', 'public/index.html', 'scripts/build.ts', 'src/client/input-button.ts', 'src/client/main.ts',
-      'src/client/terrain.worker.ts', 'src/server/index.ts', 'src/shared/protocol.ts', 'tsconfig.json', 'vercel.json',
+      'src/client/map-loader.ts', 'src/client/terrain.worker.ts', 'src/server/index.ts', 'src/shared/protocol.ts', 'tsconfig.json', 'vercel.json',
     ]);
     for (const row of manifest) {
       const contents = await readFile(join(release, 'source', row.file));
@@ -68,6 +68,54 @@ test('invalid release IDs cannot escape the output directory', async () => {
     }
     expect(await readdir(join(root, '.runtime'))).toEqual(['private-token.json']);
   } finally { await cleanup(root); }
+});
+
+test('server archives freeze map assets and their credits without other client assets', async () => {
+  const root = await fixture();
+  const mapFiles = [
+    'public/maps/catalog.json', `public/maps/${'a'.repeat(64)}.ucmap`,
+    'public/map-credits/index.html', 'public/map-credits/licenses/SpadesX-GPL-3.0.txt',
+    'public/map-credits/sources/Example.vxl', 'public/map-credits/sources/Example.json',
+    'public/map-credits/sources/converter/README.txt',
+    'public/map-credits/sources/converter/scripts/import-vxl.ts',
+    'public/map-credits/sources/converter/src/shared/imported-map.ts',
+  ].sort();
+  try {
+    for (const file of [...mapFiles, 'public/assets/client-only.bin']) {
+      await mkdir(dirname(join(root, file)), { recursive: true });
+      await writeFile(join(root, file), `frozen ${file}\n`);
+    }
+    await commitFixture(root);
+    const release = await prepareRelease(root, '20261002-190001');
+    const child = Bun.spawn(['tar', '-tzf', join(release, 'server.tar.gz')], { stdout: 'pipe', stderr: 'pipe' });
+    const paths = (await new Response(child.stdout).text()).trim().split(/\r?\n/);
+    expect(await child.exited).toBe(0);
+    expect(paths.filter(file => file.startsWith('public/'))).toEqual(mapFiles);
+    const checksums = await readFile(join(release, 'server.sha256'), 'utf8');
+    for (const file of mapFiles) {
+      const bytes = await readFile(join(release, 'server-files', file));
+      expect(checksums).toContain(`${createHash('sha256').update(bytes).digest('hex')}  ${file}\n`);
+      expect(bytes).toEqual(await readFile(join(root, file)));
+    }
+    const changes = await Bun.file(join(release, 'changes.json')).json();
+    expect(changes.server.added.filter((file: string) => file.startsWith('public/'))).toEqual(mapFiles);
+    await writeFile(join(root, mapFiles[0]), 'changed after freezing');
+    expect(await readFile(join(release, 'server-files', mapFiles[0]), 'utf8')).toBe(`frozen ${mapFiles[0]}\n`);
+  } finally { await cleanup(root); }
+});
+
+test('unsupported files inside server map directories are rejected before preparation', async () => {
+  for (const file of ['public/maps/unhashed.ucmap', 'public/maps/private.json',
+    'public/map-credits/scripts/install.sh', 'public/map-credits/sources/converter/other.ts']) {
+    const root = await fixture();
+    try {
+      await mkdir(dirname(join(root, file)), { recursive: true });
+      await writeFile(join(root, file), 'unsupported');
+      await commitFixture(root);
+      await expect(prepareRelease(root, '20261002-190001')).rejects.toThrow('Unsupported server release input');
+      expect(await Bun.file(join(root, '.runtime/releases/20261002-190001/release.json')).exists()).toBe(false);
+    } finally { await cleanup(root); }
+  }
 });
 
 test('release rejects linked input directories and linked output parents', async () => {

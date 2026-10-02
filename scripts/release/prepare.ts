@@ -7,10 +7,12 @@ export const RELEASE_ID = /^\d{8}-\d{6}$/;
 export const VALIDATION_FILES = [
   ...['buildings', 'terrain-generation', 'terrain-colors', 'server', 'transport', 'lifecycle', 'wire', 'movement',
     'grenade-flight', 'input-backlog', 'input-button', 'deployment-origins', 'death-events', 'rpg', 'rpg-network',
-    'gameplay-actions', 'gameplay-network', 'lag-compensation'].map(name => `tests/${name}.test.ts`),
-  'src/client/terrain.worker.ts', 'src/client/input-button.ts',
+    'gameplay-actions', 'gameplay-network', 'lag-compensation', 'imported-map', 'map-rotation',
+    'shipped-maps', 'shipped-maps-network', 'spawn-regions'].map(name => `tests/${name}.test.ts`),
+  'src/client/terrain.worker.ts', 'src/client/input-button.ts', 'src/client/map-loader.ts', 'scripts/import-vxl.ts',
 ];
 const BUILD_FILES = ['scripts/build.ts', 'package.json', 'bun.lock', 'tsconfig.json', 'vercel.json'];
+const SERVER_FILE = /^(?:src\/(?:server|shared)\/[A-Za-z0-9_/-]+\.ts|public\/maps\/(?:catalog\.json|[a-f0-9]{64}\.ucmap)|public\/map-credits\/(?:index\.html|licenses\/[A-Za-z0-9][A-Za-z0-9_.-]*\.txt|sources\/(?:[A-Za-z0-9_-]+\.(?:vxl|json)|converter\/(?:README\.txt|scripts\/import-vxl\.ts|src\/shared\/imported-map\.ts))))$/;
 const digest = (bytes: Uint8Array, algorithm = 'sha256') => createHash(algorithm).update(bytes).digest('hex');
 
 async function regularFiles(root: string, relative: string): Promise<string[]> {
@@ -36,6 +38,11 @@ export async function prepareRelease(root: string, id: string): Promise<string> 
   const source = join(release, 'source');
   const sourceFiles = [...await regularFiles(root, 'src'), ...await regularFiles(root, 'public')];
   for (const file of BUILD_FILES) sourceFiles.push(...await regularFiles(root, file));
+  const serverFiles = sourceFiles.filter(file => /^(?:src\/(?:server|shared)|public\/(?:maps|map-credits))\//.test(file));
+  if (serverFiles.some(file => !SERVER_FILE.test(file))) throw new Error('Unsupported server release input');
+  if (!serverFiles.includes('src/server/index.ts') || !serverFiles.some(file => file.startsWith('src/shared/'))) {
+    throw new Error('Release must contain the server entry point and shared code');
+  }
   const inputs = [...new Set([...sourceFiles, ...VALIDATION_FILES, 'scripts/release/server.sh'])].sort();
   for (const file of inputs) {
     // Inspect every ancestor: a regular leaf can still sit inside a linked directory.
@@ -60,10 +67,7 @@ export async function prepareRelease(root: string, id: string): Promise<string> 
   }
   const manifest = sourceFiles.sort().map(file => ({ file, sha: digest(snapshots.get(file)!, 'sha1'), size: snapshots.get(file)!.length }));
   await writeFile(join(release, 'source.sha256'), sourceFiles.map(file => `${digest(snapshots.get(file)!)}  ${file}\n`).join(''));
-  const serverFiles = sourceFiles.filter(file => /^src\/(server|shared)\//.test(file));
-  if (!serverFiles.includes('src/server/index.ts') || !serverFiles.some(file => file.startsWith('src/shared/'))) {
-    throw new Error('Release must contain the server entry point and shared code');
-  }
+  serverFiles.sort();
   const serverChecksums = serverFiles.map(file => `${digest(snapshots.get(file)!)}  ${file}\n`).join('');
   await writeFile(join(release, 'server.sha256'), serverChecksums);
   const archives: Record<string, string> = {};
