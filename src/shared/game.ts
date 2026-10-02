@@ -1,5 +1,6 @@
 import { DT, KITS, PROTOCOL_VERSION, TICK_RATE, WEAPONS } from './protocol.ts';
-import type { GameEvent, InputFrame, Kit, Mode, PlayerState, ProjectileState, ServerMessage, Vec3, VoxelEdit, WeaponId, WorldConfig } from './protocol.ts';
+import type { GameEvent, InputFrame, Kit, MapChoice, Mode, PlayerState, ProjectileState, ServerMessage, Vec3, VoxelEdit, WeaponId, WorldConfig } from './protocol.ts';
+import type { ImportedMap } from './imported-map.ts';
 import { aimDirection, EYE_HEIGHT, movePlayer, playerCollides, PLAYER_HEIGHT, PLAYER_RADIUS } from './movement.ts';
 import { damageBlock, packBlock, raycast, VoxelWorld } from './voxel.ts';
 import { encodeServerMessage } from './wire.ts';
@@ -18,6 +19,8 @@ export interface GameOptions {
   maxPlayers: number;
   world: WorldConfig;
   roundSeconds: number;
+  maps?: readonly MapChoice[];
+  loadMap?: (choice: MapChoice) => ImportedMap | undefined;
 }
 
 type WorldMessage = Extract<ServerMessage, { type: 'world' }>;
@@ -107,6 +110,13 @@ function sameActionState(a: InputFrame, b: InputFrame): boolean {
     && !!a.cancelActions === !!b.cancelActions && !!a.sneak === !!b.sneak;
 }
 
+function validWorld(world: WorldConfig): boolean {
+  return Number.isInteger(world.seed) && world.seed >= 0 && world.seed <= 0xffffffff
+    && Number.isInteger(world.size) && world.size >= 64 && world.size <= 2048 && world.size % 16 === 0
+    && Number.isInteger(world.height) && world.height >= 32 && world.height <= 256 && world.height % 16 === 0
+    && (!world.map || (/^[a-z0-9][a-z0-9-]{0,95}$/.test(world.map.id) && /^[a-f0-9]{64}$/.test(world.map.hash)));
+}
+
 export class GameServer {
   readonly players = new Map<number, PlayerState>();
   readonly connections = new Set<Connection>();
@@ -118,7 +128,12 @@ export class GameServer {
   revision = 0;
   scores: [number, number] = [0, 0];
   droppedInputs = 0;
-  private roundStart = 0;
+  private roundStart: number | null = null;
+  private readonly maps: readonly MapChoice[];
+  private currentMap: MapChoice;
+  private importedMap: ImportedMap | undefined;
+  private chooserId: number | null = null;
+  private mapChoiceLocked = false;
   private nextPlayer = 1;
   private nextProjectile = 1;
   private readonly shots: Shot[] = [];
@@ -132,16 +147,27 @@ export class GameServer {
   private baseline: { revision: number; edits: VoxelEdit[] } | null = null;
 
   constructor(options: Partial<GameOptions> = {}, private readonly publish?: (data: string | Uint8Array) => void) {
-    this.options = { mode: 'tdm', maxPlayers: 100, world: { seed: 12345, size: 256, height: 64 }, roundSeconds: 0, ...options };
+    this.options = { mode: 'tdm', maxPlayers: 100, roundSeconds: 900, ...options,
+      world: options.world ?? options.maps?.[0]?.world ?? { seed: 12345, size: 256, height: 64 } };
     const { mode, maxPlayers, world, roundSeconds } = this.options;
     if (!['tdm', 'ffa'].includes(mode) || !Number.isInteger(maxPlayers) || maxPlayers < 1 || maxPlayers > 1000
-      || !Number.isInteger(world.seed) || world.seed < 0 || world.seed > 0xffffffff
-      || !Number.isInteger(world.size) || world.size < 64 || world.size > 2048 || world.size % 16 !== 0
-      || !Number.isInteger(world.height) || world.height < 32 || world.height > 256 || world.height % 16 !== 0
+      || !validWorld(world)
       || !Number.isInteger(roundSeconds) || roundSeconds < 0 || roundSeconds > 86400) {
       throw new Error('Invalid server configuration');
     }
-    this.world = new VoxelWorld(world);
+    this.maps = options.maps ?? [{ id: world.map?.id ?? 'ubercube', name: 'Ubercube', world }];
+    if (!this.maps.length || this.maps.length > 256 || new Set(this.maps.map(map => map.id)).size !== this.maps.length
+      || this.maps.some(map => !/^[a-z0-9][a-z0-9-]{0,95}$/.test(map.id) || !map.name.trim() || map.name.length > 100
+        || !validWorld(map.world) || (map.world.map && map.world.map.id !== map.id))) {
+      throw new Error('Invalid map rotation');
+    }
+    const currentMap = this.maps.find(map => map.world.seed === world.seed && map.world.size === world.size
+      && map.world.height === world.height && map.world.map?.id === world.map?.id && map.world.map?.hash === world.map?.hash);
+    if (!currentMap) throw new Error('Starting map is not in the rotation');
+    this.currentMap = currentMap;
+    this.importedMap = this.options.loadMap?.(currentMap);
+    if (world.map && !this.importedMap) throw new Error('Imported map data is unavailable');
+    this.world = new VoxelWorld(world, this.importedMap);
     this.randomState = world.seed || 1;
   }
 
@@ -171,6 +197,21 @@ export class GameServer {
     connection.initial = null;
     connection.input = null;
     connection.hitSnapshots.length = 0;
+    if (!connection.player) return;
+    if (!this.players.size) {
+      this.chooserId = null;
+      this.mapChoiceLocked = false;
+      this.resetRound();
+    } else if (this.chooserId === connection.player.id) {
+      this.chooserId = this.players.keys().next().value ?? null;
+      this.sendMapChoices();
+    }
+  }
+
+  private sendMapChoices(only?: Connection): void {
+    const message: ServerMessage = { type: 'map-choice', roundId: this.roundId, maps: [...this.maps], chooserId: this.chooserId };
+    if (only) this.send(only, message);
+    else for (const connection of this.connections) if (connection.player) this.send(connection, message);
   }
 
   private fail(connection: Connection, message: string, fatal = false): void {
@@ -252,9 +293,12 @@ export class GameServer {
       };
       connection.player = player;
       this.players.set(player.id, player);
+      if (!this.mapChoiceLocked && this.chooserId === null) this.chooserId = player.id;
       this.flushWorld();
       this.send(connection, { type: 'welcome', id: player.id, roundId: this.roundId, mode: this.options.mode,
         maxPlayers: this.options.maxPlayers, world: this.options.world, tickRate: TICK_RATE });
+      if (connection.closed) return;
+      this.sendMapChoices(connection);
       this.startInitial(connection);
       this.streamInitial(connection);
       return;
@@ -265,12 +309,30 @@ export class GameServer {
     }
     const player = connection.player;
     if (!player) { this.fail(connection, 'Connexion requise.', true); return; }
+    if (message.type === 'select-map') {
+      if (!keys(message, ['type', 'roundId', 'mapId']) || !number(message.roundId, 1, Number.MAX_SAFE_INTEGER)
+        || !Number.isSafeInteger(message.roundId) || typeof message.mapId !== 'string' || message.mapId.length > 96) {
+        this.fail(connection, 'Carte ou manche invalide.'); return;
+      }
+      if (message.roundId !== this.roundId) return;
+      const choice = this.maps.find(map => map.id === message.mapId);
+      if (!choice || this.mapChoiceLocked || this.chooserId !== player.id || player.alive) {
+        this.fail(connection, 'Choix de carte indisponible.'); return;
+      }
+      if (choice === this.currentMap) { this.sendMapChoices(connection); return; }
+      try { this.resetRound(choice); }
+      catch { this.fail(connection, 'Impossible de charger cette carte.'); }
+      return;
+    }
     if (message.type === 'spawn') {
       if (!keys(message, ['type', 'roundId', 'kit']) || !kit(message.kit)
         || !number(message.roundId, 1, Number.MAX_SAFE_INTEGER) || !Number.isSafeInteger(message.roundId)) {
         this.fail(connection, 'Équipement ou manche invalide.'); return;
       }
       if (message.roundId !== this.roundId) return;
+      if (this.chooserId !== null && this.chooserId !== player.id) {
+        this.fail(connection, 'Le premier joueur choisit la carte.'); return;
+      }
       if (player.alive || connection.initial) { this.fail(connection, 'Apparition indisponible.'); return; }
       const position = this.spawnPosition(player);
       if (!position) { this.fail(connection, 'Aucun emplacement libre pour apparaître.'); return; }
@@ -284,6 +346,12 @@ export class GameServer {
       player.health = 100;
       player.grenades = 10;
       player.alive = true;
+      this.roundStart ??= this.tick;
+      this.mapChoiceLocked = true;
+      if (this.chooserId !== null) {
+        this.chooserId = null;
+        this.sendMapChoices();
+      }
       player.aiming = false;
       connection.magazines = { ak47: 30, awp: 5, rpg: 30 };
       player.ammo = WEAPONS[player.weapon].magazine;
@@ -423,11 +491,14 @@ export class GameServer {
 
   private spawnPosition(player: PlayerState): Vec3 | null {
     const size = this.options.world.size;
-    for (let attempt = 0; attempt < 128; attempt++) {
+    for (let attempt = 0; attempt < (this.importedMap ? 384 : 128); attempt++) {
       const a = this.random(), b = this.random();
       const base = player.team === 1 ? size * .2 : size * .8;
-      const x = Math.floor(player.team ? base + (a - .5) * 32 : 4 + a * (size - 8)) + .5;
-      const z = Math.floor(player.team ? base + (b - .5) * 32 : 4 + b * (size - 8)) + .5;
+      const nearBase = player.team && attempt < 128;
+      const teamHalf = player.team && attempt >= 128 && attempt < 256;
+      const x = Math.floor(nearBase ? base + (a - .5) * 32 : teamHalf
+        ? 4 + (player.team === 1 ? 0 : size / 2) + a * (size / 2 - 8) : 4 + a * (size - 8)) + .5;
+      const z = Math.floor(nearBase ? base + (b - .5) * 32 : 4 + b * (size - 8)) + .5;
       if (x < 1 || z < 1 || x >= size - 1 || z >= size - 1) continue;
       // Start at the natural ground, so generated canopies and roofs are never spawn platforms.
       let y = Math.min(this.world.groundY(x, z) + 1, this.options.world.height - Math.ceil(PLAYER_HEIGHT));
@@ -787,7 +858,14 @@ export class GameServer {
   step(): void {
     this.tick++;
     this.pruneTerrainHistory();
-    if (this.options.roundSeconds > 0 && this.tick - this.roundStart >= this.options.roundSeconds * TICK_RATE) this.resetRound();
+    if (this.roundStart !== null && this.options.roundSeconds > 0 && this.tick - this.roundStart >= this.options.roundSeconds * TICK_RATE) {
+      const next = this.maps[(this.maps.indexOf(this.currentMap) + 1) % this.maps.length];
+      try { this.resetRound(next); }
+      catch {
+        this.resetRound();
+        for (const connection of this.connections) if (connection.player) this.send(connection, { type: 'error', message: 'Carte suivante indisponible ; manche relancée.' });
+      }
+    }
     for (const connection of this.connections) {
       if ((!connection.player && this.tick - connection.connectedAt > 5 * TICK_RATE) || this.tick - connection.lastMessage > 30 * TICK_RATE) {
         this.fail(connection, 'Connexion expirée.', true);
@@ -845,7 +923,7 @@ export class GameServer {
       type: 'snapshot', roundId: this.roundId, tick: this.tick, players: [...this.players.values()],
       projectiles: [...this.projectiles.values()].map(({ id, position, velocity, weapon, owner }) => ({ id, position, velocity, weapon, owner })),
       scores: this.scores,
-      remaining: this.options.roundSeconds ? Math.max(0, this.options.roundSeconds - (this.tick - this.roundStart) * DT) : null,
+      remaining: this.options.roundSeconds ? Math.max(0, this.options.roundSeconds - (this.roundStart === null ? 0 : (this.tick - this.roundStart) * DT)) : null,
     };
     const encoded = encodeServerMessage(snapshot);
     let recipients = only ? [only] : [...this.connections].filter(connection => connection.player && !connection.initial);
@@ -860,10 +938,18 @@ export class GameServer {
     }
   }
 
-  resetRound(): void {
+  resetRound(choice: MapChoice = this.currentMap): void {
+    if (!this.maps.includes(choice)) throw new Error('Map is not in the rotation');
+    const imported = choice === this.currentMap ? this.importedMap : this.options.loadMap?.(choice);
+    if (choice.world.map && !imported) throw new Error('Imported map data is unavailable');
+    const world = new VoxelWorld(choice.world, imported);
+    this.currentMap = choice;
+    this.importedMap = imported;
+    this.options.world = choice.world;
     this.roundId++;
-    this.roundStart = this.tick;
-    this.world = new VoxelWorld(this.options.world);
+    this.roundStart = null;
+    this.world = world;
+    this.randomState = choice.world.seed || 1;
     this.revision = 0;
     this.edits.clear();
     this.previousBlocks.clear();
@@ -886,7 +972,12 @@ export class GameServer {
       connection.fallPeakY = null;
       if (!connection.player) continue;
       Object.assign(connection.player, { alive: false, aiming: false, health: 100, kills: 0, deaths: 0, lastSeq: 0, grenades: 10 });
+    }
+    for (const connection of this.connections) {
+      if (!connection.player) continue;
       this.send(connection, { type: 'reset', roundId: this.roundId, world: this.options.world });
+      if (connection.closed) continue;
+      this.sendMapChoices(connection);
       this.startInitial(connection);
       this.streamInitial(connection);
     }

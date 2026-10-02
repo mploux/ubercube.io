@@ -14,6 +14,7 @@
     "loadtest": "bun scripts/loadtest.ts",
     "doctor": "bun scripts/doctor.ts",
     "smoke": "bun scripts/smoke.ts",
+    "maps:import": "bun scripts/import-vxl.ts",
     "release:prepare": "bun scripts/release/prepare.ts",
     "release:vercel": "bun scripts/release/vercel.ts"
   },

@@ -95,6 +95,11 @@
       </section>
 
       <section id="lobby-screen" class="screen" hidden>
+        <div class="map-selection">
+          <label for="map-choice">Map</label>
+          <select id="map-choice" aria-describedby="map-choice-status" disabled></select>
+          <p id="map-choice-status" aria-live="polite">Chargement de la carte…</p>
+        </div>
         <div class="spawn-stage">
           <div class="weapon-preview" data-preview="assault" aria-hidden="true"></div>
           <div class="weapon-preview" data-preview="sniper" aria-hidden="true"></div>

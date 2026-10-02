@@ -127,7 +127,9 @@ Les arguments `--nom=valeur` prennent priorité sur les variables d'environnemen
 | `--seed` | `WORLD_SEED` | `12345` |
 | `--size` | `WORLD_SIZE` | `256` blocs de côté |
 | `--height` | `WORLD_HEIGHT` | `64` blocs |
-| `--round-seconds` | `ROUND_SECONDS` | `0` (fin automatique désactivée) |
+| `--map` | `MAP` | `ubercube`, ou première carte de la rotation explicite |
+| `--map-rotation` | `MAP_ROTATION` | catalogue complet, identifiants séparés par des virgules pour restreindre |
+| `--round-seconds` | `ROUND_SECONDS` | `900` (15 minutes ; `0` désactive la rotation) |
 
 La taille accepte 64 à 2048 blocs, la hauteur 32 à 256, par multiples de 16. Ces bornes sont des validations de configuration, pas des garanties de performances. La distance affichée par défaut est de 160 blocs ; une préférence de distance enregistrée précédemment est conservée entre 64 et 256 blocs. Les maillages résidents sont bornés et générés progressivement.
 
@@ -137,7 +139,7 @@ Exemple d'une manche de test de cinq minutes :
 bun run start --mode=tdm --round-seconds=300 --size=512
 ```
 
-La durée définitive et une éventuelle limite de score restent des décisions produit ; la valeur zéro ne tranche pas ces règles.
+La manche démarre à la première apparition. À son terme, le serveur passe à la carte suivante et remet terrain, scores et projectiles à zéro. Quand le serveur est vide, le premier joueur choisit la carte dans le lobby, puis son équipement ; les suivants attendent ce choix. Le solo conserve ses manches sans limite. Le catalogue Ace of Spades attend la sélection de Marc : aucune carte tierce n'est intégrée pour l'instant. Voir [import et rotation des cartes](docs/maps.md).
 
 ## Architecture
 

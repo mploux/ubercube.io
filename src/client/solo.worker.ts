@@ -8,7 +8,7 @@ const scope = globalThis as unknown as {
   onmessage: ((event: MessageEvent<SoloWorkerRequest>) => void) | null;
   postMessage(message: SoloWorkerResponse, transfer?: ArrayBuffer[]): void;
 };
-const game = new GameServer({ mode: 'ffa', maxPlayers: 1 });
+const game = new GameServer({ mode: 'ffa', maxPlayers: 1, roundSeconds: 0 });
 let connection: Connection | null = null;
 let timer: ReturnType<typeof setInterval> | null = null;
 let paused = false;

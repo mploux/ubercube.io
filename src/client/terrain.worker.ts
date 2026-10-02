@@ -1,8 +1,9 @@
 import type { VoxelEdit, WorldConfig } from '../shared/protocol';
 import { CHUNK_SIZE, VoxelWorld } from '../shared/voxel';
+import type { ImportedMap } from '../shared/imported-map';
 
 export type TerrainWorkerRequest =
-  | { type: 'init'; config: WorldConfig; edits: VoxelEdit[]; epoch: number }
+  | { type: 'init'; config: WorldConfig; imported?: ImportedMap; edits: VoxelEdit[]; epoch: number }
   | { type: 'edits'; edits: VoxelEdit[]; epoch: number }
   | { type: 'mesh'; x: number; y: number; z: number; version: number; epoch: number };
 
@@ -20,7 +21,7 @@ let epoch = 0;
 
 if (typeof self !== 'undefined' && typeof window === 'undefined' && typeof self.postMessage === 'function') scope.onmessage = ({ data }) => {
   if (data.type === 'init') {
-    world = new VoxelWorld(data.config);
+    world = new VoxelWorld(data.config, data.imported);
     world.applyEdits(data.edits);
     epoch = data.epoch;
   } else if (data.epoch === epoch && data.type === 'edits') world.applyEdits(data.edits);

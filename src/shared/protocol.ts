@@ -1,4 +1,4 @@
-export const PROTOCOL_VERSION = 8;
+export const PROTOCOL_VERSION = 9;
 export const TICK_RATE = 60;
 export const DT = 1 / TICK_RATE;
 export type Mode = 'tdm' | 'ffa';
@@ -6,7 +6,8 @@ export type Team = 0 | 1 | 2;
 export type Kit = 'assault' | 'sniper' | 'medic';
 export type WeaponId = 'ak47' | 'awp' | 'shovel' | 'grenade' | 'medic' | 'rpg';
 export interface Vec3 { x: number; y: number; z: number }
-export interface WorldConfig { seed: number; size: number; height: number }
+export interface WorldConfig { seed: number; size: number; height: number; map?: { id: string; hash: string } }
+export interface MapChoice { id: string; name: string; world: WorldConfig }
 export type VoxelEdit = [x: number, y: number, z: number, value: number];
 export interface MotionState {
   position: Vec3; velocity: Vec3; grounded: boolean; yaw: number; pitch: number;
@@ -26,6 +27,7 @@ export interface InputFrame {
 export type ClientMessage =
   | { type: 'hello'; version: number; name: string }
   | { type: 'spawn'; roundId: number; kit: Kit }
+  | { type: 'select-map'; roundId: number; mapId: string }
   | { type: 'input'; frames: InputFrame[] }
   | { type: 'ping'; time: number };
 export interface ProjectileState { id: number; position: Vec3; velocity: Vec3; weapon: WeaponId; owner: number }
@@ -44,6 +46,7 @@ export type ServerMessage =
   | { type: 'world'; roundId: number; revision: number; edits: VoxelEdit[]; initial?: boolean; complete?: boolean }
   | { type: 'snapshot'; roundId: number; tick: number; players: PlayerState[]; projectiles: ProjectileState[]; scores: [number, number]; remaining: number | null }
   | { type: 'reset'; roundId: number; world: WorldConfig }
+  | { type: 'map-choice'; roundId: number; maps: MapChoice[]; chooserId: number | null }
   | { type: 'error'; message: string; fatal?: boolean }
   | { type: 'pong'; time: number }
   | GameEvent;

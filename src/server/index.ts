@@ -4,6 +4,7 @@ import type { ServerWebSocket } from 'bun';
 import { DT } from '../shared/protocol.ts';
 import { GameServer } from './game.ts';
 import type { Connection, GameOptions } from './game.ts';
+import { loadMap, readMapCatalog } from './maps.ts';
 
 export interface StartOptions extends Partial<GameOptions> {
   port?: number;
@@ -11,6 +12,9 @@ export interface StartOptions extends Partial<GameOptions> {
   autoTick?: boolean;
   clientRoot?: string;
   allowedOrigins?: string[];
+  map?: string;
+  mapRotation?: string[];
+  mapsRoot?: string;
 }
 interface SocketData { connection: Connection | null }
 
@@ -25,7 +29,7 @@ function parseOrigin(value: string): string {
 export function readConfig(args: string[] = Bun.argv.slice(2), env: Record<string, string | undefined> = Bun.env): StartOptions {
   const argumentsMap = new Map<string, string>();
   for (const arg of args) {
-    const match = /^--(mode|port|max-players|seed|size|height|round-seconds|hostname)=(.+)$/.exec(arg);
+    const match = /^--(mode|port|max-players|seed|size|height|round-seconds|hostname|map|map-rotation)=(.+)$/.exec(arg);
     if (!match) throw new Error(`Unknown argument: ${arg}`);
     argumentsMap.set(match[1], match[2]);
   }
@@ -38,13 +42,19 @@ export function readConfig(args: string[] = Bun.argv.slice(2), env: Record<strin
   };
   const mode = value('mode', 'MODE', 'tdm');
   if (mode !== 'tdm' && mode !== 'ffa') throw new Error('MODE must be tdm or ffa');
+  const rotation = value('map-rotation', 'MAP_ROTATION', '');
+  const mapRotation = rotation ? rotation.split(',').map(id => id.trim()) : undefined;
+  const map = value('map', 'MAP', mapRotation?.[0] ?? 'ubercube');
+  if (!/^[a-z0-9][a-z0-9-]{0,95}$/.test(map) || (mapRotation && (mapRotation.some(id => !/^[a-z0-9][a-z0-9-]{0,95}$/.test(id))
+    || new Set(mapRotation).size !== mapRotation.length))) throw new Error('Invalid MAP or MAP_ROTATION');
   return {
     mode,
+    map, mapRotation,
     port: integer('port', 'PORT', 3000, 1, 65535),
     hostname: value('hostname', 'HOST', '0.0.0.0'),
     allowedOrigins: env.ALLOWED_ORIGINS?.trim() ? env.ALLOWED_ORIGINS.split(',').map(origin => parseOrigin(origin.trim())) : [],
     maxPlayers: integer('max-players', 'MAX_PLAYERS', 100, 1, 1000),
-    roundSeconds: integer('round-seconds', 'ROUND_SECONDS', 0, 0, 86400),
+    roundSeconds: integer('round-seconds', 'ROUND_SECONDS', 900, 0, 86400),
     world: {
       seed: integer('seed', 'WORLD_SEED', 12345, 0, 0xffffffff),
       size: integer('size', 'WORLD_SIZE', 256, 64, 2048),
@@ -55,8 +65,18 @@ export function readConfig(args: string[] = Bun.argv.slice(2), env: Record<strin
 
 export function startServer(options: StartOptions = {}) {
   const allowedOrigins = new Set((options.allowedOrigins ?? []).map(parseOrigin));
-  const game = new GameServer(options, data => { server.publish('game', data); });
   const clientRoot = resolve(options.clientRoot ?? fileURLToPath(new URL('../../dist/client', import.meta.url)));
+  const mapsRoot = resolve(options.mapsRoot ?? fileURLToPath(new URL('../../public/maps', import.meta.url)));
+  const catalog = options.maps ?? readMapCatalog(mapsRoot, options.world ?? { seed: 12345, size: 256, height: 64 });
+  const maps = options.mapRotation ? options.mapRotation.map(id => {
+    const map = catalog.find(choice => choice.id === id);
+    if (!map) throw new Error(`Unknown rotation map: ${id}`);
+    return map;
+  }) : catalog;
+  const selected = options.map ? maps.find(choice => choice.id === options.map) : options.mapRotation ? maps[0] : undefined;
+  if (options.map && !selected) throw new Error(`Starting map is not in the rotation: ${options.map}`);
+  const game = new GameServer({ ...options, maps, world: selected?.world ?? options.world ?? maps[0]?.world,
+    loadMap: options.loadMap ?? (choice => loadMap(mapsRoot, choice)) }, data => { server.publish('game', data); });
   const tickWork: number[] = [];
   let maxTickWork = 0;
   let lateTicks = 0;
@@ -78,8 +98,9 @@ export function startServer(options: StartOptions = {}) {
       const url = new URL(request.url);
       if (request.method !== 'GET' && request.method !== 'HEAD') return new Response('Method not allowed', { status: 405 });
       const isStatus = url.pathname === '/health' || url.pathname === '/api/status';
+      const isMap = /^\/maps\/[a-f0-9]{64}\.ucmap$/.test(url.pathname);
       const origin = request.headers.get('origin');
-      if ((isStatus || url.pathname === '/ws') && origin !== null) {
+      if ((isStatus || isMap || url.pathname === '/ws') && origin !== null) {
         try {
           const parsed = parseOrigin(origin);
           if (parsed !== origin || (!allowedOrigins.has(parsed) && new URL(parsed).host !== url.host)) throw new Error('Origin denied');
@@ -97,6 +118,17 @@ export function startServer(options: StartOptions = {}) {
         if (request.method === 'GET' && server.upgrade(request, { data: { connection: null } })) return;
         return new Response('WebSocket upgrade required', { status: 426 });
       }
+      if (isMap) {
+        const hash = url.pathname.slice('/maps/'.length, -'.ucmap'.length);
+        if (!maps.some(choice => choice.world.map?.hash === hash)) return new Response('Unknown map', { status: 404 });
+        const file = Bun.file(resolve(mapsRoot, `${hash}.ucmap`));
+        if (!(await file.exists())) return new Response('Map unavailable', { status: 404 });
+        const headers = new Headers({ 'Content-Type': 'application/octet-stream',
+          'Cache-Control': 'public, max-age=31536000, immutable', 'X-Content-Type-Options': 'nosniff', Vary: 'Origin' });
+        if (origin !== null) headers.set('Access-Control-Allow-Origin', origin);
+        return new Response(request.method === 'HEAD' ? null : file, { headers });
+      }
+      if (url.pathname.startsWith('/maps/')) return new Response('Unknown map', { status: 404 });
       let pathname: string;
       try { pathname = decodeURIComponent(url.pathname); } catch { return new Response('Invalid path', { status: 400 }); }
       if (pathname.includes('\0') || pathname.includes('\\')) return new Response('Invalid path', { status: 400 });
@@ -174,7 +206,7 @@ if (import.meta.main) {
   try {
     const running = startServer(readConfig());
     console.log(`UBERCUBE ${running.game.options.mode.toUpperCase()} — http://localhost:${running.server.port} (${running.game.options.maxPlayers} places, bind ${running.server.hostname})`);
-    if (running.game.options.roundSeconds === 0) console.log('Automatic round reset disabled: ROUND_SECONDS=0 (product rule pending).');
+    if (running.game.options.roundSeconds === 0) console.log('Automatic map rotation disabled: ROUND_SECONDS=0.');
     process.on('SIGINT', () => { running.stop(); process.exit(0); });
     process.on('SIGTERM', () => { running.stop(); process.exit(0); });
   } catch (error) {

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import './styles.css';
-import { DT, KITS, PROTOCOL_VERSION, WEAPONS, type ClientMessage, type GameEvent, type InputFrame, type Kit, type Mode, type MotionState, type PlayerState, type ServerMessage, type WeaponId, type WorldConfig } from '../shared/protocol';
+import { DT, KITS, PROTOCOL_VERSION, WEAPONS, type ClientMessage, type GameEvent, type InputFrame, type Kit, type MapChoice, type Mode, type MotionState, type PlayerState, type ServerMessage, type WeaponId, type WorldConfig } from '../shared/protocol';
 import { aimDirection, EYE_HEIGHT, movePlayer } from '../shared/movement';
 import { grenadeLaunch } from '../shared/grenade';
 import { getWeaponMuzzle } from '../shared/weapon-pose';
@@ -21,6 +21,8 @@ import { TouchControls } from './touch-controls';
 import { RemotePlayers } from './remote-players';
 import { DeathReplay, DEATH_REPLAY_SECONDS } from './death-replay';
 import { deathCamera } from './death-camera';
+import { loadImportedMap } from './map-loader';
+import type { ImportedMap } from '../shared/imported-map';
 
 const endpoints = serverEndpoints(location.href, process.env.PUBLIC_GAME_SERVER_URL);
 const touchQuery = matchMedia('(pointer: coarse)');
@@ -37,6 +39,7 @@ const joinButton = element<HTMLButtonElement>('join-button');
 const sensitivityInput = element<HTMLInputElement>('sensitivity');
 const zoomSensitivityInput = element<HTMLInputElement>('zoom-sensitivity');
 const audioVolumeInput = element<HTMLInputElement>('audio-volume');
+const mapSelect = element<HTMLSelectElement>('map-choice');
 
 function remember(key: string, value?: string): string {
   try {
@@ -118,6 +121,15 @@ let world: VoxelWorld | null = null;
 let terrain: TerrainRenderer | null = null;
 let minimapRenderer: MinimapRenderer | null = null;
 let worldReady = false;
+let mapChoices: MapChoice[] = [];
+let currentMapId = 'ubercube';
+let mapChooserId: number | null = null;
+let mapSelectionPending = false;
+let worldLoad: AbortController | null = null;
+let loadingWorld = false;
+let bufferedWorld: Extract<ServerMessage, { type: 'world' }>[] = [];
+let bufferedEditCount = 0;
+let bufferedSnapshot: Extract<ServerMessage, { type: 'snapshot' }> | null = null;
 let revision = 0;
 let local: PlayerState | null = null;
 let predicted: MotionState | null = null;
@@ -299,9 +311,9 @@ function resetPrediction(): void {
   clearInput();
 }
 
-function setWorld(config: WorldConfig): void {
+function setWorld(config: WorldConfig, imported?: ImportedMap): void {
   snow.reset();
-  world = new VoxelWorld(config);
+  world = new VoxelWorld(config, imported);
   avatars.setWorld(world);
   if (terrain) terrain.reset(world);
   else terrain = new TerrainRenderer(scene, world, viewDistance, shadows.splits);
@@ -313,7 +325,38 @@ function setWorld(config: WorldConfig): void {
   terrain.update(camera.position);
 }
 
+function cancelWorldLoad(): void {
+  worldLoad?.abort(); worldLoad = null; loadingWorld = false;
+  bufferedWorld = []; bufferedEditCount = 0; bufferedSnapshot = null;
+}
+
+function loadWorld(config: WorldConfig): void {
+  cancelWorldLoad();
+  currentMapId = config.map?.id ?? 'ubercube';
+  if (!config.map) { setWorld(config); return; }
+  const controller = new AbortController();
+  worldLoad = controller; loadingWorld = true;
+  const existing = world?.config.map?.hash === config.map.hash ? world.importedMap : undefined;
+  const origin = socket instanceof SoloConnection || !endpoints ? location.origin : endpoints.status;
+  const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(45000)]);
+  void (existing ? Promise.resolve(existing) : loadImportedMap(config, origin, signal)).then(imported => {
+    if (worldLoad !== controller) return;
+    setWorld(config, imported);
+    worldLoad = null; loadingWorld = false;
+    const updates = bufferedWorld, snapshot = bufferedSnapshot;
+    bufferedWorld = []; bufferedEditCount = 0; bufferedSnapshot = null;
+    for (const update of updates) receive(update);
+    if (snapshot) receive(snapshot);
+    refreshKitButtons();
+  }).catch(error => {
+    if (worldLoad !== controller) return;
+    console.error('Chargement de la carte impossible', error);
+    disconnect('Impossible de charger la carte de cette partie. Réessayez.');
+  });
+}
+
 function disconnect(reason: string): void {
+  cancelWorldLoad();
   const previous = socket; socket = null;
   previous?.close();
   window.clearTimeout(connectionTimer); window.clearTimeout(spawnTimer);
@@ -327,6 +370,7 @@ function disconnect(reason: string): void {
 }
 
 function returnHome(): void {
+  cancelWorldLoad();
   const previous = socket; socket = null; previous?.close();
   window.clearTimeout(connectionTimer); window.clearTimeout(spawnTimer);
   connecting = false; spawning = false; worldReady = false; localId = -1; local = null;
@@ -342,6 +386,7 @@ function connect(solo = !serverAvailable): void {
   const name = nickname.value.trim().replace(/\s+/g, ' ').slice(0, 24);
   if (name.length < 2) { element('join-error').textContent = 'Choisissez un pseudo de 2 à 24 caractères.'; nickname.focus(); return; }
   if (connecting) return;
+  cancelWorldLoad(); mapChoices = []; mapChooserId = null; mapSelectionPending = false;
   if (touchMode) nickname.blur();
   const old = socket; socket = null; old?.close();
   remember('name', name); nickname.value = name;
@@ -367,7 +412,7 @@ function connect(solo = !serverAvailable): void {
       const message = decodeServerMessage(event.data);
       receive(message);
       if (socket !== connection) return;
-      if (worldReady) initialized = true;
+      if (worldReady || message.type === 'welcome') initialized = true;
       if (message.type === 'welcome') {
         window.clearTimeout(connectionTimer);
         connectionTimer = window.setTimeout(connectionFailed, 45000);
@@ -396,22 +441,29 @@ function connect(solo = !serverAvailable): void {
 }
 
 function refreshKitButtons(): void {
-  const disabled = !worldReady || spawning || !!terrain?.stats.error;
+  const waitingForChoice = mapChooserId !== null && mapChooserId !== localId;
+  const disabled = !worldReady || spawning || mapSelectionPending || waitingForChoice || !!terrain?.stats.error;
   for (const button of document.querySelectorAll<HTMLButtonElement>('[data-kit]')) button.disabled = disabled;
+  mapSelect.disabled = !worldReady || spawning || mapSelectionPending || mapChooserId !== localId || mapChoices.length < 2;
+  element('map-choice-status').textContent = !worldReady ? 'Chargement de la carte…'
+    : mapSelectionPending ? 'Changement de carte…'
+    : waitingForChoice ? 'Le premier joueur choisit la carte et son équipement.'
+    : mapChooserId === localId && mapChoices.length > 1 ? 'Choisissez la carte, puis votre équipement pour commencer.'
+    : 'Choisissez votre équipement pour rejoindre la partie.';
 }
 
 function receive(message: ServerMessage): void {
   if (message.type === 'welcome') {
     localId = message.id; roundId = message.roundId; mode = message.mode; maxPlayers = message.maxPlayers;
     worldReady = false; revision = 0; connecting = false;
-    setWorld(message.world);
+    loadWorld(message.world);
     element('tdm-scores').hidden = mode !== 'tdm';
     showScreen('lobby'); refreshKitButtons();
     return;
   }
   if (message.type === 'error') {
     if (spawning && screen === 'lobby' && document.pointerLockElement === canvas) document.exitPointerLock?.();
-    spawning = false; window.clearTimeout(spawnTimer); refreshKitButtons();
+    spawning = false; mapSelectionPending = false; window.clearTimeout(spawnTimer); refreshKitButtons();
     if (message.fatal) disconnect(message.message);
     else { toast(message.message); if (screen === 'entry') element('join-error').textContent = message.message; }
     return;
@@ -421,12 +473,35 @@ function receive(message: ServerMessage): void {
     roundId = message.roundId; revision = 0; worldReady = false; spawning = false;
     window.clearTimeout(spawnTimer);
     resetPrediction(); local = null; players = []; avatars.clear(); effects.clear();
-    setWorld(message.world);
+    mapSelectionPending = false;
+    loadWorld(message.world);
     showScreen('lobby'); refreshKitButtons();
     toast('Nouvelle manche. Choisissez votre équipement.');
     return;
   }
   if (message.roundId !== roundId) return;
+  if (message.type === 'map-choice') {
+    mapChoices = message.maps; mapChooserId = message.chooserId;
+    const options = mapChoices.map(choice => {
+      const option = document.createElement('option');
+      option.value = choice.id; option.textContent = choice.name;
+      return option;
+    });
+    mapSelect.replaceChildren(...options);
+    mapSelect.value = currentMapId;
+    refreshKitButtons();
+    return;
+  }
+  if (loadingWorld) {
+    if (message.type === 'world') {
+      bufferedEditCount += message.edits.length;
+      if (bufferedEditCount > 262144 || bufferedWorld.length >= 4096) {
+        disconnect('Trop de modifications pendant le chargement. Reconnectez-vous.'); return;
+      }
+      bufferedWorld.push(message);
+    } else if (message.type === 'snapshot') bufferedSnapshot = message;
+    return;
+  }
   if (message.type === 'world') {
     if (!world || !terrain) return;
     if (!message.initial && message.revision <= revision) return;
@@ -452,6 +527,7 @@ function receive(message: ServerMessage): void {
     element('red-score').textContent = `Red : ${message.scores[0]}`;
     element('blue-score').textContent = `Blue : ${message.scores[1]}`;
     element('match-time').textContent = message.remaining === null ? 'EN COURS' : `${Math.floor(Math.max(0, message.remaining) / 60)}:${Math.floor(Math.max(0, message.remaining) % 60).toString().padStart(2, '0')}`;
+    element('match-time').hidden = message.remaining === null;
     return;
   }
   if (message.type === 'event') handleEvent(message);
@@ -561,7 +637,7 @@ async function pollStatus(): Promise<void> {
     serverAvailable = true;
     joinButton.querySelector('span')!.textContent = 'Join game';
     mode = status.mode; maxPlayers = status.maxPlayers;
-    if (!world || JSON.stringify(world.config) !== JSON.stringify(status.world)) setWorld(status.world);
+    if (!world) setWorld({ seed: 12345, size: 256, height: 64 });
     element('population').textContent = `${status.players} / ${maxPlayers} joueurs en ligne`;
   } catch {
     if (socket || connecting) return;
@@ -573,7 +649,7 @@ async function pollStatus(): Promise<void> {
 }
 
 function spawnKit(kit: Kit): void {
-  if (!worldReady || spawning || terrain?.stats.error) return;
+  if (!worldReady || spawning || mapSelectionPending || (mapChooserId !== null && mapChooserId !== localId) || terrain?.stats.error) return;
   selectedKit = kit;
   selectedWeapon = KITS[kit][0];
   for (const card of document.querySelectorAll<HTMLButtonElement>('[data-kit]')) {
@@ -788,6 +864,13 @@ function frame(now: number): void {
   if (endpoints && !socket && now - lastStatusPoll > 6000) void pollStatus();
 }
 
+mapSelect.addEventListener('change', () => {
+  if (mapSelect.disabled || mapSelect.value === currentMapId) return;
+  mapSelectionPending = true; refreshKitButtons();
+  if (!send({ type: 'select-map', roundId, mapId: mapSelect.value })) {
+    mapSelectionPending = false; refreshKitButtons();
+  }
+});
 element('join-form').addEventListener('submit', (event) => { event.preventDefault(); audio.activate(); connect(); });
 element('reconnect-button').addEventListener('click', () => connect());
 element('back-button').addEventListener('click', returnHome);

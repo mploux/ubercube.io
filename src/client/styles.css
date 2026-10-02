@@ -55,6 +55,11 @@ main { position: relative; width: 100%; height: 100%; z-index: 3; pointer-events
 .error-text:empty { display: none; }
 
 .spawn-stage { position: absolute; left: 50%; bottom: 0; width: 1200px; height: 315px; transform: translateX(-50%) scale(var(--kit-scale)); transform-origin: bottom center; }
+.map-selection { position: absolute; top: var(--safe-top); left: 50%; transform: translateX(-50%); width: min(520px, 90vw); padding: 12px; background: rgb(0 0 0 / 65%); text-align: center; pointer-events: auto; }
+.map-selection label { display: block; margin-bottom: 6px; font-size: 22px; }
+#map-choice { max-width: 100%; width: 360px; min-height: 36px; padding: 4px 8px; color: white; background: #333; border: 1px solid #888; font: inherit; font-size: 18px; }
+#map-choice:disabled { color: #ccc; }
+#map-choice-status { margin: 8px 0 0; font-size: 14px; line-height: 1.3; }
 .weapon-preview { position: absolute; top: 0; width: 400px; height: 300px; pointer-events: none; }
 .weapon-preview[data-preview="assault"] { left: 0; }
 .weapon-preview[data-preview="sniper"] { left: 400px; }

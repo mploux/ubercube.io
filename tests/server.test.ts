@@ -564,7 +564,7 @@ describe('authoritative simulation', () => {
     expect(game.world.get(100, 42, 100)).toBe(0);
   });
 
-  test('an explicit round duration resets the world, whereas the default does not invent a time limit', () => {
+  test('an explicit round duration resets the world and empty default rounds wait for a player', () => {
     const timed = new GameServer({ roundSeconds: 1 });
     const { player } = join(timed);
     timed.world.set(40, 40, 40, packBlock(10, 20, 30));
@@ -610,8 +610,8 @@ describe('Bun transport and configuration', () => {
   const running: ReturnType<typeof startServer>[] = [];
   afterEach(() => { for (const instance of running.splice(0)) instance.stop(); });
 
-  test('mode and bounded configuration come from args/env, default rounds stay open', () => {
-    expect(readConfig([], {}).roundSeconds).toBe(0);
+  test('mode and bounded configuration come from args/env, default rounds last fifteen minutes', () => {
+    expect(readConfig([], {}).roundSeconds).toBe(900);
     expect(readConfig(['--mode=ffa'], { MODE: 'tdm' }).mode).toBe('ffa');
     expect(() => readConfig([], { MAX_PLAYERS: '-1' })).toThrow();
     expect(() => readConfig([], { MODE: 'other' })).toThrow();

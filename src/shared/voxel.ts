@@ -3,6 +3,7 @@ import { terrainHash, terrainHeight } from './terrain-generation';
 import { vegetationForChunk } from './vegetation';
 import { buildingBlock, buildingsForChunk } from './buildings';
 import type { Building } from './buildings';
+import { importedBlock, type ImportedMap } from './imported-map';
 
 export const CHUNK_SIZE = 16;
 const COLUMN_CACHE_LIMIT = 256;
@@ -40,11 +41,20 @@ export class VoxelWorld {
   private readonly buildings = new Map<number, Building[]>();
   private readonly edits = new Map<number, number>();
 
-  constructor(config: WorldConfig) {
+  constructor(config: WorldConfig, private imported?: ImportedMap) {
     this.configuration = this.validate(config);
+    this.validateMap();
   }
 
   get config(): WorldConfig { return this.configuration; }
+  get importedMap(): ImportedMap | undefined { return this.imported; }
+
+  private validateMap(): void {
+    if (!!this.config.map !== !!this.imported || (this.imported
+      && (this.imported.size !== this.config.size || this.imported.height !== this.config.height))) {
+      throw new Error('Imported map does not match world configuration');
+    }
+  }
 
   private validate(config: WorldConfig): WorldConfig {
     if (!Number.isInteger(config.size) || config.size < 16 || !Number.isInteger(config.height)
@@ -52,7 +62,11 @@ export class VoxelWorld {
       || !Number.isSafeInteger(config.size * config.size * config.height)) {
       throw new Error('Invalid voxel world configuration');
     }
-    return Object.freeze({ seed: config.seed >>> 0, size: config.size, height: config.height });
+    if (config.map && (!/^[a-z0-9][a-z0-9-]{0,95}$/.test(config.map.id) || !/^[a-f0-9]{64}$/.test(config.map.hash))) {
+      throw new Error('Invalid imported map identity');
+    }
+    return Object.freeze({ seed: config.seed >>> 0, size: config.size, height: config.height,
+      ...(config.map ? { map: Object.freeze({ ...config.map }) } : {}) });
   }
 
   private inside(x: number, y: number, z: number): boolean {
@@ -63,6 +77,7 @@ export class VoxelWorld {
   groundY(x: number, z: number): number {
     x = Math.floor(x); z = Math.floor(z);
     if (!Number.isFinite(x) || !Number.isFinite(z) || x < 0 || z < 0 || x >= this.config.size || z >= this.config.size) return 0;
+    if (this.imported) return this.surfaceY(x, z);
     return Math.floor(this.heightAt(x, z)) + 1;
   }
 
@@ -110,6 +125,7 @@ export class VoxelWorld {
   }
 
   private base(x: number, y: number, z: number): number {
+    if (this.imported) return importedBlock(this.imported, x, y, z);
     if (y === 0) return BEDROCK;
     const column = this.getColumns(Math.floor(x / CHUNK_SIZE), Math.floor(z / CHUNK_SIZE));
     const i = (x % CHUNK_SIZE) + (z % CHUNK_SIZE) * CHUNK_SIZE;
@@ -172,8 +188,10 @@ export class VoxelWorld {
     return 0;
   }
 
-  reset(config: WorldConfig = this.config): void {
+  reset(config: WorldConfig = this.config, imported: ImportedMap | undefined = config.map?.hash === this.config.map?.hash ? this.imported : undefined): void {
     this.configuration = this.validate(config);
+    this.imported = imported;
+    this.validateMap();
     this.columns.clear();
     this.heights.clear();
     this.buildings.clear();

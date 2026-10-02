@@ -59,7 +59,8 @@ export class TerrainRenderer {
       }
       this.dispatch();
     };
-    this.send(slot, { type: 'init', config: this.world.config, edits: this.world.getEdits(), epoch: this.epoch });
+    this.send(slot, { type: 'init', config: this.world.config, imported: this.world.importedMap,
+      edits: this.world.getEdits(), epoch: this.epoch });
   }
 
   private send(slot: WorkerSlot, message: TerrainWorkerRequest): void { slot.worker.postMessage(message); }
