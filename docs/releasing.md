@@ -174,7 +174,7 @@ Revenir aux versions **compatibles des deux côtés** si le protocole ou le mond
 sudo -n /usr/local/libexec/ubercube-release rollback ID
 ```
 
-La commande refuse d'annuler une autre release installée depuis. Elle restaure `previous-src`, redémarre et contrôle la santé. Pour les archives antérieures à cet outillage, utiliser les chemins de sauvegarde documentés dans [l'historique](deployment.md) ; ils n'ont pas de `server.sh` générique.
+La commande refuse d'annuler une autre release installée depuis. Elle restaure `previous-src` et les cartes/crédits de `previous-public`, redémarre et contrôle la santé. Les éventuels changements de configuration système ont leur sauvegarde et leur restauration distinctes, décrites dans la preuve de publication. Pour les archives antérieures à cet outillage, utiliser les chemins de sauvegarde documentés dans [l'historique](deployment.md) ; ils n'ont pas de `server.sh` générique.
 
 Pour Vercel, promouvoir l'ID explicitement connu de la version compatible précédente et indiquer son SHA poussé :
 

@@ -6,8 +6,8 @@
   },
   {
     "file": "package.json",
-    "sha": "373af80f1745c42a5b4d6e749fee84754a9c5034",
-    "size": 780
+    "sha": "4ab8b01130c9b480f080bcbe7ae26b8de68de008",
+    "size": 828
   },
   {
     "file": "public/assets/LICENSE.txt",
@@ -236,8 +236,123 @@
   },
   {
     "file": "public/index.html",
-    "sha": "0e3904bbc09eee0eb58a7a8cccc05ef09a03cb00",
-    "size": 15583
+    "sha": "4d2b2a942bbb3069f736715dadad37789b46f81e",
+    "size": 16250
+  },
+  {
+    "file": "public/map-credits/index.html",
+    "sha": "29709a22bdd2dc49533c098d6a7559ab34a9cf26",
+    "size": 8602
+  },
+  {
+    "file": "public/map-credits/licenses/Hallway-C-MIT.txt",
+    "sha": "7032ec7f80166a2cd78cbbfdc44d52cff4f409d3",
+    "size": 1071
+  },
+  {
+    "file": "public/map-credits/licenses/SpadesX-GPL-3.0.txt",
+    "sha": "31a3d460bb3c7d98845187c716a30db81c44b615",
+    "size": 35149
+  },
+  {
+    "file": "public/map-credits/sources/Empty_Ocean.json",
+    "sha": "1c184e5575783357359c87c16e7cc8b65b7cbd0b",
+    "size": 336
+  },
+  {
+    "file": "public/map-credits/sources/Empty_Ocean.vxl",
+    "sha": "71fd9da5bb47fdaa15f75b9e4d91c6a70264902e",
+    "size": 2095104
+  },
+  {
+    "file": "public/map-credits/sources/Triangle_Hell.json",
+    "sha": "4fcf5720b05b59d2ec4bf26a84c4bce0326ab05b",
+    "size": 310
+  },
+  {
+    "file": "public/map-credits/sources/Triangle_Hell.vxl",
+    "sha": "e09a7d430bba24f63e13dd9b687162ac7ecd6681",
+    "size": 3683320
+  },
+  {
+    "file": "public/map-credits/sources/converter/README.txt",
+    "sha": "2d01e1b742d4f9536b21a83ca844521c477bdd30",
+    "size": 690
+  },
+  {
+    "file": "public/map-credits/sources/converter/scripts/import-vxl.ts",
+    "sha": "5cab44846c74e75ad875045a1618426cdea03ef0",
+    "size": 3028
+  },
+  {
+    "file": "public/map-credits/sources/converter/src/shared/imported-map.ts",
+    "sha": "1bb202531352e75f1db151456397f30de2c4ac9f",
+    "size": 7395
+  },
+  {
+    "file": "public/maps/00591028ac216abcd09f0de11f1f6145eda76d072665ed5eb84ce5e298cf0a2c.ucmap",
+    "sha": "36141c821fa1bb93f7dd913b715b6540ba55486a",
+    "size": 3145748
+  },
+  {
+    "file": "public/maps/1c48f0d6c561114af42df704671fc577684006a2ae0b64c4d5641753a1908b96.ucmap",
+    "sha": "3eb24ebdd8eb6cb05919b0f4d549b6c5f4229b00",
+    "size": 3145748
+  },
+  {
+    "file": "public/maps/3ef4c61295ec216a2dc4679c0c5e2e37033abf5883b222fd1cdae9bc8c5673bd.ucmap",
+    "sha": "168ebee3af09b38f1176fe5a132280833545aac3",
+    "size": 3145748
+  },
+  {
+    "file": "public/maps/44d7e1730e5edc96aa2971bfa9d215b9b6baf7a9eccb42e7b9093b47c9c35a52.ucmap",
+    "sha": "c3f8379414947db4187447b0be85973da6e42e6f",
+    "size": 3145748
+  },
+  {
+    "file": "public/maps/57a4d6f2790367e254a1da4e91734e93747be893e5ee18ccbe4c79fcaf96a01d.ucmap",
+    "sha": "0b23cd47317d5a3a6eb17295464bd748493d54bb",
+    "size": 3141652
+  },
+  {
+    "file": "public/maps/6eda707601337ae0039074cfe3e7caa23b12b88268a1d09bf69d0b269bda21e8.ucmap",
+    "sha": "8ebed412fa85e9d896a491c8f175f84ea4308bf4",
+    "size": 3145748
+  },
+  {
+    "file": "public/maps/7a7096b942473936212daf972b7436a37a1412bc2e522bbba7dcf19e3c6b6b70.ucmap",
+    "sha": "80ba63e0fca6e0da823d6f9eab6ebbda1698a871",
+    "size": 3145748
+  },
+  {
+    "file": "public/maps/a2d54b3a2befb43b89425ea4de6892eb2854ddacb84fbce30b87ce083f1f21ac.ucmap",
+    "sha": "29cff7d620a1f0397cfba095723f1d23bc9d36c0",
+    "size": 3145748
+  },
+  {
+    "file": "public/maps/aa77f73d63a566804bdc7353a31df18908369125cff483742598516502ad8ee0.ucmap",
+    "sha": "3f779969e67b8d5dc7992ad440f3005516494bb7",
+    "size": 4365396
+  },
+  {
+    "file": "public/maps/b9b5e7b0167d3080d2ae4d543b20da4a8b952a16608f8fe3b471238d9e658bca.ucmap",
+    "sha": "bb737284c86e54a0608488166716748509d9868b",
+    "size": 3145748
+  },
+  {
+    "file": "public/maps/bfdd040947904578c6703b08a1af4f9c0b9a9c5f9da49fd699456446f547adde.ucmap",
+    "sha": "09d1f7fd9221a62b0672a933f1c1d524df78a928",
+    "size": 3145748
+  },
+  {
+    "file": "public/maps/catalog.json",
+    "sha": "236fdf242202252a3ff7e98b9e4a036d5c76e71e",
+    "size": 14781
+  },
+  {
+    "file": "public/maps/ce4064b0cf33d9efbca7cacc2275897a0be5237643ae9b11e25619a00af7b8a2.ucmap",
+    "sha": "58b885a93e095ef275192b4a7d8041cfc6eafb0f",
+    "size": 3145748
   },
   {
     "file": "public/robots.txt",
@@ -286,8 +401,13 @@
   },
   {
     "file": "src/client/main.ts",
-    "sha": "db6cc512bfb6e9aca25c3aa1fda89969ac6a5d97",
-    "size": 48594
+    "sha": "2743c380900fa9558c957f8073441fdf21ca4d3a",
+    "size": 52697
+  },
+  {
+    "file": "src/client/map-loader.ts",
+    "sha": "9ffa290b625029916371971b286f927989607743",
+    "size": 4306
   },
   {
     "file": "src/client/minimap.ts",
@@ -351,23 +471,23 @@
   },
   {
     "file": "src/client/solo.worker.ts",
-    "sha": "da09ed776879109ea8270d5bbc147ed7cc5e2ea6",
-    "size": 2073
+    "sha": "0af141346299f34c9e2c348336086db83aa1b1bb",
+    "size": 2090
   },
   {
     "file": "src/client/styles.css",
-    "sha": "6eb0964ecc8cc951bb27aa378c14ccf5d739e75a",
-    "size": 25147
+    "sha": "9caf47bc616f7433b782db63d07dd505dfe31cff",
+    "size": 25987
   },
   {
     "file": "src/client/terrain.ts",
-    "sha": "ddea983846f13e95780d1ffe2dd86dacb832c592",
-    "size": 9154
+    "sha": "659acb41e432dba64f7b5ba38fc7ae162899ed28",
+    "size": 9194
   },
   {
     "file": "src/client/terrain.worker.ts",
-    "sha": "d8f3d389d1a6a6ec903c4fe1a3039867a4006d78",
-    "size": 5526
+    "sha": "915df85771177befe7edd53547fdf9f0ac299499",
+    "size": 5624
   },
   {
     "file": "src/client/touch-controls.ts",
@@ -396,8 +516,13 @@
   },
   {
     "file": "src/server/index.ts",
-    "sha": "2b5d2cf995700e23dbcecb22691e2a9481c87391",
-    "size": 8544
+    "sha": "b8d34a2b5f450eddd99d9b24d632900201fb3732",
+    "size": 10879
+  },
+  {
+    "file": "src/server/maps.ts",
+    "sha": "47868f3752644cbbc723123cd45a58af21b00217",
+    "size": 3292
   },
   {
     "file": "src/shared/buildings.ts",
@@ -406,13 +531,18 @@
   },
   {
     "file": "src/shared/game.ts",
-    "sha": "17689d3c19bba9e5b32336201bf03c565bebaa2e",
-    "size": 47064
+    "sha": "da801bb9aea3dd80a1db2b2517752432b4fd2182",
+    "size": 52432
   },
   {
     "file": "src/shared/grenade.ts",
     "sha": "4ac9fd1689a4830cb4aef5846810335b80c4f6e7",
     "size": 3508
+  },
+  {
+    "file": "src/shared/imported-map.ts",
+    "sha": "1bb202531352e75f1db151456397f30de2c4ac9f",
+    "size": 7395
   },
   {
     "file": "src/shared/movement.ts",
@@ -421,8 +551,8 @@
   },
   {
     "file": "src/shared/protocol.ts",
-    "sha": "5b8650f90f857204aafb1ca788e8f56342e614d9",
-    "size": 3612
+    "sha": "cbea043cb4d458ff81e7e9b7e29b9042051464d3",
+    "size": 4639
   },
   {
     "file": "src/shared/ruin-model.ts",
@@ -441,8 +571,8 @@
   },
   {
     "file": "src/shared/voxel.ts",
-    "sha": "84130fc4d54aa8caffae0ebcf4fa38407f9f4454",
-    "size": 10571
+    "sha": "bfda02d8f7a41449b1d4f520d1c34c4f68c29b0a",
+    "size": 11582
   },
   {
     "file": "src/shared/weapon-pose.ts",

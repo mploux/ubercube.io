@@ -1,6 +1,6 @@
 # Cartes importées et rotation
 
-État du chantier au 2 octobre 2026 : convertisseur, chargement partagé et rotation implémentés ; douze cartes tierces intégrées à la demande de Marc. La dernière production enregistrée utilise le protocole 8 (compensation des tirs). Ce chantier de cartes utilise le protocole 9 et demandera une publication coordonnée du client et du serveur.
+Publié le 2 octobre 2026 : convertisseur, chargement partagé, sélection, rotation et douze cartes tierces intégrées à la demande de Marc. Client et serveur utilisent le protocole 9 ; la rotation de production est réglée à 900 secondes. Voir [la preuve de publication](deployment.md#publication-des-cartes-mit-et-gpl--2-octobre-2026).
 
 ## Import
 
@@ -69,4 +69,4 @@ Les douze scénarios à quatre véritables sockets couvrent choix autoritaire, t
 
 La capture souris est refusée dans le navigateur intégré : le maniement humain reste à vérifier. Les essais de charge partagent un processus Bun local ; ils ne prouvent ni la capacité de production, ni le rendu de 100 navigateurs, ni le comportement sur téléphone physique.
 
-L'outillage de publication inclut les cartes, crédits, licences et sources GPL dans l'archive serveur et son contrôle d'empreintes. Les sauvegardes et restaurations préservent aussi ces assets, y compris leur absence avant une première installation. Avant la première publication des cartes, le helper privilégié doit recevoir cette mise à jour par installation administrative revue ; suivre [la procédure de publication](releasing.md). Ne pas publier de catalogue sélectionnant des assets absents du serveur.
+L'outillage de publication inclut les cartes, crédits, licences et sources GPL dans l'archive serveur et son contrôle d'empreintes. Les sauvegardes et restaurations préservent aussi ces assets, y compris leur absence avant une première installation. Le helper privilégié a reçu cette mise à jour revue avant la publication ; suivre [la procédure de publication](releasing.md) pour les suivantes. Les douze téléchargements publics et leurs empreintes ont été vérifiés sur le serveur de partie.

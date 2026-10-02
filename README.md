@@ -18,11 +18,13 @@ Ajustement publié le 22 septembre 2026 : le plein écran automatique est retir�
 
 Publié le 22 septembre 2026 : les impacts AK/AWP compensent jusqu'à 250 ms de retard à partir de l'image des joueurs affichée au tireur. Le lissage reste identique ; les couvertures actuelles et celles du terrain reçu bloquent les tirs. Client et serveur utilisent ensemble le protocole **8**. [Fonctionnement et validation](docs/lag-compensation.md).
 
+Publié le 2 octobre 2026 : douze cartes Ace of Spades sous MIT/GPL, sélection par le premier joueur, rotation toutes les 15 minutes et apparitions dans les zones des auteurs. Crédits, licences et sources GPL sont accessibles depuis l'accueil et la pause. Client et serveur passent au protocole **9**. [Preuve de publication](docs/deployment.md#publication-des-cartes-mit-et-gpl--2-octobre-2026).
+
 ## Reprendre le projet
 
 Nouveau développeur ou agent : lire [AGENTS.md](AGENTS.md), puis le [guide de démarrage](docs/agent-start.md). Il donne les points d'entrée du code, les décisions produit, les vérifications et les accès de publication sans dépendre d'un historique de discussion.
 
-Le site est [www.ubercube.io](https://www.ubercube.io/), le serveur de partie [game.ubercube.io](https://game.ubercube.io/health). Client Vercel, serveur Bun permanent sur Hetzner, protocole 8. Le dernier état publié **enregistré** est dans [ops/production.json](ops/production.json) avec ses empreintes client/serveur ; il doit être revérifié avant une publication.
+Le site est [www.ubercube.io](https://www.ubercube.io/), le serveur de partie [game.ubercube.io](https://game.ubercube.io/health). Client Vercel, serveur Bun permanent sur Hetzner, protocole 9. Le dernier état publié **enregistré** est dans [ops/production.json](ops/production.json) avec ses empreintes client/serveur ; il doit être revérifié avant une publication.
 
 Chaque nouvelle publication Vercel doit provenir d'un **commit poussé sur GitHub**, normalement par le déploiement automatique de `main`. Terminer et tester le travail, créer des commits ciblés, puis pousser lorsqu'une publication est demandée. Vérifier ensuite le SHA réellement publié. Les anciennes publications depuis des fichiers locaux sont conservées comme faits historiques dans [docs/deployment.md](docs/deployment.md) ; elles ne constituent plus une procédure de publication.
 
@@ -139,7 +141,7 @@ Exemple d'une manche de test de cinq minutes :
 bun run start --mode=tdm --round-seconds=300 --size=512
 ```
 
-La manche démarre à la première apparition. À son terme, le serveur passe à la carte suivante et remet terrain, scores et projectiles à zéro. Quand le serveur est vide, le premier joueur choisit la carte dans le lobby, puis son équipement ; les suivants attendent ce choix. Le solo conserve ses manches sans limite. Le catalogue local comprend Hallway C.1 à C.9 et Breakthrough C.0 sous MIT, ainsi que Triangle Hell et Empty Ocean sous GPL-3.0, en plus du terrain Ubercube. Les crédits, licences et sources GPL sont accessibles depuis l'accueil et le menu pause. Ce chantier utilise le protocole 9 et n'est pas encore publié. Voir [import et rotation des cartes](docs/maps.md).
+La manche démarre à la première apparition. À son terme, le serveur passe à la carte suivante et remet terrain, scores et projectiles à zéro. Quand le serveur est vide, le premier joueur choisit la carte dans le lobby, puis son équipement ; les suivants attendent ce choix. Le solo conserve ses manches sans limite. Le catalogue publié comprend Hallway C.1 à C.9 et Breakthrough C.0 sous MIT, ainsi que Triangle Hell et Empty Ocean sous GPL-3.0, en plus du terrain Ubercube. Les crédits, licences et sources GPL sont accessibles depuis l'accueil et le menu pause. Voir [import et rotation des cartes](docs/maps.md).
 
 ## Architecture
 

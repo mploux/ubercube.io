@@ -1,11 +1,107 @@
 [
   {
+    "file": "public/map-credits/index.html",
+    "sha256": "fbeed009c4e39fe1847d7f43ad1fbd1929d13794b2a37f636693fefb8d166904"
+  },
+  {
+    "file": "public/map-credits/licenses/Hallway-C-MIT.txt",
+    "sha256": "5111b6db6b06e4ab359f2552d48a9c8f90c4df6876947031bfb0898ffb0c2a46"
+  },
+  {
+    "file": "public/map-credits/licenses/SpadesX-GPL-3.0.txt",
+    "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+  },
+  {
+    "file": "public/map-credits/sources/Empty_Ocean.json",
+    "sha256": "1ac78d6aa5e4b124083a732e6357d6fb4b91bb4b1ef30a189722c0f7d11de9f1"
+  },
+  {
+    "file": "public/map-credits/sources/Empty_Ocean.vxl",
+    "sha256": "776e0824cc20eb630289d6cb7b1662b309db0b2a953a92858c13fc9ed2a2188c"
+  },
+  {
+    "file": "public/map-credits/sources/Triangle_Hell.json",
+    "sha256": "52d0d270ef5d044fd0ffd32acc7e34df4481b4f68fde590a4db52073f79c5fd6"
+  },
+  {
+    "file": "public/map-credits/sources/Triangle_Hell.vxl",
+    "sha256": "16a0a0da921c9131230bdada2e5022ba2318964038e59504e4b66eace3747220"
+  },
+  {
+    "file": "public/map-credits/sources/converter/README.txt",
+    "sha256": "ff20d9f49cd28fcbfc3e06af320218b3f6b50713603573d11d453fe73ac311ca"
+  },
+  {
+    "file": "public/map-credits/sources/converter/scripts/import-vxl.ts",
+    "sha256": "3af81554d62d5facf53509e7bd433903d42ffae945ad6a5a5480b30a92745b14"
+  },
+  {
+    "file": "public/map-credits/sources/converter/src/shared/imported-map.ts",
+    "sha256": "35a9866368e3e81cc0d4d06ca52ace5d62181b8677e384a357926b7e6f945afb"
+  },
+  {
+    "file": "public/maps/00591028ac216abcd09f0de11f1f6145eda76d072665ed5eb84ce5e298cf0a2c.ucmap",
+    "sha256": "00591028ac216abcd09f0de11f1f6145eda76d072665ed5eb84ce5e298cf0a2c"
+  },
+  {
+    "file": "public/maps/1c48f0d6c561114af42df704671fc577684006a2ae0b64c4d5641753a1908b96.ucmap",
+    "sha256": "1c48f0d6c561114af42df704671fc577684006a2ae0b64c4d5641753a1908b96"
+  },
+  {
+    "file": "public/maps/3ef4c61295ec216a2dc4679c0c5e2e37033abf5883b222fd1cdae9bc8c5673bd.ucmap",
+    "sha256": "3ef4c61295ec216a2dc4679c0c5e2e37033abf5883b222fd1cdae9bc8c5673bd"
+  },
+  {
+    "file": "public/maps/44d7e1730e5edc96aa2971bfa9d215b9b6baf7a9eccb42e7b9093b47c9c35a52.ucmap",
+    "sha256": "44d7e1730e5edc96aa2971bfa9d215b9b6baf7a9eccb42e7b9093b47c9c35a52"
+  },
+  {
+    "file": "public/maps/57a4d6f2790367e254a1da4e91734e93747be893e5ee18ccbe4c79fcaf96a01d.ucmap",
+    "sha256": "57a4d6f2790367e254a1da4e91734e93747be893e5ee18ccbe4c79fcaf96a01d"
+  },
+  {
+    "file": "public/maps/6eda707601337ae0039074cfe3e7caa23b12b88268a1d09bf69d0b269bda21e8.ucmap",
+    "sha256": "6eda707601337ae0039074cfe3e7caa23b12b88268a1d09bf69d0b269bda21e8"
+  },
+  {
+    "file": "public/maps/7a7096b942473936212daf972b7436a37a1412bc2e522bbba7dcf19e3c6b6b70.ucmap",
+    "sha256": "7a7096b942473936212daf972b7436a37a1412bc2e522bbba7dcf19e3c6b6b70"
+  },
+  {
+    "file": "public/maps/a2d54b3a2befb43b89425ea4de6892eb2854ddacb84fbce30b87ce083f1f21ac.ucmap",
+    "sha256": "a2d54b3a2befb43b89425ea4de6892eb2854ddacb84fbce30b87ce083f1f21ac"
+  },
+  {
+    "file": "public/maps/aa77f73d63a566804bdc7353a31df18908369125cff483742598516502ad8ee0.ucmap",
+    "sha256": "aa77f73d63a566804bdc7353a31df18908369125cff483742598516502ad8ee0"
+  },
+  {
+    "file": "public/maps/b9b5e7b0167d3080d2ae4d543b20da4a8b952a16608f8fe3b471238d9e658bca.ucmap",
+    "sha256": "b9b5e7b0167d3080d2ae4d543b20da4a8b952a16608f8fe3b471238d9e658bca"
+  },
+  {
+    "file": "public/maps/bfdd040947904578c6703b08a1af4f9c0b9a9c5f9da49fd699456446f547adde.ucmap",
+    "sha256": "bfdd040947904578c6703b08a1af4f9c0b9a9c5f9da49fd699456446f547adde"
+  },
+  {
+    "file": "public/maps/catalog.json",
+    "sha256": "2caf9690dd4971b7389e61c4ae362e03219f4a8efe221fd9bcd592bb20567a41"
+  },
+  {
+    "file": "public/maps/ce4064b0cf33d9efbca7cacc2275897a0be5237643ae9b11e25619a00af7b8a2.ucmap",
+    "sha256": "ce4064b0cf33d9efbca7cacc2275897a0be5237643ae9b11e25619a00af7b8a2"
+  },
+  {
     "file": "src/server/game.ts",
     "sha256": "bb71facb3cf6992477eb40e52655be2a2e46e5e0d6316f75a337e946339a679b"
   },
   {
     "file": "src/server/index.ts",
-    "sha256": "451e90aac37486a3ff3d6172a073c5a0dcdfd25f008acc2003df7b19b124ecc3"
+    "sha256": "8a21c8b80c86ac9422f7df3f9c377e38f4d7b2eb64b9c25ad1c562de295ed636"
+  },
+  {
+    "file": "src/server/maps.ts",
+    "sha256": "2e94f27049d63f1cbfd4972ecb340fbd1e81770f4008c68000d25fa8eb27002e"
   },
   {
     "file": "src/shared/buildings.ts",
@@ -13,11 +109,15 @@
   },
   {
     "file": "src/shared/game.ts",
-    "sha256": "7ae34a2a924421d377116bdfaab2aaf228a557de3aaca2882f0aadb0aaa97b07"
+    "sha256": "482134ad02d2800b3194155574e7d8c1eab0b93de2b46557f11d174a8cbbbafb"
   },
   {
     "file": "src/shared/grenade.ts",
     "sha256": "d83b26d78742da129b347ec5165bf517bf86abfb40b432f18160e8fb5f4701aa"
+  },
+  {
+    "file": "src/shared/imported-map.ts",
+    "sha256": "35a9866368e3e81cc0d4d06ca52ace5d62181b8677e384a357926b7e6f945afb"
   },
   {
     "file": "src/shared/movement.ts",
@@ -25,7 +125,7 @@
   },
   {
     "file": "src/shared/protocol.ts",
-    "sha256": "9defb9dd40325c3c36c261e8d30881a10ff00b48905b0bcdd01c752c5b433434"
+    "sha256": "a488e34b92c05debe137beb291ff0d62dd9cb4b66a68a0d7ebd17dc4a220e666"
   },
   {
     "file": "src/shared/ruin-model.ts",
@@ -41,7 +141,7 @@
   },
   {
     "file": "src/shared/voxel.ts",
-    "sha256": "940ec695614e6b3996d07ea085247835cffb1594fd297b75ab95c30a89a45308"
+    "sha256": "4f57f111473239edc595758743d57cedd8b076ecaff64d604287580fa6d61389"
   },
   {
     "file": "src/shared/weapon-pose.ts",
