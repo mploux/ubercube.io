@@ -1,6 +1,6 @@
 # Cartes Ace of Spades Classic : candidates à sélectionner
 
-Recherche du 21 septembre 2026. Marc choisira au maximum dix cartes, classiques en priorité puis communautaires. Aucune candidate n'est ajoutée au catalogue. Ce document liste toutes les candidates avec autorisation explicite retrouvées pendant la recherche, sans prétendre inventorier toutes les archives historiques.
+Recherche du 21 septembre 2026. Ce document liste les candidates avec autorisation explicite retrouvées pendant la recherche, sans prétendre inventorier toutes les archives historiques. Le 2 octobre 2026, Marc a demandé l'intégration des dix cartes MIT et des deux GPL ci-dessous, dépassant la limite initiale de dix. Elles sont maintenant dans le catalogue local ; aucune publication n'a été effectuée. Voir [le catalogue et les mentions distribuées](maps.md#catalogue-intégré).
 
 ## Licence explicite sans restriction non commerciale
 

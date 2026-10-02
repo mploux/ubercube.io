@@ -139,7 +139,7 @@ Exemple d'une manche de test de cinq minutes :
 bun run start --mode=tdm --round-seconds=300 --size=512
 ```
 
-La manche démarre à la première apparition. À son terme, le serveur passe à la carte suivante et remet terrain, scores et projectiles à zéro. Quand le serveur est vide, le premier joueur choisit la carte dans le lobby, puis son équipement ; les suivants attendent ce choix. Le solo conserve ses manches sans limite. Le catalogue Ace of Spades attend la sélection de Marc : aucune carte tierce n'est intégrée pour l'instant. Voir [import et rotation des cartes](docs/maps.md).
+La manche démarre à la première apparition. À son terme, le serveur passe à la carte suivante et remet terrain, scores et projectiles à zéro. Quand le serveur est vide, le premier joueur choisit la carte dans le lobby, puis son équipement ; les suivants attendent ce choix. Le solo conserve ses manches sans limite. Le catalogue local comprend Hallway C.1 à C.9 et Breakthrough C.0 sous MIT, ainsi que Triangle Hell et Empty Ocean sous GPL-3.0, en plus du terrain Ubercube. Les crédits, licences et sources GPL sont accessibles depuis l'accueil et le menu pause. Ce chantier utilise le protocole 9 et n'est pas encore publié. Voir [import et rotation des cartes](docs/maps.md).
 
 ## Architecture
 

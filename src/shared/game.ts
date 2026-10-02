@@ -1,4 +1,4 @@
-import { DT, KITS, PROTOCOL_VERSION, TICK_RATE, WEAPONS } from './protocol.ts';
+import { DT, KITS, PROTOCOL_VERSION, TICK_RATE, WEAPONS, validSpawnRegions } from './protocol.ts';
 import type { GameEvent, InputFrame, Kit, MapChoice, Mode, PlayerState, ProjectileState, ServerMessage, Vec3, VoxelEdit, WeaponId, WorldConfig } from './protocol.ts';
 import type { ImportedMap } from './imported-map.ts';
 import { aimDirection, EYE_HEIGHT, movePlayer, playerCollides, PLAYER_HEIGHT, PLAYER_RADIUS } from './movement.ts';
@@ -158,7 +158,8 @@ export class GameServer {
     this.maps = options.maps ?? [{ id: world.map?.id ?? 'ubercube', name: 'Ubercube', world }];
     if (!this.maps.length || this.maps.length > 256 || new Set(this.maps.map(map => map.id)).size !== this.maps.length
       || this.maps.some(map => !/^[a-z0-9][a-z0-9-]{0,95}$/.test(map.id) || !map.name.trim() || map.name.length > 100
-        || !validWorld(map.world) || (map.world.map && map.world.map.id !== map.id))) {
+        || !validWorld(map.world) || (map.world.map && map.world.map.id !== map.id)
+        || (map.spawnRegions !== undefined && !validSpawnRegions(map.spawnRegions, map.world)))) {
       throw new Error('Invalid map rotation');
     }
     const currentMap = this.maps.find(map => map.world.seed === world.seed && map.world.size === world.size
@@ -491,20 +492,24 @@ export class GameServer {
 
   private spawnPosition(player: PlayerState): Vec3 | null {
     const size = this.options.world.size;
+    const regions = this.currentMap.spawnRegions;
     for (let attempt = 0; attempt < (this.importedMap ? 384 : 128); attempt++) {
+      const region = regions?.[player.team ? player.team - 1 : Math.floor(this.random() * 2)];
       const a = this.random(), b = this.random();
       const base = player.team === 1 ? size * .2 : size * .8;
       const nearBase = player.team && attempt < 128;
       const teamHalf = player.team && attempt >= 128 && attempt < 256;
-      const x = Math.floor(nearBase ? base + (a - .5) * 32 : teamHalf
+      const x = Math.floor(region ? region.minX + a * (region.maxX - region.minX) : nearBase ? base + (a - .5) * 32 : teamHalf
         ? 4 + (player.team === 1 ? 0 : size / 2) + a * (size / 2 - 8) : 4 + a * (size - 8)) + .5;
-      const z = Math.floor(nearBase ? base + (b - .5) * 32 : 4 + b * (size - 8)) + .5;
-      if (x < 1 || z < 1 || x >= size - 1 || z >= size - 1) continue;
-      // Start at the natural ground, so generated canopies and roofs are never spawn platforms.
-      let y = Math.min(this.world.groundY(x, z) + 1, this.options.world.height - Math.ceil(PLAYER_HEIGHT));
-      while (y > 0 && (!this.world.get(Math.floor(x), y - 1, Math.floor(z))
+      const z = Math.floor(region ? region.minZ + b * (region.maxZ - region.minZ)
+        : nearBase ? base + (b - .5) * 32 : 4 + b * (size - 8)) + .5;
+      if (!region && (x < 1 || z < 1 || x >= size - 1 || z >= size - 1)) continue;
+      // Native ground avoids canopies; authored bounds keep imported spawns inside the arena.
+      let y = region?.maxY ?? Math.min(this.world.groundY(x, z) + 1, this.options.world.height - Math.ceil(PLAYER_HEIGHT));
+      const minY = region?.minY ?? 1;
+      while (y >= minY && (!this.world.get(Math.floor(x), y - 1, Math.floor(z))
         || playerCollides(this.world, { x, y: y + .01, z }))) y--;
-      if (!y) continue;
+      if (y < minY) continue;
       y += .01;
       let blocked = false;
       for (const other of this.players.values()) {

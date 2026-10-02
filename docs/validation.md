@@ -1,6 +1,33 @@
-# Validation du 11 au 22 septembre 2026
+# Validation du 11 septembre au 2 octobre 2026
 
 Le jeu est publié sur Vercel et Hetzner. Cette page distingue les vérifications locales et celles de production ; la parité des sensations avec le Java, la tenue prolongée sur Internet et les grandes distances d'affichage ne sont pas encore entièrement validées.
+
+## Cartes importées — 2 octobre 2026
+
+Validation locale des douze [cartes MIT/GPL intégrées](maps.md), sans publication. `bun run doctor` est prêt ; `bun run check` passe sous Bun 1.3.11 : TypeScript, **635 tests / 40 242 assertions**, build client de 11 fichiers. La suite complète comprend les fixtures temporaires de l'outillage de publication ; son premier passage échouait sur des sous-processus `EPERM` du bac à sable Windows. La même commande avec les permissions adaptées passe intégralement.
+
+Un défaut réel a été corrigé : les bases génériques TDM des Hallway tombaient dans des murs pleins, puis le repli choisissait le sommet des murs ou le fond extérieur. Les bases et régions de leurs auteurs sont désormais conservées dans le catalogue avec une hauteur de sol vérifiée. `shipped-maps.test.ts` vérifie 100 apparitions dans chacun des deux modes sur chaque carte, puis 120 ticks sans chute ni perte de vie. `spawn-regions.test.ts` couvre sol détruit, plafond obstrué, saturation, rotation et configurations invalides ; aucun repli hors de l'arène n'est permis.
+
+`shipped-maps-network.test.ts` teste les douze cartes avec quatre véritables clients WebSocket par scénario : autorité du choix, téléchargement/hash avec le chargeur client, construction/destruction acquittées, arrivée pendant plus de 1 600 éditions, interruption du transfert par une rotation, nettoyage des scores/projectiles et rejet des commandes périmées après réapparition. Les positions et éditions de préparation sont des fixtures ; les actions passent par le transport réel. Tous les clients sont fermés et zéro connexion reste sur chaque serveur.
+
+Deux essais de charge utilisent le scheduler de production et 100 clients WebSocket avec interpolation, commandes à 60 Hz et métadonnées de compensation. Une fixture place les joueurs déjà admis dans une seule région d'apparition au début de chaque phase ; le terrain reste celui de la carte. Ensuite déplacements, tirs, dégâts, construction, destruction et réapparitions sont autoritaires. Chaque essai comprend 20 secondes de combat, un reset réel, puis 10 secondes de combat supplémentaire.
+
+| Carte / phase | Tirs confirmés | Impacts joueurs | Éditions terrain | Tick p95 / p99 | RTT mesuré p50 / p95 |
+|---|---:|---:|---:|---:|---:|
+| Hallway C.9 / initiale | 3 327 | 1 384 | 1 913 | 1,03 / 2,52 ms | 94 / 113 ms |
+| Hallway C.9 / après reset | 1 676 | 828 | 825 | 1,16 / 2,73 ms | 90 / 110 ms |
+| Triangle Hell / initiale | 3 356 | 957 | 2 353 | 1,10 / 3,26 ms | 96 / 127 ms |
+| Triangle Hell / après reset | 1 698 | 688 | 951 | 1,12 / 2,75 ms | 94 / 126 ms |
+
+Les quatre phases confirment 100 clients actifs avec progression des accusés et déplacements, tirs de plus de 80 % des clients, perte de vie reçue, éditions, zéro commande abandonnée, zéro tick abandonné et zéro erreur. Les deux resets sont reçus par les 100 clients ; zéro connexion reste après fermeture. La latence demandée est de 50 ms, mais les files et timers Windows donnent les RTT mesurés ci-dessus. Les percentiles de tick sont ceux des derniers 1 024 ticks au relevé final ; les maxima depuis le démarrage sont respectivement 17,82 et 18,40 ms. Clients et serveur partagent un processus Bun : aucune capacité de production, garantie WAN, tenue prolongée ou performance de 100 navigateurs n'est déduite de ces essais courts.
+
+Le banc `visual-check.ts` termine avec **RÉSULTAT : SUCCÈS** sur le GPU du navigateur, sans erreur console. Le parcours réel charge et fait apparaître un joueur avec 100 PV sur chacune des douze cartes. Deux onglets vérifient l'attente du second joueur, les apparitions opposées, la rotation commune Hallway C.9 → Triangle Hell en 15 secondes et les nouvelles apparitions avec équipement changé. Console sans erreur ni avertissement. Rendu, arme, HUD et minicarte inspectés sur Hallway C.1/C.9, Breakthrough, Triangle Hell et Empty Ocean. Les crédits ont aussi été vérifiés à 390 × 844 pixels : page sans débordement horizontal, tableau défilant et focalisable. Les sources GPL et licences servies reproduisent exactement les fichiers distribués.
+
+Preuves locales dans `.runtime/maps-validation/` : `check.log`, `gpu.txt`, `network-report.json`, `load-hallway-c-9.json`, `load-triangle-hell.json`, `browser-maps.json`, `browser-rotation.json` et captures PNG. L'adaptation temporaire du banc de charge est `concentrated-load.ts`, générée depuis `scripts/benchmark-combat-load.ts` par `prepare-load.ts` ; elle ne modifie pas le scheduler. Les serveurs et onglets de test sont arrêtés.
+
+Limites : le navigateur intégré refuse la capture souris, donc aucun maniement humain ni test tactile sur téléphone physique n'est revendiqué. Aucun déploiement n'a été exécuté et les empreintes de production dans `ops/` restent inchangées.
+
+La préparation de publication inclut ensuite cartes, crédits, licences et sources GPL dans les archives serveur. Après cette extension, `bun run check` passe : **637 tests / 40 274 assertions**, TypeScript et build client. Les dix tests de préparation repassent aussi avec le nom réel de licence `SpadesX-GPL-3.0.txt`. Le banc WSL Debian valide les chemins autorisés, fichiers supplémentaires, mutations après staging, activation et rollback des assets, restauration après échec et première installation sans répertoire public. Les actions systemd y sont simulées ; une installation administrative revue du helper reste nécessaire sur le serveur avant la bascule.
 
 ## Compensation des tirs AK/AWP — 22 septembre 2026, publiée
 

@@ -7,7 +7,16 @@ export type Kit = 'assault' | 'sniper' | 'medic';
 export type WeaponId = 'ak47' | 'awp' | 'shovel' | 'grenade' | 'medic' | 'rpg';
 export interface Vec3 { x: number; y: number; z: number }
 export interface WorldConfig { seed: number; size: number; height: number; map?: { id: string; hash: string } }
-export interface MapChoice { id: string; name: string; world: WorldConfig }
+export interface SpawnRegion { minX: number; maxX: number; minZ: number; maxZ: number; minY: number; maxY: number }
+export interface MapChoice { id: string; name: string; world: WorldConfig; spawnRegions?: [SpawnRegion, SpawnRegion] }
+export function validSpawnRegions(value: unknown, world: WorldConfig): value is [SpawnRegion, SpawnRegion] {
+  return Array.isArray(value) && value.length === 2 && [value[0], value[1]].every(region =>
+    typeof region === 'object' && region !== null
+    && ['minX', 'maxX', 'minZ', 'maxZ', 'minY', 'maxY'].every(key => Number.isInteger(region[key]))
+    && region.minX >= 0 && region.maxX <= world.size && region.minX < region.maxX
+    && region.minZ >= 0 && region.maxZ <= world.size && region.minZ < region.maxZ
+    && region.minY >= 1 && region.maxY <= world.height - 3 && region.minY <= region.maxY);
+}
 export type VoxelEdit = [x: number, y: number, z: number, value: number];
 export interface MotionState {
   position: Vec3; velocity: Vec3; grounded: boolean; yaw: number; pitch: number;

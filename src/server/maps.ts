@@ -3,6 +3,7 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { decodeImportedMap, type ImportedMap } from '../shared/imported-map.ts';
 import type { MapChoice, WorldConfig } from '../shared/protocol.ts';
+import { validSpawnRegions } from '../shared/protocol.ts';
 
 const MAX_MAP_BYTES = 16 + (512 * 512 + 1 + 512 * 512 * 64 * 2) * 4;
 
@@ -27,7 +28,9 @@ export function readMapCatalog(mapsRoot: string, nativeWorld: WorldConfig): MapC
     if (!file.isFile() || file.size < 16 || file.size > MAX_MAP_BYTES) throw new Error(`Invalid map asset: ${entry.id}`);
     ids.add(entry.id);
     hashes.add(entry.hash);
-    maps.push({ id: entry.id, name: entry.name, world: { seed: 0, size: 512, height: 64, map: { id: entry.id, hash: entry.hash } } });
+    const world = { seed: 0, size: 512, height: 64, map: { id: entry.id, hash: entry.hash } };
+    if (entry.spawnRegions !== undefined && !validSpawnRegions(entry.spawnRegions, world)) throw new Error('Invalid map spawn regions');
+    maps.push({ id: entry.id, name: entry.name, world, ...(entry.spawnRegions ? { spawnRegions: entry.spawnRegions } : {}) });
   }
   return maps;
 }

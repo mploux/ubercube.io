@@ -1,0 +1,393 @@
+{
+  "version": 1,
+  "maps": [
+    {
+      "id": "hallway-c-1",
+      "name": "Hallway C.1",
+      "hash": "3ef4c61295ec216a2dc4679c0c5e2e37033abf5883b222fd1cdae9bc8c5673bd",
+      "author": "CorellanStoma (Daniel Klingel)",
+      "source": "https://github.com/CorellanStoma/Hallway-C/blob/366dcd445b964d46b13e93d38cd87f9435624c55/Versions/Hallway%20C.1.vxl",
+      "license": "MIT",
+      "licenseUrl": "/map-credits/licenses/Hallway-C-MIT.txt",
+      "permission": "https://github.com/CorellanStoma/Hallway-C/blob/366dcd445b964d46b13e93d38cd87f9435624c55/license",
+      "revision": "366dcd445b964d46b13e93d38cd87f9435624c55",
+      "sourceSha256": "676df3ccbb1cbf560800289ad87d58652050eec8876aa2d8fae14345a7f3f44f",
+      "convertedOn": "2026-10-02",
+      "spawnRegions": [
+        {
+          "minX": 48,
+          "maxX": 80,
+          "minZ": 240,
+          "maxZ": 272,
+          "minY": 12,
+          "maxY": 12
+        },
+        {
+          "minX": 432,
+          "maxX": 464,
+          "minZ": 240,
+          "maxZ": 272,
+          "minY": 12,
+          "maxY": 12
+        }
+      ],
+      "spawnRegionSource": "https://github.com/CorellanStoma/Hallway-C/blob/366dcd445b964d46b13e93d38cd87f9435624c55/Versions/Hallway%20C.1.txt"
+    },
+    {
+      "id": "hallway-c-2",
+      "name": "Hallway C.2",
+      "hash": "a2d54b3a2befb43b89425ea4de6892eb2854ddacb84fbce30b87ce083f1f21ac",
+      "author": "CorellanStoma (Daniel Klingel)",
+      "source": "https://github.com/CorellanStoma/Hallway-C/blob/366dcd445b964d46b13e93d38cd87f9435624c55/Versions/Hallway%20C.2.vxl",
+      "license": "MIT",
+      "licenseUrl": "/map-credits/licenses/Hallway-C-MIT.txt",
+      "permission": "https://github.com/CorellanStoma/Hallway-C/blob/366dcd445b964d46b13e93d38cd87f9435624c55/license",
+      "revision": "366dcd445b964d46b13e93d38cd87f9435624c55",
+      "sourceSha256": "c777dee949853af57c1abdd49b6394258bf6eddf3ef9143a558ca082d94a4ecc",
+      "convertedOn": "2026-10-02",
+      "spawnRegions": [
+        {
+          "minX": 48,
+          "maxX": 80,
+          "minZ": 240,
+          "maxZ": 272,
+          "minY": 12,
+          "maxY": 12
+        },
+        {
+          "minX": 432,
+          "maxX": 464,
+          "minZ": 240,
+          "maxZ": 272,
+          "minY": 12,
+          "maxY": 12
+        }
+      ],
+      "spawnRegionSource": "https://github.com/CorellanStoma/Hallway-C/blob/366dcd445b964d46b13e93d38cd87f9435624c55/Versions/Hallway%20C.2.txt"
+    },
+    {
+      "id": "hallway-c-3",
+      "name": "Hallway C.3",
+      "hash": "00591028ac216abcd09f0de11f1f6145eda76d072665ed5eb84ce5e298cf0a2c",
+      "author": "CorellanStoma (Daniel Klingel)",
+      "source": "https://github.com/CorellanStoma/Hallway-C/blob/366dcd445b964d46b13e93d38cd87f9435624c55/Versions/Hallway%20C.3.vxl",
+      "license": "MIT",
+      "licenseUrl": "/map-credits/licenses/Hallway-C-MIT.txt",
+      "permission": "https://github.com/CorellanStoma/Hallway-C/blob/366dcd445b964d46b13e93d38cd87f9435624c55/license",
+      "revision": "366dcd445b964d46b13e93d38cd87f9435624c55",
+      "sourceSha256": "d3095d8f6d5bb2dfe2e0caa069aba8575635b9925ed87251d72f0ed5dad45129",
+      "convertedOn": "2026-10-02",
+      "spawnRegions": [
+        {
+          "minX": 48,
+          "maxX": 80,
+          "minZ": 240,
+          "maxZ": 272,
+          "minY": 12,
+          "maxY": 12
+        },
+        {
+          "minX": 432,
+          "maxX": 464,
+          "minZ": 240,
+          "maxZ": 272,
+          "minY": 12,
+          "maxY": 12
+        }
+      ],
+      "spawnRegionSource": "https://github.com/CorellanStoma/Hallway-C/blob/366dcd445b964d46b13e93d38cd87f9435624c55/Versions/Hallway%20C.3.txt"
+    },
+    {
+      "id": "hallway-c-4",
+      "name": "Hallway C.4",
+      "hash": "7a7096b942473936212daf972b7436a37a1412bc2e522bbba7dcf19e3c6b6b70",
+      "author": "CorellanStoma (Daniel Klingel)",
+      "source": "https://github.com/CorellanStoma/Hallway-C/blob/366dcd445b964d46b13e93d38cd87f9435624c55/Versions/Hallway%20C.4.vxl",
+      "license": "MIT",
+      "licenseUrl": "/map-credits/licenses/Hallway-C-MIT.txt",
+      "permission": "https://github.com/CorellanStoma/Hallway-C/blob/366dcd445b964d46b13e93d38cd87f9435624c55/license",
+      "revision": "366dcd445b964d46b13e93d38cd87f9435624c55",
+      "sourceSha256": "c076a089f0aa1f1a25b5dc4db18808d24f9a98431b72bcd0d0b8a6acb00262de",
+      "convertedOn": "2026-10-02",
+      "spawnRegions": [
+        {
+          "minX": 48,
+          "maxX": 80,
+          "minZ": 240,
+          "maxZ": 272,
+          "minY": 12,
+          "maxY": 12
+        },
+        {
+          "minX": 432,
+          "maxX": 464,
+          "minZ": 240,
+          "maxZ": 272,
+          "minY": 12,
+          "maxY": 12
+        }
+      ],
+      "spawnRegionSource": "https://github.com/CorellanStoma/Hallway-C/blob/366dcd445b964d46b13e93d38cd87f9435624c55/Versions/Hallway%20C.4.txt"
+    },
+    {
+      "id": "hallway-c-5",
+      "name": "Hallway C.5",
+      "hash": "1c48f0d6c561114af42df704671fc577684006a2ae0b64c4d5641753a1908b96",
+      "author": "CorellanStoma (Daniel Klingel)",
+      "source": "https://github.com/CorellanStoma/Hallway-C/blob/366dcd445b964d46b13e93d38cd87f9435624c55/Versions/Hallway%20C.5.vxl",
+      "license": "MIT",
+      "licenseUrl": "/map-credits/licenses/Hallway-C-MIT.txt",
+      "permission": "https://github.com/CorellanStoma/Hallway-C/blob/366dcd445b964d46b13e93d38cd87f9435624c55/license",
+      "revision": "366dcd445b964d46b13e93d38cd87f9435624c55",
+      "sourceSha256": "def5a806360005c7fd9e49efcd03e55a2b348605a9912dd2f202b6282162bd44",
+      "convertedOn": "2026-10-02",
+      "spawnRegions": [
+        {
+          "minX": 48,
+          "maxX": 80,
+          "minZ": 240,
+          "maxZ": 272,
+          "minY": 12,
+          "maxY": 12
+        },
+        {
+          "minX": 432,
+          "maxX": 464,
+          "minZ": 240,
+          "maxZ": 272,
+          "minY": 12,
+          "maxY": 12
+        }
+      ],
+      "spawnRegionSource": "https://github.com/CorellanStoma/Hallway-C/blob/366dcd445b964d46b13e93d38cd87f9435624c55/Versions/Hallway%20C.5.txt"
+    },
+    {
+      "id": "hallway-c-6",
+      "name": "Hallway C.6",
+      "hash": "bfdd040947904578c6703b08a1af4f9c0b9a9c5f9da49fd699456446f547adde",
+      "author": "CorellanStoma (Daniel Klingel)",
+      "source": "https://github.com/CorellanStoma/Hallway-C/blob/366dcd445b964d46b13e93d38cd87f9435624c55/Versions/Hallway%20C.6.vxl",
+      "license": "MIT",
+      "licenseUrl": "/map-credits/licenses/Hallway-C-MIT.txt",
+      "permission": "https://github.com/CorellanStoma/Hallway-C/blob/366dcd445b964d46b13e93d38cd87f9435624c55/license",
+      "revision": "366dcd445b964d46b13e93d38cd87f9435624c55",
+      "sourceSha256": "5a7261536120e1eb7363e94033ed320cd8efb7ffcdcda752c53e21a748b70620",
+      "convertedOn": "2026-10-02",
+      "spawnRegions": [
+        {
+          "minX": 48,
+          "maxX": 80,
+          "minZ": 240,
+          "maxZ": 272,
+          "minY": 12,
+          "maxY": 12
+        },
+        {
+          "minX": 432,
+          "maxX": 464,
+          "minZ": 240,
+          "maxZ": 272,
+          "minY": 12,
+          "maxY": 12
+        }
+      ],
+      "spawnRegionSource": "https://github.com/CorellanStoma/Hallway-C/blob/366dcd445b964d46b13e93d38cd87f9435624c55/Versions/Hallway%20C.6.txt"
+    },
+    {
+      "id": "hallway-c-7",
+      "name": "Hallway C.7",
+      "hash": "b9b5e7b0167d3080d2ae4d543b20da4a8b952a16608f8fe3b471238d9e658bca",
+      "author": "CorellanStoma (Daniel Klingel)",
+      "source": "https://github.com/CorellanStoma/Hallway-C/blob/366dcd445b964d46b13e93d38cd87f9435624c55/Versions/Hallway%20C.7.vxl",
+      "license": "MIT",
+      "licenseUrl": "/map-credits/licenses/Hallway-C-MIT.txt",
+      "permission": "https://github.com/CorellanStoma/Hallway-C/blob/366dcd445b964d46b13e93d38cd87f9435624c55/license",
+      "revision": "366dcd445b964d46b13e93d38cd87f9435624c55",
+      "sourceSha256": "c29fc869758707b8185cc391e4cc35bc34b1d18274987292ad7e64788e2da589",
+      "convertedOn": "2026-10-02",
+      "spawnRegions": [
+        {
+          "minX": 48,
+          "maxX": 80,
+          "minZ": 240,
+          "maxZ": 272,
+          "minY": 12,
+          "maxY": 12
+        },
+        {
+          "minX": 432,
+          "maxX": 464,
+          "minZ": 240,
+          "maxZ": 272,
+          "minY": 12,
+          "maxY": 12
+        }
+      ],
+      "spawnRegionSource": "https://github.com/CorellanStoma/Hallway-C/blob/366dcd445b964d46b13e93d38cd87f9435624c55/Versions/Hallway%20C.7.txt"
+    },
+    {
+      "id": "hallway-c-8",
+      "name": "Hallway C.8",
+      "hash": "ce4064b0cf33d9efbca7cacc2275897a0be5237643ae9b11e25619a00af7b8a2",
+      "author": "CorellanStoma (Daniel Klingel)",
+      "source": "https://github.com/CorellanStoma/Hallway-C/blob/366dcd445b964d46b13e93d38cd87f9435624c55/Versions/Hallway%20C.8.vxl",
+      "license": "MIT",
+      "licenseUrl": "/map-credits/licenses/Hallway-C-MIT.txt",
+      "permission": "https://github.com/CorellanStoma/Hallway-C/blob/366dcd445b964d46b13e93d38cd87f9435624c55/license",
+      "revision": "366dcd445b964d46b13e93d38cd87f9435624c55",
+      "sourceSha256": "3dc4cc8c48d0583ca19cd64f0053113aa80e537473b872bf25aaf559c6929c0b",
+      "convertedOn": "2026-10-02",
+      "spawnRegions": [
+        {
+          "minX": 48,
+          "maxX": 80,
+          "minZ": 240,
+          "maxZ": 272,
+          "minY": 12,
+          "maxY": 12
+        },
+        {
+          "minX": 432,
+          "maxX": 464,
+          "minZ": 240,
+          "maxZ": 272,
+          "minY": 12,
+          "maxY": 12
+        }
+      ],
+      "spawnRegionSource": "https://github.com/CorellanStoma/Hallway-C/blob/366dcd445b964d46b13e93d38cd87f9435624c55/Versions/Hallway%20C.8.txt"
+    },
+    {
+      "id": "hallway-c-9",
+      "name": "Hallway C.9",
+      "hash": "6eda707601337ae0039074cfe3e7caa23b12b88268a1d09bf69d0b269bda21e8",
+      "author": "CorellanStoma (Daniel Klingel)",
+      "source": "https://github.com/CorellanStoma/Hallway-C/blob/366dcd445b964d46b13e93d38cd87f9435624c55/Versions/Hallway%20C.9.vxl",
+      "license": "MIT",
+      "licenseUrl": "/map-credits/licenses/Hallway-C-MIT.txt",
+      "permission": "https://github.com/CorellanStoma/Hallway-C/blob/366dcd445b964d46b13e93d38cd87f9435624c55/license",
+      "revision": "366dcd445b964d46b13e93d38cd87f9435624c55",
+      "sourceSha256": "72ea422e651037911cd31aafda84cb6c4e72b059441baa1a715290dcc167566c",
+      "convertedOn": "2026-10-02",
+      "spawnRegions": [
+        {
+          "minX": 48,
+          "maxX": 80,
+          "minZ": 240,
+          "maxZ": 272,
+          "minY": 12,
+          "maxY": 12
+        },
+        {
+          "minX": 432,
+          "maxX": 464,
+          "minZ": 240,
+          "maxZ": 272,
+          "minY": 12,
+          "maxY": 12
+        }
+      ],
+      "spawnRegionSource": "https://github.com/CorellanStoma/Hallway-C/blob/366dcd445b964d46b13e93d38cd87f9435624c55/Versions/Hallway%20C.9.txt"
+    },
+    {
+      "id": "breakthrough-c-0",
+      "name": "Breakthrough C.0",
+      "hash": "44d7e1730e5edc96aa2971bfa9d215b9b6baf7a9eccb42e7b9093b47c9c35a52",
+      "author": "CorellanStoma (Daniel Klingel)",
+      "source": "https://github.com/CorellanStoma/Hallway-C/blob/366dcd445b964d46b13e93d38cd87f9435624c55/Versions/Breakthrough%20C.0.vxl",
+      "license": "MIT",
+      "licenseUrl": "/map-credits/licenses/Hallway-C-MIT.txt",
+      "permission": "https://github.com/CorellanStoma/Hallway-C/blob/366dcd445b964d46b13e93d38cd87f9435624c55/license",
+      "revision": "366dcd445b964d46b13e93d38cd87f9435624c55",
+      "sourceSha256": "1bf06269acf01ce1e593b8b2bcca0a32df54b2aef0f49d9c85fc2f4785ac7876",
+      "convertedOn": "2026-10-02",
+      "spawnRegions": [
+        {
+          "minX": 48,
+          "maxX": 80,
+          "minZ": 240,
+          "maxZ": 272,
+          "minY": 13,
+          "maxY": 13
+        },
+        {
+          "minX": 432,
+          "maxX": 464,
+          "minZ": 240,
+          "maxZ": 272,
+          "minY": 13,
+          "maxY": 13
+        }
+      ],
+      "spawnRegionSource": "https://github.com/CorellanStoma/Hallway-C/blob/366dcd445b964d46b13e93d38cd87f9435624c55/Versions/Breakthrough%20C.0.txt"
+    },
+    {
+      "id": "triangle-hell",
+      "name": "Triangle Hell",
+      "hash": "aa77f73d63a566804bdc7353a31df18908369125cff483742598516502ad8ee0",
+      "author": "Lancilloty",
+      "source": "https://github.com/SpadesX/Maps/blob/1dc37fd59ad274aa6dd5eaf60086bd799e69e430/maps/ctf/Triangle_Hell/Triangle_Hell.vxl",
+      "license": "GPL-3.0",
+      "licenseUrl": "/map-credits/licenses/SpadesX-GPL-3.0.txt",
+      "permission": "https://github.com/SpadesX/Maps/pull/6",
+      "revision": "1dc37fd59ad274aa6dd5eaf60086bd799e69e430",
+      "sourceSha256": "16a0a0da921c9131230bdada2e5022ba2318964038e59504e4b66eace3747220",
+      "sourceDownload": "/map-credits/sources/Triangle_Hell.vxl",
+      "metadataDownload": "/map-credits/sources/Triangle_Hell.json",
+      "convertedOn": "2026-10-02",
+      "spawnRegions": [
+        {
+          "minX": 224,
+          "maxX": 288,
+          "minZ": 1,
+          "maxZ": 20,
+          "minY": 3,
+          "maxY": 3
+        },
+        {
+          "minX": 224,
+          "maxX": 288,
+          "minZ": 491,
+          "maxZ": 511,
+          "minY": 3,
+          "maxY": 3
+        }
+      ],
+      "spawnRegionSource": "https://github.com/SpadesX/Maps/blob/1dc37fd59ad274aa6dd5eaf60086bd799e69e430/maps/ctf/Triangle_Hell/Triangle_Hell.json"
+    },
+    {
+      "id": "empty-ocean",
+      "name": "Empty Ocean",
+      "hash": "57a4d6f2790367e254a1da4e91734e93747be893e5ee18ccbe4c79fcaf96a01d",
+      "author": "Lancilloty",
+      "source": "https://github.com/SpadesX/Maps/blob/1dc37fd59ad274aa6dd5eaf60086bd799e69e430/maps/ctf/Empty_Ocean/Empty_Ocean.vxl",
+      "license": "GPL-3.0",
+      "licenseUrl": "/map-credits/licenses/SpadesX-GPL-3.0.txt",
+      "permission": "https://github.com/SpadesX/Maps/pull/8",
+      "revision": "1dc37fd59ad274aa6dd5eaf60086bd799e69e430",
+      "sourceSha256": "776e0824cc20eb630289d6cb7b1662b309db0b2a953a92858c13fc9ed2a2188c",
+      "sourceDownload": "/map-credits/sources/Empty_Ocean.vxl",
+      "metadataDownload": "/map-credits/sources/Empty_Ocean.json",
+      "convertedOn": "2026-10-02",
+      "spawnRegions": [
+        {
+          "minX": 224,
+          "maxX": 288,
+          "minZ": 1,
+          "maxZ": 20,
+          "minY": 1,
+          "maxY": 1
+        },
+        {
+          "minX": 224,
+          "maxX": 288,
+          "minZ": 491,
+          "maxZ": 511,
+          "minY": 1,
+          "maxY": 1
+        }
+      ],
+      "spawnRegionSource": "https://github.com/SpadesX/Maps/blob/1dc37fd59ad274aa6dd5eaf60086bd799e69e430/maps/ctf/Empty_Ocean/Empty_Ocean.json"
+    }
+  ]
+}

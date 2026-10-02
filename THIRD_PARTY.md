@@ -1,5 +1,15 @@
 # Ressources de référence
 
+## Cartes Ace of Spades intégrées le 2 octobre 2026
+
+Hallway C.1 à C.9 et Breakthrough C.0 sont de CorellanStoma (Daniel Klingel), Copyright (c) 2021 Daniel Klingel, sous MIT. Source : [Hallway-C, révision 366dcd4](https://github.com/CorellanStoma/Hallway-C/tree/366dcd445b964d46b13e93d38cd87f9435624c55). La [notice MIT complète](public/map-credits/licenses/Hallway-C-MIT.txt) est distribuée avec les cartes. Hallway C reprend le concept de Hallway d'Izzy.
+
+Triangle Hell et Empty Ocean sont de Lancilloty, sous GPL-3.0, avec permissions explicites dans les [PR 6](https://github.com/SpadesX/Maps/pull/6) et [8](https://github.com/SpadesX/Maps/pull/8). Source : [SpadesX/Maps, révision 1dc37fd](https://github.com/SpadesX/Maps/tree/1dc37fd59ad274aa6dd5eaf60086bd799e69e430). Triangle Hell est inspirée de Hallway 2.0. La [GPL complète](public/map-credits/licenses/SpadesX-GPL-3.0.txt), les VXL originaux, les métadonnées auteur et les sources du convertisseur sont distribués dans `public/map-credits/`. Les cartes adaptées restent sous GPL-3.0.
+
+Les adaptations du 2 octobre 2026 conservent géométrie et couleurs de surface, inversent l'axe vertical et attribuent aux solides cachés la couleur de la surface verticale la plus proche. Les scripts, objectifs CTF et dégâts d'eau ne sont pas portés. Les zones d'apparition du catalogue utilisent les bases ou rectangles des auteurs, avec des hauteurs de sol vérifiées dans les voxels convertis. Le catalogue conserve les sources exactes, licences, révisions et empreintes. Les mentions sont accessibles dans le jeu depuis l'accueil et la pause : [page distribuée](public/map-credits/index.html).
+
+## Ressources Ubercube et dépendances
+
 Les modèles OBJ/MTL historiques, les sons WAV, la police `RifficFree-Bold.ttf` et les textures d'interface et de minicarte dans `public/assets` proviennent du projet UBERCUBE de Team Ubercube, fourni par Marc dans le dossier voisin `ubercube`. Le modèle RPG dédié décrit ci-dessous est une création pour ce portage.
 
 Le fichier de licence fourni avec ce projet est conservé dans `public/assets/LICENSE.txt`. Les ressources ont été copiées ; aucun fichier du projet Java original n'a été modifié.
